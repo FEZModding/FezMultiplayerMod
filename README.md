@@ -5,7 +5,7 @@ Game modification for FEZ adding online multiplayer
 [![GitHub releases](https://img.shields.io/github/downloads/FEZModding/FezMultiplayerMod/total.svg?style=flat)](https://github.com/FEZModding/FezMultiplayerMod/releases)
 [![Version](https://img.shields.io/github/v/release/FEZModding/FezMultiplayerMod.svg?style=flat)](https://github.com/FEZModding/FezMultiplayerMod/releases/latest)
 
-<img src="thumbnail.png" width="50%" alt="Fez Multiplayer Mod in action" title="FezMultiplayerMod in action" />
+<!--img src="thumbnail.png" width="50%" alt="Fez Multiplayer Mod in action" title="FezMultiplayerMod in action" /-->
 
 ## Overview 
 
