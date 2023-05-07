@@ -1,0 +1,78 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+    <ProjectGuid>{180C043D-688B-4120-84C2-8ED3F0D008A9}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <RootNamespace>FEZ.MultiplayerMod.mm</RootNamespace>
+    <AssemblyName>FEZ.MultiplayerMod.mm</AssemblyName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug</OutputPath>
+    <DefineConstants>DEBUG;</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <DebugType>full</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release</OutputPath>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="MonoMod.RuntimeDetour">
+      <HintPath>..\libs\MonoMod.RuntimeDetour.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="FNA">
+      <HintPath>..\libs\FNA.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ContentSerialization">
+      <HintPath>..\libs\ContentSerialization.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.XML" />
+    <Reference Include="XnaWordWrapCore">
+      <HintPath>..\libs\XnaWordWrapCore.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FEZ">
+      <HintPath>..\libs\FEZ.exe</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FezEngine">
+      <HintPath>..\libs\FezEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="mscorlib" />
+    <Reference Include="EasyStorage">
+      <HintPath>..\libs\EasyStorage.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Common">
+      <HintPath>..\libs\Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MonoMod">
+      <HintPath>..\libs\MonoMod.exe</HintPath>
+      <Private>False</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="MultiplayerMod\MultiplayerClient.cs" />
+    <Compile Include="MultiplayerMod\FezMultiplayerMod.cs" />
+    <Compile Include="Patches\Fez.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+</Project>
