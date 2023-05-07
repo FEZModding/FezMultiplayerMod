@@ -2,17 +2,14 @@
 
 Game modification for FEZ adding online multiplayer 
 
-[![GitHub releases](https://img.shields.io/github/downloads/Jenna1337/FezMultiplayerMod/total.svg?style=flat)](https://github.com/Jenna1337/FezMultiplayerMod/releases)
-[![Version](https://img.shields.io/github/v/release/Jenna1337/FezMultiplayerMod.svg?style=flat)](https://github.com/Jenna1337/FezMultiplayerMod/releases/latest)
+[![GitHub releases](https://img.shields.io/github/downloads/FEZModding/FezMultiplayerMod/total.svg?style=flat)](https://github.com/FEZModding/FezMultiplayerMod/releases)
+[![Version](https://img.shields.io/github/v/release/FEZModding/FezMultiplayerMod.svg?style=flat)](https://github.com/FEZModding/FezMultiplayerMod/releases/latest)
 
 <img src="thumbnail.png" width="50%" alt="Fez Multiplayer Mod in action" title="FezMultiplayerMod in action" />
 
 ## Overview 
 
 This library is a game modification for the video game FEZ which adds online multiplayer.
-
-
-Please support me on Patreon: https://www.patreon.com/jenna1337 
 
 ## Features
 
@@ -25,7 +22,7 @@ For a full list of features, see [changelog.txt](/changelog.txt)
 ### Method 1: HAT
 
 1. Install [HAT](https://github.com/Krzyhau/HAT) via the instructions there
-2. Download FezMultiplayerMod.zip from https://github.com/Jenna1337/FezMultiplayerMod/releases/latest and put it in the "Mods" directory.
+2. Download FezMultiplayerMod.zip from https://github.com/FEZModding/FezMultiplayerMod/releases/latest and put it in the "Mods" directory.
 3. Run `MONOMODDED_FEZ.exe` and enjoy!
 
 ## Building
