@@ -37,14 +37,6 @@ namespace FezGame.MultiplayerMod
             }
         }
 
-        #region ServiceDependencies
-        [ServiceDependency]
-        public IPlayerManager PlayerManager { private get; set; }
-
-        [ServiceDependency]
-        public IGameLevelManager LevelManager { private get; set; }
-        #endregion
-
         private static int port => 7777;//TODO add a way to change the port
         private readonly UdpClient udpClient = new UdpClient();
         public static List<IPAddress> Targets { get; } = new List<IPAddress>() { IPAddress.Loopback };//TODO add a way to change the targets
@@ -64,9 +56,9 @@ namespace FezGame.MultiplayerMod
                     p = (Players[MyUuid] = new PlayerMetadata(MyUuid, null, Vector3.Zero, 0));
                 }
                 //update MyPlayer
-                p.currentLevelName = LevelManager.Name;
-                p.position = PlayerManager.Position;
-                p.action = PlayerManager.Action;
+                p.currentLevelName = FezMultiplayerMod.Instance.LevelManager.Name;
+                p.position = FezMultiplayerMod.Instance.PlayerManager.Position;
+                p.action = FezMultiplayerMod.Instance.PlayerManager.Action;
                 return p;
             }
         }
@@ -128,7 +120,7 @@ namespace FezGame.MultiplayerMod
                 using (BinaryWriter writer = new BinaryWriter(m))
                 {
                     writer.Write(p.uuid.ToString());
-                    writer.Write(p.currentLevelName);
+                    writer.Write(p.currentLevelName ?? "");
 #pragma warning disable IDE0004
 #pragma warning disable IDE0049
                     writer.Write((Single)p.position.X);

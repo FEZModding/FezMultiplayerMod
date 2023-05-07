@@ -35,10 +35,10 @@ namespace FezGame.MultiplayerMod
 
         #region ServiceDependencies
         [ServiceDependency]
-        public IPlayerManager PlayerManager { private get; set; }
+        public IPlayerManager PlayerManager { internal get; set; }
 
         [ServiceDependency]
-        public IGameLevelManager LevelManager { private get; set; }
+        public IGameLevelManager LevelManager { internal get; set; }
 
         [ServiceDependency]
         public IGameStateManager GameState { private get; set; }
@@ -47,13 +47,15 @@ namespace FezGame.MultiplayerMod
         public IGameCameraManager CameraManager { private get; set; }
         #endregion
 
+        public static FezMultiplayerMod Instance;
 
         private MultiplayerClient mp;
 
         public FezMultiplayerMod(Game game)
             : base(game)
         {
-            ServiceHelper.AddComponent(mp = new MultiplayerClient(game));
+            Instance = this;
+            mp = new MultiplayerClient(game);
         }
 
         private bool disposing = false;
@@ -73,6 +75,7 @@ namespace FezGame.MultiplayerMod
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
+            mp.Update(gameTime);
         }
 
         public override void Draw(GameTime gameTime)
@@ -86,7 +89,7 @@ namespace FezGame.MultiplayerMod
                 //draw other player to screen if in the same level
                 if(p.uuid != mp.MyUuid && p.currentLevelName != null && p.currentLevelName.Length > 0 && p.currentLevelName == LevelManager.Name)
                 {
-                    
+                    //TODO actually draw the players on the screen 
                 }
             }
         }
