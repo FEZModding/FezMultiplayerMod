@@ -18,8 +18,14 @@ using System.IO;
 
 namespace FezGame.MultiplayerMod
 {
-    internal class MultiplayerClient : GameComponent
+    public class MultiplayerClient : IDisposable
     {
+        [ServiceDependency]
+        public IPlayerManager PlayerManager { private get; set; }
+
+        [ServiceDependency]
+        public IGameLevelManager LevelManager { private get; set; }
+
         [Serializable]
         public struct PlayerMetadata
         {
@@ -42,56 +48,48 @@ namespace FezGame.MultiplayerMod
         public static List<IPAddress> Targets { get; } = new List<IPAddress>() { IPAddress.Loopback };//TODO add a way to change the targets
         public readonly Dictionary<Guid, PlayerMetadata> Players = new Dictionary<Guid, PlayerMetadata>();
         public readonly Guid MyUuid = Guid.NewGuid();
-        private PlayerMetadata MyPlayer
+
+        private PlayerMetadata GetMyPlayer()
         {
-            get
+            PlayerMetadata p;
+            if(!Players.TryGetValue(MyUuid, out p))
             {
-                PlayerMetadata p;
-                try
-                {
-                    p = Players[MyUuid];
-                }
-                catch (KeyNotFoundException)
-                {
-                    p = (Players[MyUuid] = new PlayerMetadata(MyUuid, null, Vector3.Zero, 0));
-                }
-                //update MyPlayer
-                p.currentLevelName = FezMultiplayerMod.Instance.LevelManager.Name;
-                p.position = FezMultiplayerMod.Instance.PlayerManager.Position;
-                p.action = FezMultiplayerMod.Instance.PlayerManager.Action;
-                return p;
+                Players.Add(MyUuid, p = new PlayerMetadata(MyUuid, null, Vector3.Zero, 0));
             }
+            //update MyPlayer
+            p.currentLevelName = LevelManager?.Name;
+            if (PlayerManager != null)
+            {
+                p.position = PlayerManager.Position;
+                p.action = PlayerManager.Action;
+            }
+            Players[MyUuid] = p;
+            return p;
         }
 
         internal MultiplayerClient(Game game)
-            : base(game)
         {
+            _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () => ServiceHelper.InjectServices(this));
         }
 
         private bool disposing = false;
-        protected override void Dispose(bool disposing)
+        public void Dispose()
         {
             if (this.disposing)
                 return;
             this.disposing = true;
-
-            base.Dispose();
         }
 
-        public override void Initialize()
+        public void Update(GameTime gameTime)
         {
-        }
-        public override void Update(GameTime gameTime)
-        {
-            base.Update(gameTime);
-            Players[MyUuid] = MyPlayer;
+            Players[MyUuid] = GetMyPlayer();
             SendToAll();
             ReceiveFromAll();
         }
 
         private void SendToAll()
         {
-            byte[] msg = Serialize(MyPlayer);//Note: could also send the info for the other players if we want
+            byte[] msg = Serialize(Players[MyUuid]);//Note: could also send the info for the other players if we want
 
             // Send the message to all recipients
             System.Threading.Tasks.Parallel.ForEach(Targets,
@@ -135,18 +133,37 @@ namespace FezGame.MultiplayerMod
             }
         }
 
-        private static PlayerMetadata Deserialize(byte[] data)
+        private PlayerMetadata Deserialize(byte[] data)
         {
             using (MemoryStream m = new MemoryStream(data))
             {
                 using (BinaryReader reader = new BinaryReader(m))
                 {
-                    return new PlayerMetadata(
-                        uuid: Guid.Parse(reader.ReadString()),
-                        currentLevelName: reader.ReadString(),
-                        position: new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()),
-                        action: (ActionType)reader.ReadInt32()
-                    );
+                    Guid uuid = Guid.Parse(reader.ReadString());
+                    string lvl = reader.ReadString();
+                    Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+                    ActionType act = (ActionType)reader.ReadInt32();
+
+                    PlayerMetadata p;
+                    if (!Players.TryGetValue(MyUuid, out p))
+                    {
+                        Players.Add(MyUuid, p = new PlayerMetadata(
+                        uuid: uuid,
+                        currentLevelName: lvl,
+                        position: pos,
+                        action: act
+                    ));
+                    }
+                    else
+                    {
+                        //update player
+                        p.currentLevelName = lvl;
+                        p.position = pos;
+                        p.action = act;
+                    }
+                    Players[uuid] = p;
+
+                    return p;
                 }
             }
         }

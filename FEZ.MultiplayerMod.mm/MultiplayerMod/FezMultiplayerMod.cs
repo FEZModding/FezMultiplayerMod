@@ -35,10 +35,10 @@ namespace FezGame.MultiplayerMod
 
         #region ServiceDependencies
         [ServiceDependency]
-        public IPlayerManager PlayerManager { internal get; set; }
+        public IPlayerManager PlayerManager { private get; set; }
 
         [ServiceDependency]
-        public IGameLevelManager LevelManager { internal get; set; }
+        public IGameLevelManager LevelManager { private get; set; }
 
         [ServiceDependency]
         public IGameStateManager GameState { private get; set; }
@@ -74,11 +74,15 @@ namespace FezGame.MultiplayerMod
 
         public override void Initialize()
         {
+            DrawOrder = 4000;
         }
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
-            mp.Update(gameTime);
+            if (!GameState.Paused)
+            {
+                mp.Update(gameTime);
+            }
         }
 
         public override void Draw(GameTime gameTime)
@@ -92,11 +96,11 @@ namespace FezGame.MultiplayerMod
             string s = "";
             foreach(var p in mp.Players.Values)
             {
+                s += $"{p.uuid}, {p.currentLevelName}, {p.action}, {p.position}\n";
                 //draw other player to screen if in the same level
                 if(p.uuid != mp.MyUuid && p.currentLevelName != null && p.currentLevelName.Length > 0 && p.currentLevelName == LevelManager.Name)
                 {
                     //TODO actually draw the players on the screen 
-                    s += $"{p.uuid}, {p.currentLevelName}, {p.action}, {p.position}\n";
                 }
             }
             b.DrawString(FontManager.Big, s, Vector2.Zero, Color.Gray, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
