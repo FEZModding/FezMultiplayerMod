@@ -43,9 +43,9 @@ namespace FezGame.MultiplayerMod
             }
         }
 
-        private static int port => 7777;//TODO add a way to change the port
-        private readonly UdpClient udpClient = new UdpClient(port);
-        public static List<IPAddress> Targets { get; } = new List<IPAddress>() { IPAddress.Loopback };//TODO add a way to change the targets
+        private static int listenPort => 7777;//TODO add a way to change the port
+        private readonly UdpClient udpListener = new UdpClient(listenPort);
+        public static List<IPEndPoint> Targets { get; } = new List<IPEndPoint>() { new IPEndPoint(IPAddress.Loopback, 7777) };//TODO add a way to change the targets
         public readonly Dictionary<Guid, PlayerMetadata> Players = new Dictionary<Guid, PlayerMetadata>();
         public readonly Guid MyUuid = Guid.NewGuid();
 
@@ -96,7 +96,7 @@ namespace FezGame.MultiplayerMod
                 targ =>
                 {
                     UdpClient Client = new UdpClient();
-                    Client.Send(msg, msg.Length, new IPEndPoint(targ, port));
+                    Client.Send(msg, msg.Length, targ);
                     Client.Close();
                 });
         }
@@ -105,8 +105,8 @@ namespace FezGame.MultiplayerMod
             //Note: should probably be async instead
             foreach (var targ in Targets)
             {
-                IPEndPoint t = new IPEndPoint(IPAddress.Any, port);
-                ProcessDatagram(udpClient.Receive(ref t));
+                IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
+                ProcessDatagram(udpListener.Receive(ref t));
             }
         }
 
@@ -144,9 +144,9 @@ namespace FezGame.MultiplayerMod
                     ActionType act = (ActionType)reader.ReadInt32();
 
                     PlayerMetadata p;
-                    if (!Players.TryGetValue(MyUuid, out p))
+                    if (!Players.TryGetValue(uuid, out p))
                     {
-                        Players.Add(MyUuid, p = new PlayerMetadata(
+                        Players.Add(uuid, p = new PlayerMetadata(
                             uuid: uuid,
                             currentLevelName: lvl,
                             position: pos,
