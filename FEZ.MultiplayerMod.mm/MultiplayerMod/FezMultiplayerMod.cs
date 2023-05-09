@@ -59,6 +59,7 @@ namespace FezGame.MultiplayerMod
         {
             Instance = this;
             mp = new MultiplayerClient(game);
+            drawer = new SpriteBatch(GraphicsDevice);
         }
 
         private bool disposing = false;
@@ -68,10 +69,12 @@ namespace FezGame.MultiplayerMod
                 return;
             this.disposing = true;
             mp.Dispose();
+            drawer.Dispose();
 
             base.Dispose();
         }
 
+        SpriteBatch drawer;
         public override void Initialize()
         {
             DrawOrder = 4000;
@@ -91,8 +94,7 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
-            var b = new SpriteBatch(GraphicsDevice);
-            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
             string s = "";
             foreach(var p in mp.Players.Values)
             {
@@ -103,8 +105,8 @@ namespace FezGame.MultiplayerMod
                     //TODO actually draw the players on the screen 
                 }
             }
-            b.DrawString(FontManager.Big, s, Vector2.Zero, Color.Gray, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
-            b.End();
+            drawer.DrawString(FontManager.Big, s, Vector2.Zero, Color.Gray, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
+            drawer.End();
         }
     }
 }

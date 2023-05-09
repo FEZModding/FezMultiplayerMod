@@ -106,8 +106,7 @@ namespace FezGame.MultiplayerMod
             foreach (var targ in Targets)
             {
                 IPEndPoint t = new IPEndPoint(IPAddress.Any, port);
-                PlayerMetadata p = Deserialize(udpClient.Receive(ref t));
-                Players[p.uuid] = p;
+                ProcessDatagram(udpClient.Receive(ref t));
             }
         }
 
@@ -133,7 +132,7 @@ namespace FezGame.MultiplayerMod
             }
         }
 
-        private PlayerMetadata Deserialize(byte[] data)
+        private void ProcessDatagram(byte[] data)
         {
             using (MemoryStream m = new MemoryStream(data))
             {
@@ -148,11 +147,11 @@ namespace FezGame.MultiplayerMod
                     if (!Players.TryGetValue(MyUuid, out p))
                     {
                         Players.Add(MyUuid, p = new PlayerMetadata(
-                        uuid: uuid,
-                        currentLevelName: lvl,
-                        position: pos,
-                        action: act
-                    ));
+                            uuid: uuid,
+                            currentLevelName: lvl,
+                            position: pos,
+                            action: act
+                        ));
                     }
                     else
                     {
@@ -162,8 +161,6 @@ namespace FezGame.MultiplayerMod
                         p.action = act;
                     }
                     Players[uuid] = p;
-
-                    return p;
                 }
             }
         }
