@@ -45,6 +45,9 @@ namespace FezGame.MultiplayerMod
 
         [ServiceDependency]
         public IGameCameraManager CameraManager { private get; set; }
+
+        [ServiceDependency]
+        public IFontManager FontManager { private get; set; }
         #endregion
 
         public static FezMultiplayerMod Instance;
@@ -84,14 +87,20 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
+            var b = new SpriteBatch(GraphicsDevice);
+            b.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+            string s = "";
             foreach(var p in mp.Players.Values)
             {
                 //draw other player to screen if in the same level
                 if(p.uuid != mp.MyUuid && p.currentLevelName != null && p.currentLevelName.Length > 0 && p.currentLevelName == LevelManager.Name)
                 {
                     //TODO actually draw the players on the screen 
+                    s += $"{p.uuid}, {p.currentLevelName}, {p.action}, {p.position}\n";
                 }
             }
+            b.DrawString(FontManager.Big, s, Vector2.Zero, Color.Gray, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
+            b.End();
         }
     }
 }

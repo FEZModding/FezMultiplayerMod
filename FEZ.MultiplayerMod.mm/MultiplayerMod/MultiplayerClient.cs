@@ -38,7 +38,7 @@ namespace FezGame.MultiplayerMod
         }
 
         private static int port => 7777;//TODO add a way to change the port
-        private readonly UdpClient udpClient = new UdpClient();
+        private readonly UdpClient udpClient = new UdpClient(port);
         public static List<IPAddress> Targets { get; } = new List<IPAddress>() { IPAddress.Loopback };//TODO add a way to change the targets
         public readonly Dictionary<Guid, PlayerMetadata> Players = new Dictionary<Guid, PlayerMetadata>();
         public readonly Guid MyUuid = Guid.NewGuid();
@@ -145,8 +145,8 @@ namespace FezGame.MultiplayerMod
                         uuid: Guid.Parse(reader.ReadString()),
                         currentLevelName: reader.ReadString(),
                         position: new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle()),
-                        (ActionType)reader.ReadInt32()
-                        );
+                        action: (ActionType)reader.ReadInt32()
+                    );
                 }
             }
         }
