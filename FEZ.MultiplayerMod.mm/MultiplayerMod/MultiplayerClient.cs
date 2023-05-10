@@ -15,6 +15,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Net;
 using System.IO;
+using System.Collections.Concurrent;
 
 namespace FezGame.MultiplayerMod
 {
@@ -44,18 +45,16 @@ namespace FezGame.MultiplayerMod
         }
 
         private static int listenPort => 7777;//TODO add a way to change the port
-        private readonly UdpClient udpListener = new UdpClient(listenPort);
+        private Thread listenerThread;
         public static List<IPEndPoint> Targets { get; } = new List<IPEndPoint>() { new IPEndPoint(IPAddress.Loopback, 7777) };//TODO add a way to change the targets
-        public readonly Dictionary<Guid, PlayerMetadata> Players = new Dictionary<Guid, PlayerMetadata>();
+        public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
         public readonly Guid MyUuid = Guid.NewGuid();
 
         private PlayerMetadata GetMyPlayer()
         {
-            PlayerMetadata p;
-            if(!Players.TryGetValue(MyUuid, out p))
-            {
-                Players.Add(MyUuid, p = new PlayerMetadata(MyUuid, null, Vector3.Zero, 0));
-            }
+
+            PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) => new PlayerMetadata(guid, null, Vector3.Zero, 0));
+
             //update MyPlayer
             p.currentLevelName = LevelManager?.Name;
             if (PlayerManager != null)
@@ -70,6 +69,21 @@ namespace FezGame.MultiplayerMod
         internal MultiplayerClient(Game game)
         {
             _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () => ServiceHelper.InjectServices(this));
+
+
+            listenerThread = new Thread(() =>
+            {
+                using (UdpClient udpListener = new UdpClient(listenPort))
+                {
+                    while (!disposing)
+                    {
+                        //IPEndPoint object will allow us to read datagrams sent from any source.
+                        IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
+                        ProcessDatagram(udpListener.Receive(ref t));
+                    }
+                }
+            });
+            listenerThread.Start();
         }
 
         private bool disposing = false;
@@ -78,13 +92,25 @@ namespace FezGame.MultiplayerMod
             if (this.disposing)
                 return;
             this.disposing = true;
+
+            Thread.Sleep(100);
+            if (listenerThread.IsAlive)
+            {
+                listenerThread.Abort();
+            }
         }
 
         public void Update(GameTime gameTime)
         {
             Players[MyUuid] = GetMyPlayer();
             SendToAll();
-            ReceiveFromAll();
+        }
+
+        private static void SendUdp(byte[] msg, IPEndPoint targ)
+        {
+            UdpClient Client = new UdpClient();
+            Client.Send(msg, msg.Length, targ);
+            Client.Close();
         }
 
         private void SendToAll()
@@ -93,21 +119,7 @@ namespace FezGame.MultiplayerMod
 
             // Send the message to all recipients
             System.Threading.Tasks.Parallel.ForEach(Targets,
-                targ =>
-                {
-                    UdpClient Client = new UdpClient();
-                    Client.Send(msg, msg.Length, targ);
-                    Client.Close();
-                });
-        }
-        private void ReceiveFromAll()
-        {
-            //Note: should probably be async instead
-            foreach (var targ in Targets)
-            {
-                IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
-                ProcessDatagram(udpListener.Receive(ref t));
-            }
+                targ => SendUdp(msg, targ));
         }
 
         private static byte[] Serialize(PlayerMetadata p)
@@ -143,24 +155,18 @@ namespace FezGame.MultiplayerMod
                     Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
                     ActionType act = (ActionType)reader.ReadInt32();
 
-                    PlayerMetadata p;
-                    if (!Players.TryGetValue(uuid, out p))
-                    {
-                        Players.Add(uuid, p = new PlayerMetadata(
-                            uuid: uuid,
+                    PlayerMetadata p = Players.GetOrAdd(uuid, (guid) => new PlayerMetadata(
+                            uuid: guid,
                             currentLevelName: lvl,
                             position: pos,
                             action: act
                         ));
-                    }
-                    else
-                    {
-                        //update player
-                        p.currentLevelName = lvl;
-                        p.position = pos;
-                        p.action = act;
-                    }
-                    Players[uuid] = p;
+                    //update player
+                    p.currentLevelName = lvl;
+                    p.position = pos;
+                    p.action = act;
+
+                    Players[uuid] = p;//Note: dunno if we need this
                 }
             }
         }

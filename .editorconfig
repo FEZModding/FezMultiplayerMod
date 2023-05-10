@@ -1,0 +1,4 @@
+﻿[*.cs]
+
+# IDE0010: Add missing cases
+dotnet_diagnostic.IDE0010.severity = warning
