@@ -30,60 +30,80 @@ namespace FezGame.MultiplayerMod
         [Serializable]
         public struct PlayerMetadata
         {
+            public readonly IPEndPoint endpoint;
             public readonly Guid uuid;
             public string currentLevelName;
             public Vector3 position;
             public ActionType action;
+            public long lastUpdateTimestamp;
 
-            public PlayerMetadata(Guid uuid, string currentLevelName, Vector3 position, ActionType action)
+            public PlayerMetadata(IPEndPoint endpoint, Guid uuid, string currentLevelName, Vector3 position, ActionType action, long lastUpdateTimestamp)
             {
+                IPAddress ip = endpoint.Address;
+                if (ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
+                {
+                    endpoint.Address = IPAddress.Loopback;
+                }
+                this.endpoint = endpoint;
                 this.uuid = uuid;
                 this.currentLevelName = currentLevelName;
                 this.position = position;
                 this.action = action;
+                this.lastUpdateTimestamp = lastUpdateTimestamp;
             }
         }
-
-        private static int listenPort => 7777;//TODO add a way to change the port
-        private Thread listenerThread;
-        public static List<IPEndPoint> Targets { get; } = new List<IPEndPoint>() { new IPEndPoint(IPAddress.Loopback, 7777) };//TODO add a way to change the targets
+        private const int mainPort = 7777;
+        private int listenPort = mainPort;//TODO add a way to change the port
+        private volatile UdpClient udpListener;
+        private readonly Thread listenerThread;
+        private readonly Thread timeoutthread;
+        public static List<IPEndPoint> Targets { get; } = new List<IPEndPoint>() { new IPEndPoint(IPAddress.Loopback, mainPort) };//TODO add a way to change the targets
         public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
         public readonly Guid MyUuid = Guid.NewGuid();
-
-        private PlayerMetadata GetMyPlayer()
-        {
-
-            PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) => new PlayerMetadata(guid, null, Vector3.Zero, 0));
-
-            //update MyPlayer
-            p.currentLevelName = LevelManager?.Name;
-            if (PlayerManager != null)
-            {
-                p.position = PlayerManager.Position;
-                p.action = PlayerManager.Action;
-            }
-            Players[MyUuid] = p;
-            return p;
-        }
 
         internal MultiplayerClient(Game game)
         {
             _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () => ServiceHelper.InjectServices(this));
 
-
             listenerThread = new Thread(() =>
             {
-                using (UdpClient udpListener = new UdpClient(listenPort))
+                bool init = true;
+                while (init)
                 {
-                    while (!disposing)
+                    try
                     {
-                        //IPEndPoint object will allow us to read datagrams sent from any source.
-                        IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
-                        ProcessDatagram(udpListener.Receive(ref t));
+                        udpListener = new UdpClient(listenPort);
+                        init = false;
+                    }
+                    catch (Exception)
+                    {
+                        listenPort++;
+                    }
+                }
+                while (!disposing)
+                {
+                    //IPEndPoint object will allow us to read datagrams sent from any source.
+                    IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
+                    ProcessDatagram(udpListener.Receive(ref t));
+                }
+                udpListener.Close();
+            });
+            listenerThread.Start();
+
+            timeoutthread = new Thread(() =>
+            {
+                while (!disposing)
+                {
+                    const long overduetimeout = 30_000_000;//3 seconds //TODO probably should make this customizable
+                    foreach (PlayerMetadata p in Players.Values)
+                    {
+                        if (p.lastUpdateTimestamp < Players[MyUuid].lastUpdateTimestamp - overduetimeout)
+                        {
+                            _ = Players.TryRemove(p.uuid, out _);
+                        }
                     }
                 }
             });
-            listenerThread.Start();
         }
 
         private bool disposing = false;
@@ -98,12 +118,38 @@ namespace FezGame.MultiplayerMod
             {
                 listenerThread.Abort();
             }
+            if (timeoutthread.IsAlive)
+            {
+                timeoutthread.Abort();
+            }
+            udpListener.Close();
+            SendToAll(SerializeNotice(NoticeType.Disconnect, Players[MyUuid].endpoint.ToString()));
         }
 
         public void Update(GameTime gameTime)
         {
-            Players[MyUuid] = GetMyPlayer();
-            SendToAll();
+            //UpdateMyPlayer
+
+            PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) =>
+            {
+                return new PlayerMetadata((IPEndPoint)udpListener.Client.LocalEndPoint, guid, null, Vector3.Zero, 0, DateTime.UtcNow.Ticks);
+            });
+
+            //update MyPlayer
+            p.currentLevelName = LevelManager?.Name;
+            if (PlayerManager != null)
+            {
+                p.position = PlayerManager.Position;
+                p.action = PlayerManager.Action;
+            }
+            p.lastUpdateTimestamp = DateTime.UtcNow.Ticks;
+            Players[MyUuid] = p;
+
+            //SendPlayerDataToAll
+            foreach (PlayerMetadata m in Players.Values)//Note: could also send the info for the other players if we want
+            {
+                SendToAll(Serialize(m));
+            }
         }
 
         private static void SendUdp(byte[] msg, IPEndPoint targ)
@@ -113,13 +159,50 @@ namespace FezGame.MultiplayerMod
             Client.Close();
         }
 
-        private void SendToAll()
+        private void SendToAll(byte[] msg)
         {
-            byte[] msg = Serialize(Players[MyUuid]);//Note: could also send the info for the other players if we want
-
             // Send the message to all recipients
             System.Threading.Tasks.Parallel.ForEach(Targets,
                 targ => SendUdp(msg, targ));
+        }
+
+        private enum PacketType
+        {
+            //arbitrary values
+            PlayerInfo = 1,
+            Notice = 3,
+        }
+
+        private enum NoticeType
+        {
+            //arbitrary values
+            Disconnect = 7,
+            Message = 9,
+        }
+
+        private static byte[] SerializeNotice(NoticeType type, string data)
+        {
+            using (MemoryStream m = new MemoryStream())
+            {
+                using (BinaryWriter writer = new BinaryWriter(m))
+                {
+                    /* 
+                     * Note: these pragma things are here because I feel 
+                     * it's not clear which Read method should be called
+                     * when all the Write methods have the same name.
+                     */
+#pragma warning disable IDE0004
+#pragma warning disable IDE0049
+                    writer.Write((Byte)PacketType.Notice);
+                    writer.Write((Int64)DateTime.UtcNow.Ticks);
+                    writer.Write((Byte)type);
+                    writer.Write((String)data);
+#pragma warning restore IDE0004
+#pragma warning restore IDE0049
+                    writer.Flush();
+                    return m.ToArray();
+                }
+            }
         }
 
         private static byte[] Serialize(PlayerMetadata p)
@@ -128,10 +211,19 @@ namespace FezGame.MultiplayerMod
             {
                 using (BinaryWriter writer = new BinaryWriter(m))
                 {
-                    writer.Write(p.uuid.ToString());
-                    writer.Write(p.currentLevelName ?? "");
+                    /* 
+                     * Note: these pragma things are here because I feel 
+                     * it's not clear which Read method should be called
+                     * when all the Write methods have the same name.
+                     */
 #pragma warning disable IDE0004
 #pragma warning disable IDE0049
+                    writer.Write((Byte)PacketType.PlayerInfo);
+                    writer.Write((Int64)p.lastUpdateTimestamp);
+                    writer.Write((String)((IPAddress)p.endpoint.Address).ToString());
+                    writer.Write((Int32)p.endpoint.Port);
+                    writer.Write((String)p.uuid.ToString());
+                    writer.Write((String)p.currentLevelName ?? "");
                     writer.Write((Single)p.position.X);
                     writer.Write((Single)p.position.Y);
                     writer.Write((Single)p.position.Z);
@@ -150,23 +242,83 @@ namespace FezGame.MultiplayerMod
             {
                 using (BinaryReader reader = new BinaryReader(m))
                 {
-                    Guid uuid = Guid.Parse(reader.ReadString());
-                    string lvl = reader.ReadString();
-                    Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-                    ActionType act = (ActionType)reader.ReadInt32();
+                    PacketType packetType = (PacketType)reader.ReadByte();
+                    long timestamp = reader.ReadInt64();
 
-                    PlayerMetadata p = Players.GetOrAdd(uuid, (guid) => new PlayerMetadata(
-                            uuid: guid,
-                            currentLevelName: lvl,
-                            position: pos,
-                            action: act
-                        ));
-                    //update player
-                    p.currentLevelName = lvl;
-                    p.position = pos;
-                    p.action = act;
+                    switch (packetType)
+                    {
+                    case PacketType.PlayerInfo:
+                        {
+                            IPAddress ip = IPAddress.Parse(reader.ReadString());
+                            if(ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
+                            {
+                                ip = IPAddress.Loopback;
+                            }
+                            IPEndPoint endpoint = new IPEndPoint(ip, reader.ReadInt32());
+                            Guid uuid = Guid.Parse(reader.ReadString());
+                            string lvl = reader.ReadString();
+                            Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+                            ActionType act = (ActionType)reader.ReadInt32();
 
-                    Players[uuid] = p;//Note: dunno if we need this
+                            PlayerMetadata p = Players.GetOrAdd(uuid, (guid) => {
+                                var np = new PlayerMetadata(
+                                    endpoint: endpoint,
+                                    uuid: guid,
+                                    currentLevelName: lvl,
+                                    position: pos,
+                                    action: act,
+                                    lastUpdateTimestamp: timestamp
+                                );
+                                Targets.Add(endpoint);
+                                return np;
+                                });
+                            if (timestamp > p.lastUpdateTimestamp)//Ensure we're not saving old data
+                            {
+                                //update player
+                                p.currentLevelName = lvl;
+                                p.position = pos;
+                                p.action = act;
+                                p.lastUpdateTimestamp = timestamp;
+                            }
+                            Players[uuid] = p;
+                            break;
+                        }
+                    case PacketType.Notice:
+                        {
+                            NoticeType noticeType = (NoticeType)reader.ReadByte();
+                            String noticeData = reader.ReadString();
+                            switch (noticeType)
+                            {
+                            case NoticeType.Disconnect:
+                                {
+                                    IPEndPoint endpoint;
+                                    _ = Targets.Remove(endpoint = Targets.Find(t => t.ToString().Equals(noticeData)));
+                                    try
+                                    {
+                                        _ = Players.TryRemove(Players.First(p => p.Value.endpoint.Equals(endpoint)).Key, out _);
+                                    }
+                                    catch (InvalidOperationException) { }
+
+                                    break;
+                                }
+                            case NoticeType.Message:
+                                {
+                                    break;
+                                }
+                            default:
+                                {
+                                    //Unsupported packet type
+                                    throw new NotSupportedException("Unsupported NoticeType: " + noticeType);
+                                }
+                            }
+                            break;
+                        }
+                    default:
+                        {
+                            //Unsupported packet type
+                            throw new NotSupportedException("Unsupported PacketType: " + packetType);
+                        }
+                    }
                 }
             }
         }

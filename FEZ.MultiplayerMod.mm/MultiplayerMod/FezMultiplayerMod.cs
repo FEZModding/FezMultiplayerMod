@@ -74,7 +74,7 @@ namespace FezGame.MultiplayerMod
             base.Dispose();
         }
 
-        SpriteBatch drawer;
+        private readonly SpriteBatch drawer;
         public override void Initialize()
         {
             DrawOrder = 4000;
@@ -98,7 +98,11 @@ namespace FezGame.MultiplayerMod
             string s = "";
             foreach(var p in mp.Players.Values)
             {
-                s += $"{p.uuid}, {p.currentLevelName}, {p.action}, {p.position}\n";
+                if(p.uuid == mp.MyUuid)
+                {
+                    s += "(you): ";
+                }
+                s += $"{p.endpoint}, {p.uuid}, {p.currentLevelName}, {p.action}, {p.position}, {p.lastUpdateTimestamp}\n";
                 //draw other player to screen if in the same level
                 if(p.uuid != mp.MyUuid && p.currentLevelName != null && p.currentLevelName.Length > 0 && p.currentLevelName == LevelManager.Name)
                 {
