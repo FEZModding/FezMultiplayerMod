@@ -30,7 +30,7 @@ namespace FezGame.MultiplayerMod
         [Serializable]
         public struct PlayerMetadata
         {
-            public readonly IPEndPoint endpoint;
+            public IPEndPoint endpoint;
             public readonly Guid uuid;
             public string currentLevelName;
             public Vector3 position;
@@ -57,8 +57,10 @@ namespace FezGame.MultiplayerMod
         private volatile UdpClient udpListener;
         private readonly Thread listenerThread;
         private readonly Thread timeoutthread;
-        public static List<IPEndPoint> Targets { get; } = new List<IPEndPoint>() { new IPEndPoint(IPAddress.Loopback, mainPort) };//TODO add a way to change the targets
+        public IPEndPoint[] mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, mainPort) };//TODO add a way to change the targets
         public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
+        //Note: it has to connect to another player before it propagates the player information
+        private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.endpoint).Concat(mainEndpoint);
         public readonly Guid MyUuid = Guid.NewGuid();
 
         internal MultiplayerClient(Game game)
@@ -84,7 +86,7 @@ namespace FezGame.MultiplayerMod
                 {
                     //IPEndPoint object will allow us to read datagrams sent from any source.
                     IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
-                    ProcessDatagram(udpListener.Receive(ref t));
+                    ProcessDatagram(udpListener.Receive(ref t), t);
                 }
                 udpListener.Close();
             });
@@ -123,7 +125,7 @@ namespace FezGame.MultiplayerMod
                 timeoutthread.Abort();
             }
             udpListener.Close();
-            SendToAll(SerializeNotice(NoticeType.Disconnect, Players[MyUuid].endpoint.ToString()));
+            SendToAll(SerializeNotice(NoticeType.Disconnect, Players[MyUuid].endpoint?.ToString() ?? ""));
         }
 
         public void Update(GameTime gameTime)
@@ -205,7 +207,7 @@ namespace FezGame.MultiplayerMod
             }
         }
 
-        private static byte[] Serialize(PlayerMetadata p)
+        private byte[] Serialize(PlayerMetadata p)
         {
             using (MemoryStream m = new MemoryStream())
             {
@@ -222,6 +224,7 @@ namespace FezGame.MultiplayerMod
                     writer.Write((Int64)p.lastUpdateTimestamp);
                     writer.Write((String)((IPAddress)p.endpoint.Address).ToString());
                     writer.Write((Int32)p.endpoint.Port);
+                    writer.Write((bool)p.uuid.Equals(MyUuid));
                     writer.Write((String)p.uuid.ToString());
                     writer.Write((String)p.currentLevelName ?? "");
                     writer.Write((Single)p.position.X);
@@ -236,7 +239,7 @@ namespace FezGame.MultiplayerMod
             }
         }
 
-        private void ProcessDatagram(byte[] data)
+        private void ProcessDatagram(byte[] data, IPEndPoint remoteHost)
         {
             using (MemoryStream m = new MemoryStream(data))
             {
@@ -249,18 +252,24 @@ namespace FezGame.MultiplayerMod
                     {
                     case PacketType.PlayerInfo:
                         {
-                            IPAddress ip = IPAddress.Parse(reader.ReadString());
-                            if(ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
+                            IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(reader.ReadString()), reader.ReadInt32());
+                            bool infoFromOwner = reader.ReadBoolean();
+                            if (infoFromOwner)
                             {
-                                ip = IPAddress.Loopback;
+                                endpoint.Address = remoteHost.Address;
                             }
-                            IPEndPoint endpoint = new IPEndPoint(ip, reader.ReadInt32());
+                            IPAddress ip = remoteHost.Address;
+                            if (ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
+                            {
+                                endpoint.Address = IPAddress.Loopback;
+                            }
                             Guid uuid = Guid.Parse(reader.ReadString());
                             string lvl = reader.ReadString();
                             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
                             ActionType act = (ActionType)reader.ReadInt32();
 
-                            PlayerMetadata p = Players.GetOrAdd(uuid, (guid) => {
+                            PlayerMetadata p = Players.GetOrAdd(uuid, (guid) =>
+                            {
                                 var np = new PlayerMetadata(
                                     endpoint: endpoint,
                                     uuid: guid,
@@ -269,9 +278,8 @@ namespace FezGame.MultiplayerMod
                                     action: act,
                                     lastUpdateTimestamp: timestamp
                                 );
-                                Targets.Add(endpoint);
                                 return np;
-                                });
+                            });
                             if (timestamp > p.lastUpdateTimestamp)//Ensure we're not saving old data
                             {
                                 //update player
@@ -279,6 +287,7 @@ namespace FezGame.MultiplayerMod
                                 p.position = pos;
                                 p.action = act;
                                 p.lastUpdateTimestamp = timestamp;
+                                p.endpoint = endpoint;
                             }
                             Players[uuid] = p;
                             break;
@@ -291,11 +300,9 @@ namespace FezGame.MultiplayerMod
                             {
                             case NoticeType.Disconnect:
                                 {
-                                    IPEndPoint endpoint;
-                                    _ = Targets.Remove(endpoint = Targets.Find(t => t.ToString().Equals(noticeData)));
                                     try
                                     {
-                                        _ = Players.TryRemove(Players.First(p => p.Value.endpoint.Equals(endpoint)).Key, out _);
+                                        _ = Players.TryRemove(Players.First(p => noticeData.Equals(p.Value.endpoint.ToString())).Key, out _);
                                     }
                                     catch (InvalidOperationException) { }
 
