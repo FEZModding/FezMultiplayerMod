@@ -150,6 +150,7 @@ namespace FezGame.MultiplayerMod
 
         internal void DrawPlayer(MultiplayerClient.PlayerMetadata p)
         {
+            //adapted this from GomezHost
             if (GameState.Loading || GameState.InMap)
             {
                 return;
@@ -160,7 +161,7 @@ namespace FezGame.MultiplayerMod
             int frame = animation.Timing.Frame;
             Rectangle rectangle = animation.Offsets[frame];
             //drawer.Draw(animation.Texture, CameraManager.Position - p.position, Color.White);
-
+            effect.Animation = animation.Texture;
             mesh.Texture = animation.Texture;
             mesh.FirstGroup.TextureMatrix.Set(new Matrix((float)rectangle.Width / (float)width, 0f, 0f, 0f, 0f, (float)rectangle.Height / (float)height, 0f, 0f, (float)rectangle.X / (float)width, (float)rectangle.Y / (float)height, 1f, 0f, 0f, 0f, 0f, 0f));
             mesh.Scale = new Vector3(animation.FrameWidth / 16f, animation.FrameHeight / 16f, 1f);
