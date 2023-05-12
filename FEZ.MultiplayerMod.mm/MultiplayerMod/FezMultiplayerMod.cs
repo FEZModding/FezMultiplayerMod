@@ -155,10 +155,11 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
+            //TODO fix the problem with different viewpoints 
             AnimatedTexture animation = PlayerManager.GetAnimation(p.Action);
             int width = animation.Texture.Width;
             int height = animation.Texture.Height;
-            int frame = animation.Timing.Frame;
+            int frame = animation.Timing.Frame = p.AnimFrame;
             Rectangle rectangle = animation.Offsets[frame];
             //drawer.Draw(animation.Texture, CameraManager.Position - p.position, Color.White);
             effect.Animation = animation.Texture;
@@ -166,7 +167,7 @@ namespace FezGame.MultiplayerMod
             mesh.Texture = animation.Texture;
             mesh.FirstGroup.TextureMatrix.Set(new Matrix((float)rectangle.Width / (float)width, 0f, 0f, 0f, 0f, (float)rectangle.Height / (float)height, 0f, 0f, (float)rectangle.X / (float)width, (float)rectangle.Y / (float)height, 1f, 0f, 0f, 0f, 0f, 0f));
             mesh.Scale = new Vector3(animation.FrameWidth / 16f, animation.FrameHeight / 16f, 1f);
-            mesh.Position = p.Position;// + GetPositionOffset(PlayerManager);
+            mesh.Position = p.Position;// + GetPositionOffset(PlayerManager);//TODO probably why everyone is floating
             if (!CameraManager.Viewpoint.IsOrthographic() && CameraManager.LastViewpoint != 0)
             {
                 mesh.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, CameraManager.LastViewpoint.ToPhi());

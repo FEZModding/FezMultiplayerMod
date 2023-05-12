@@ -36,10 +36,11 @@ namespace FezGame.MultiplayerMod
             public string CurrentLevelName;
             public Vector3 Position;
             public ActionType Action;
+            public int AnimFrame;
             public long LastUpdateTimestamp;
             public HorizontalDirection LookingDirection;
 
-            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string CurrentLevelName, Vector3 Position, ActionType Action, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
+            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string CurrentLevelName, Vector3 Position, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             {
                 IPAddress ip = Endpoint.Address;
                 if (ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
@@ -51,6 +52,7 @@ namespace FezGame.MultiplayerMod
                 this.CurrentLevelName = CurrentLevelName;
                 this.Position = Position;
                 this.Action = Action;
+                this.AnimFrame = AnimFrame;
                 this.LookingDirection = LookingDirection;
                 this.LastUpdateTimestamp = LastUpdateTimestamp;
             }
@@ -138,7 +140,7 @@ namespace FezGame.MultiplayerMod
 
             PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) =>
             {
-                return new PlayerMetadata((IPEndPoint)udpListener.Client.LocalEndPoint, guid, null, Vector3.Zero, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
+                return new PlayerMetadata((IPEndPoint)udpListener.Client.LocalEndPoint, guid, null, Vector3.Zero, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
             });
 
             //update MyPlayer
@@ -148,6 +150,7 @@ namespace FezGame.MultiplayerMod
                 p.Position = PlayerManager.Position;
                 p.Action = PlayerManager.Action;
                 p.LookingDirection = PlayerManager.LookingDirection;
+                p.AnimFrame = PlayerManager.Animation?.Timing?.Frame ?? 0;
             }
             p.LastUpdateTimestamp = DateTime.UtcNow.Ticks;
             Players[MyUuid] = p;
@@ -161,7 +164,7 @@ namespace FezGame.MultiplayerMod
 
         #region network packet stuff
         private const string ProtocolSignature = "FezMultiplayer";// Do not change
-        private const string ProtocolVersion = "siete";//Update this ever time you change something that affect the packets
+        private const string ProtocolVersion = "acht";//Update this ever time you change something that affect the packets
 
         private static void SendUdp(byte[] msg, IPEndPoint targ)
         {
@@ -244,6 +247,7 @@ namespace FezGame.MultiplayerMod
                     writer.Write((Single)p.Position.Y);
                     writer.Write((Single)p.Position.Z);
                     writer.Write((Int32)p.Action);
+                    writer.Write((Int32)p.AnimFrame);
                     writer.Write((Int32)p.LookingDirection);
 #pragma warning restore IDE0004
 #pragma warning restore IDE0049
@@ -293,6 +297,7 @@ namespace FezGame.MultiplayerMod
                             string lvl = reader.ReadString();
                             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
                             ActionType act = (ActionType)reader.ReadInt32();
+                            int frame = reader.ReadInt32();
                             HorizontalDirection lookdir = (HorizontalDirection)reader.ReadInt32();
 
                             PlayerMetadata p = Players.GetOrAdd(uuid, (guid) =>
@@ -303,6 +308,7 @@ namespace FezGame.MultiplayerMod
                                     CurrentLevelName: lvl,
                                     Position: pos,
                                     Action: act,
+                                    AnimFrame: frame,
                                     LookingDirection: lookdir,
                                     LastUpdateTimestamp: timestamp
                                 );
@@ -314,6 +320,8 @@ namespace FezGame.MultiplayerMod
                                 p.CurrentLevelName = lvl;
                                 p.Position = pos;
                                 p.Action = act;
+                                p.AnimFrame = frame;
+                                p.LookingDirection = lookdir;
                                 p.LastUpdateTimestamp = timestamp;
                                 p.Endpoint = endpoint;
                             }
