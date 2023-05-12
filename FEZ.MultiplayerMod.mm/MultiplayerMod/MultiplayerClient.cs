@@ -16,6 +16,7 @@ using System.Text;
 using System.Net;
 using System.IO;
 using System.Collections.Concurrent;
+using FezEngine;
 
 namespace FezGame.MultiplayerMod
 {
@@ -30,28 +31,31 @@ namespace FezGame.MultiplayerMod
         [Serializable]
         public struct PlayerMetadata
         {
-            public IPEndPoint endpoint;
-            public readonly Guid uuid;
-            public string currentLevelName;
-            public Vector3 position;
-            public ActionType action;
-            public long lastUpdateTimestamp;
+            public IPEndPoint Endpoint;
+            public readonly Guid Uuid;
+            public string CurrentLevelName;
+            public Vector3 Position;
+            public ActionType Action;
+            public long LastUpdateTimestamp;
+            public HorizontalDirection LookingDirection;
 
-            public PlayerMetadata(IPEndPoint endpoint, Guid uuid, string currentLevelName, Vector3 position, ActionType action, long lastUpdateTimestamp)
+            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string CurrentLevelName, Vector3 Position, ActionType Action, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             {
-                IPAddress ip = endpoint.Address;
+                IPAddress ip = Endpoint.Address;
                 if (ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
                 {
-                    endpoint.Address = IPAddress.Loopback;
+                    Endpoint.Address = IPAddress.Loopback;
                 }
-                this.endpoint = endpoint;
-                this.uuid = uuid;
-                this.currentLevelName = currentLevelName;
-                this.position = position;
-                this.action = action;
-                this.lastUpdateTimestamp = lastUpdateTimestamp;
+                this.Endpoint = Endpoint;
+                this.Uuid = Uuid;
+                this.CurrentLevelName = CurrentLevelName;
+                this.Position = Position;
+                this.Action = Action;
+                this.LookingDirection = LookingDirection;
+                this.LastUpdateTimestamp = LastUpdateTimestamp;
             }
         }
+
         private const int mainPort = 7777;
         private int listenPort = mainPort;//TODO add a way to change the port
         private volatile UdpClient udpListener;
@@ -60,7 +64,7 @@ namespace FezGame.MultiplayerMod
         public IPEndPoint[] mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, mainPort) };//TODO add a way to change the targets
         public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
         //Note: it has to connect to another player before it propagates the player information
-        private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.endpoint).Concat(mainEndpoint);
+        private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.Endpoint).Concat(mainEndpoint);
         public readonly Guid MyUuid = Guid.NewGuid();
 
         internal MultiplayerClient(Game game)
@@ -99,9 +103,9 @@ namespace FezGame.MultiplayerMod
                     const long overduetimeout = 30_000_000;//3 seconds //TODO probably should make this customizable
                     foreach (PlayerMetadata p in Players.Values)
                     {
-                        if (p.lastUpdateTimestamp < Players[MyUuid].lastUpdateTimestamp - overduetimeout)
+                        if (p.LastUpdateTimestamp < Players[MyUuid].LastUpdateTimestamp - overduetimeout)
                         {
-                            _ = Players.TryRemove(p.uuid, out _);
+                            _ = Players.TryRemove(p.Uuid, out _);
                         }
                     }
                 }
@@ -125,7 +129,7 @@ namespace FezGame.MultiplayerMod
                 timeoutthread.Abort();
             }
             udpListener.Close();
-            SendToAll(SerializeNotice(NoticeType.Disconnect, Players[MyUuid].endpoint?.ToString() ?? ""));
+            SendToAll(SerializeNotice(NoticeType.Disconnect, Players[MyUuid].Endpoint?.ToString() ?? ""));
         }
 
         public void Update(GameTime gameTime)
@@ -134,17 +138,18 @@ namespace FezGame.MultiplayerMod
 
             PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) =>
             {
-                return new PlayerMetadata((IPEndPoint)udpListener.Client.LocalEndPoint, guid, null, Vector3.Zero, 0, DateTime.UtcNow.Ticks);
+                return new PlayerMetadata((IPEndPoint)udpListener.Client.LocalEndPoint, guid, null, Vector3.Zero, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
             });
 
             //update MyPlayer
-            p.currentLevelName = LevelManager?.Name;
+            p.CurrentLevelName = LevelManager?.Name;
             if (PlayerManager != null)
             {
-                p.position = PlayerManager.Position;
-                p.action = PlayerManager.Action;
+                p.Position = PlayerManager.Position;
+                p.Action = PlayerManager.Action;
+                p.LookingDirection = PlayerManager.LookingDirection;
             }
-            p.lastUpdateTimestamp = DateTime.UtcNow.Ticks;
+            p.LastUpdateTimestamp = DateTime.UtcNow.Ticks;
             Players[MyUuid] = p;
 
             //SendPlayerDataToAll
@@ -153,6 +158,10 @@ namespace FezGame.MultiplayerMod
                 SendToAll(Serialize(m));
             }
         }
+
+        #region network packet stuff
+        private const string ProtocolSignature = "FezMultiplayer";// Do not change
+        private const string ProtocolVersion = "siete";//Update this ever time you change something that affect the packets
 
         private static void SendUdp(byte[] msg, IPEndPoint targ)
         {
@@ -195,6 +204,8 @@ namespace FezGame.MultiplayerMod
                      */
 #pragma warning disable IDE0004
 #pragma warning disable IDE0049
+                    writer.Write((String)ProtocolSignature);
+                    writer.Write((String)ProtocolVersion);
                     writer.Write((Byte)PacketType.Notice);
                     writer.Write((Int64)DateTime.UtcNow.Ticks);
                     writer.Write((Byte)type);
@@ -220,17 +231,20 @@ namespace FezGame.MultiplayerMod
                      */
 #pragma warning disable IDE0004
 #pragma warning disable IDE0049
+                    writer.Write((String)ProtocolSignature);
+                    writer.Write((String)ProtocolVersion);
                     writer.Write((Byte)PacketType.PlayerInfo);
-                    writer.Write((Int64)p.lastUpdateTimestamp);
-                    writer.Write((String)((IPAddress)p.endpoint.Address).ToString());
-                    writer.Write((Int32)p.endpoint.Port);
-                    writer.Write((bool)p.uuid.Equals(MyUuid));
-                    writer.Write((String)p.uuid.ToString());
-                    writer.Write((String)p.currentLevelName ?? "");
-                    writer.Write((Single)p.position.X);
-                    writer.Write((Single)p.position.Y);
-                    writer.Write((Single)p.position.Z);
-                    writer.Write((Int32)p.action);
+                    writer.Write((Int64)p.LastUpdateTimestamp);
+                    writer.Write((String)((IPAddress)p.Endpoint.Address).ToString());
+                    writer.Write((Int32)p.Endpoint.Port);
+                    writer.Write((bool)p.Uuid.Equals(MyUuid));
+                    writer.Write((String)p.Uuid.ToString());
+                    writer.Write((String)p.CurrentLevelName ?? "");
+                    writer.Write((Single)p.Position.X);
+                    writer.Write((Single)p.Position.Y);
+                    writer.Write((Single)p.Position.Z);
+                    writer.Write((Int32)p.Action);
+                    writer.Write((Int32)p.LookingDirection);
 #pragma warning restore IDE0004
 #pragma warning restore IDE0049
                     writer.Flush();
@@ -245,6 +259,18 @@ namespace FezGame.MultiplayerMod
             {
                 using (BinaryReader reader = new BinaryReader(m))
                 {
+                    if (!ProtocolSignature.Equals(reader.ReadString()))
+                    {
+                        //Not a FezMultiplayer packet
+                        return;
+                    }
+                    if (!ProtocolVersion.Equals(reader.ReadString()))
+                    {
+                        //Not the right version of the FezMultiplayer protocol
+                        //TODO notify the user?
+                        return;
+                    }
+
                     PacketType packetType = (PacketType)reader.ReadByte();
                     long timestamp = reader.ReadInt64();
 
@@ -267,27 +293,29 @@ namespace FezGame.MultiplayerMod
                             string lvl = reader.ReadString();
                             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
                             ActionType act = (ActionType)reader.ReadInt32();
+                            HorizontalDirection lookdir = (HorizontalDirection)reader.ReadInt32();
 
                             PlayerMetadata p = Players.GetOrAdd(uuid, (guid) =>
                             {
                                 var np = new PlayerMetadata(
-                                    endpoint: endpoint,
-                                    uuid: guid,
-                                    currentLevelName: lvl,
-                                    position: pos,
-                                    action: act,
-                                    lastUpdateTimestamp: timestamp
+                                    Endpoint: endpoint,
+                                    Uuid: guid,
+                                    CurrentLevelName: lvl,
+                                    Position: pos,
+                                    Action: act,
+                                    LookingDirection: lookdir,
+                                    LastUpdateTimestamp: timestamp
                                 );
                                 return np;
                             });
-                            if (timestamp > p.lastUpdateTimestamp)//Ensure we're not saving old data
+                            if (timestamp > p.LastUpdateTimestamp)//Ensure we're not saving old data
                             {
                                 //update player
-                                p.currentLevelName = lvl;
-                                p.position = pos;
-                                p.action = act;
-                                p.lastUpdateTimestamp = timestamp;
-                                p.endpoint = endpoint;
+                                p.CurrentLevelName = lvl;
+                                p.Position = pos;
+                                p.Action = act;
+                                p.LastUpdateTimestamp = timestamp;
+                                p.Endpoint = endpoint;
                             }
                             Players[uuid] = p;
                             break;
@@ -302,7 +330,7 @@ namespace FezGame.MultiplayerMod
                                 {
                                     try
                                     {
-                                        _ = Players.TryRemove(Players.First(p => noticeData.Equals(p.Value.endpoint.ToString())).Key, out _);
+                                        _ = Players.TryRemove(Players.First(p => noticeData.Equals(p.Value.Endpoint.ToString())).Key, out _);
                                     }
                                     catch (InvalidOperationException) { }
 
@@ -329,5 +357,6 @@ namespace FezGame.MultiplayerMod
                 }
             }
         }
+        #endregion
     }
 }

@@ -129,13 +129,13 @@ namespace FezGame.MultiplayerMod
             string s = "";
             foreach (var p in mp.Players.Values)
             {
-                if (p.uuid == mp.MyUuid)
+                if (p.Uuid == mp.MyUuid)
                 {
                     s += "(you): ";
                 }
-                s += $"{p.endpoint}, {p.uuid}, {p.currentLevelName}, {p.action}, {p.position}, {p.lastUpdateTimestamp}\n";
+                s += $"{p.Endpoint}, {p.Uuid}, {p.CurrentLevelName}, {p.Action}, {p.Position}, {p.LastUpdateTimestamp}\n";
                 //draw other player to screen if in the same level
-                if (p.uuid != mp.MyUuid && p.currentLevelName != null && p.currentLevelName.Length > 0 && p.currentLevelName == LevelManager.Name)
+                if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)
                 {
                     DrawPlayer(p);
                     //TODO actually draw the players on the screen 
@@ -155,17 +155,18 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
-            AnimatedTexture animation = PlayerManager.GetAnimation(p.action);
+            AnimatedTexture animation = PlayerManager.GetAnimation(p.Action);
             int width = animation.Texture.Width;
             int height = animation.Texture.Height;
             int frame = animation.Timing.Frame;
             Rectangle rectangle = animation.Offsets[frame];
             //drawer.Draw(animation.Texture, CameraManager.Position - p.position, Color.White);
             effect.Animation = animation.Texture;
+            mesh.SamplerState = SamplerState.PointClamp;
             mesh.Texture = animation.Texture;
             mesh.FirstGroup.TextureMatrix.Set(new Matrix((float)rectangle.Width / (float)width, 0f, 0f, 0f, 0f, (float)rectangle.Height / (float)height, 0f, 0f, (float)rectangle.X / (float)width, (float)rectangle.Y / (float)height, 1f, 0f, 0f, 0f, 0f, 0f));
             mesh.Scale = new Vector3(animation.FrameWidth / 16f, animation.FrameHeight / 16f, 1f);
-            mesh.Position = p.position;// + GetPositionOffset(PlayerManager);
+            mesh.Position = p.Position;// + GetPositionOffset(PlayerManager);
             if (!CameraManager.Viewpoint.IsOrthographic() && CameraManager.LastViewpoint != 0)
             {
                 mesh.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, CameraManager.LastViewpoint.ToPhi());
@@ -175,11 +176,11 @@ namespace FezGame.MultiplayerMod
                 mesh.Rotation = CameraManager.Rotation;
             }
             GraphicsDevice graphicsDevice = base.GraphicsDevice;
-            if (PlayerManager.LookingDirection == HorizontalDirection.Left)
+            if (p.LookingDirection == HorizontalDirection.Left)
             {
                 mesh.Rotation *= FezMath.QuaternionFromPhi((float)Math.PI);
             }
-            if (!p.action.SkipSilhouette())
+            if (!p.Action.SkipSilhouette())
             {
                 graphicsDevice.PrepareStencilRead(CompareFunction.Greater, StencilMask.NoSilhouette);
                 mesh.DepthWrites = false;
@@ -196,7 +197,7 @@ namespace FezGame.MultiplayerMod
                 mesh.Draw();
             }
             graphicsDevice.PrepareStencilWrite(StencilMask.Gomez);
-            mesh.AlwaysOnTop = p.action.NeedsAlwaysOnTop();
+            mesh.AlwaysOnTop = p.Action.NeedsAlwaysOnTop();
             mesh.DepthWrites = !GameState.InFpsMode;
             effect.Silhouette = false;
             mesh.Draw();
