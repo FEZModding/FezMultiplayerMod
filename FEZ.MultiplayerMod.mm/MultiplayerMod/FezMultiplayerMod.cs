@@ -24,6 +24,9 @@ using FezEngine.Effects;
 
 namespace FezGame.MultiplayerMod
 {
+    /// <summary>
+    /// This class mostly draws the other players to the screen
+    /// </summary>
     public class FezMultiplayerMod : DrawableGameComponent
     {
         /// <summary>
@@ -84,7 +87,7 @@ namespace FezGame.MultiplayerMod
         private readonly SpriteBatch drawer;
         public override void Initialize()
         {
-            DrawOrder = 4000;
+            DrawOrder = 9;//Same as GomezHost.DrawOrder
             LightingPostProcess.DrawGeometryLights += PreDraw;
             DrawActionScheduler.Schedule(delegate
             {
@@ -125,8 +128,8 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
-            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
             string s = "";
+            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
             foreach (var p in mp.Players.Values)
             {
                 if (p.Uuid == mp.MyUuid)
@@ -137,36 +140,74 @@ namespace FezGame.MultiplayerMod
                 //draw other player to screen if in the same level
                 if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)
                 {
-                    DrawPlayer(p);
+                    try
+                    {
+                        DrawPlayer(p, gameTime);
+                    }
+                    catch { }
                 }
             }
+            drawer.End();
+            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
             drawer.DrawString(FontManager.Big, s, Vector2.Zero, Color.Gray, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
             drawer.End();
         }
 
+        #region internal drawing stuff
+
         private GomezEffect effect;
         private Mesh mesh = new Mesh();
-
-        internal void DrawPlayer(MultiplayerClient.PlayerMetadata p)
+        private bool lastBackground;
+        private TimeSpan sinceBackgroundChanged = TimeSpan.Zero;
+        internal void DrawPlayer(MultiplayerClient.PlayerMetadata p, GameTime gameTime)
         {
-            //adapted this from GomezHost
-            if (GameState.Loading || GameState.InMap)
+            #region adapted from GomezHost.Update
+            if (GameState.Loading || GameState.InMap || GameState.Paused || FezMath.AlmostEqual(PlayerManager.GomezOpacity, 0f) || p.Action==ActionType.None)
             {
                 return;
             }
             //TODO fix the problem with different viewpoints 
             AnimatedTexture animation = PlayerManager.GetAnimation(p.Action);
+            if(animation.Offsets.Length < 0)
+            {
+                return;
+            }
             int width = animation.Texture.Width;
             int height = animation.Texture.Height;
             int frame = animation.Timing.Frame = p.AnimFrame;
+            if(frame >= animation.Offsets.Length)
+            {
+                frame = 0;
+            }
+            if(frame < 0)
+            {
+                return;
+            }
             Rectangle rectangle = animation.Offsets[frame];
-            //drawer.Draw(animation.Texture, CameraManager.Position - p.position, Color.White);
             effect.Animation = animation.Texture;
             mesh.SamplerState = SamplerState.PointClamp;
             mesh.Texture = animation.Texture;
             mesh.FirstGroup.TextureMatrix.Set(new Matrix((float)rectangle.Width / (float)width, 0f, 0f, 0f, 0f, (float)rectangle.Height / (float)height, 0f, 0f, (float)rectangle.X / (float)width, (float)rectangle.Y / (float)height, 1f, 0f, 0f, 0f, 0f, 0f));
+            if (lastBackground != PlayerManager.Background && !p.Action.NoBackgroundDarkening())
+            {
+                sinceBackgroundChanged = TimeSpan.Zero;
+                lastBackground = PlayerManager.Background;
+                /*if (!LevelManager.LowPass && EndCutscene32Host.Instance == null && EndCutscene64Host.Instance == null)
+                {
+                    SoundManager.FadeFrequencies(PlayerManager.Background);
+                }*/
+            }
+            if (sinceBackgroundChanged.TotalSeconds < 1.0)
+            {
+                sinceBackgroundChanged += gameTime.ElapsedGameTime;
+            }
+            effect.Background = (PlayerManager.Action.NoBackgroundDarkening() ? 0f : FezMath.Saturate(PlayerManager.Background ? ((float)sinceBackgroundChanged.TotalSeconds * 2f) : (1f - (float)sinceBackgroundChanged.TotalSeconds * 2f)));
             mesh.Scale = new Vector3(animation.FrameWidth / 16f, animation.FrameHeight / 16f, 1f);
             mesh.Position = p.Position + GetPositionOffset(p, ref animation);
+            #endregion
+            #region adapted from GomezHost.DoDraw_Internal
+            //if (GameState.StereoMode || LevelManager.Quantum)
+            //{
             if (!CameraManager.Viewpoint.IsOrthographic() && CameraManager.LastViewpoint != 0)
             {
                 mesh.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, CameraManager.LastViewpoint.ToPhi());
@@ -175,11 +216,22 @@ namespace FezGame.MultiplayerMod
             {
                 mesh.Rotation = CameraManager.Rotation;
             }
-            GraphicsDevice graphicsDevice = base.GraphicsDevice;
             if (p.LookingDirection == HorizontalDirection.Left)
             {
                 mesh.Rotation *= FezMath.QuaternionFromPhi((float)Math.PI);
             }
+            //}
+            //blinking
+            /*if (p.Action == ActionType.Suffering || p.Action == ActionType.Sinking)
+            {
+                mesh.Material.Opacity = (float)FezMath.Saturate((Math.Sin(PlayerManager.BlinkSpeed * ((float)Math.PI * 2f) * 5f) + 0.5 - (double)(PlayerManager.BlinkSpeed * 1.25f)) * 2.0);
+            }
+            else
+            {
+                mesh.Material.Opacity = PlayerManager.GomezOpacity;
+            }*/
+            GraphicsDevice graphicsDevice = base.GraphicsDevice;
+            //silhouette
             if (!p.Action.SkipSilhouette())
             {
                 graphicsDevice.PrepareStencilRead(CompareFunction.Greater, StencilMask.NoSilhouette);
@@ -196,12 +248,14 @@ namespace FezGame.MultiplayerMod
                 effect.Silhouette = false;
                 mesh.Draw();
             }
+            //finally draw the mesh
             graphicsDevice.PrepareStencilWrite(StencilMask.Gomez);
             mesh.AlwaysOnTop = p.Action.NeedsAlwaysOnTop();
             mesh.DepthWrites = !GameState.InFpsMode;
             effect.Silhouette = false;
             mesh.Draw();
             graphicsDevice.PrepareStencilWrite(StencilMask.None);
+            #endregion
         }
         //Adapted from GomezHost.GetPositionOffset
         private Vector3 GetPositionOffset(MultiplayerClient.PlayerMetadata p, ref AnimatedTexture anim)
@@ -214,5 +268,6 @@ namespace FezGame.MultiplayerMod
             Viewpoint view = ((CameraManager.Viewpoint.IsOrthographic() || !CameraManager.ActionRunning) ? CameraManager.Viewpoint : CameraManager.LastViewpoint);
             return vector + (vector2.X * view.RightVector() * p.LookingDirection.Sign() + vector2.Y * Vector3.UnitY);
         }
+        #endregion
     }
 }

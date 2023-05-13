@@ -20,6 +20,9 @@ using FezEngine;
 
 namespace FezGame.MultiplayerMod
 {
+    /// <summary>
+    /// The class that contains all the networking stuff
+    /// </summary>
     public class MultiplayerClient : IDisposable
     {
         [ServiceDependency]
@@ -300,32 +303,42 @@ namespace FezGame.MultiplayerMod
                             int frame = reader.ReadInt32();
                             HorizontalDirection lookdir = (HorizontalDirection)reader.ReadInt32();
 
-                            PlayerMetadata p = Players.GetOrAdd(uuid, (guid) =>
+                            if (uuid == MyUuid)//ignore the other stuff if it's ourself
                             {
-                                var np = new PlayerMetadata(
-                                    Endpoint: endpoint,
-                                    Uuid: guid,
-                                    CurrentLevelName: lvl,
-                                    Position: pos,
-                                    Action: act,
-                                    AnimFrame: frame,
-                                    LookingDirection: lookdir,
-                                    LastUpdateTimestamp: timestamp
-                                );
-                                return np;
-                            });
-                            if (timestamp > p.LastUpdateTimestamp)//Ensure we're not saving old data
-                            {
-                                //update player
-                                p.CurrentLevelName = lvl;
-                                p.Position = pos;
-                                p.Action = act;
-                                p.AnimFrame = frame;
-                                p.LookingDirection = lookdir;
-                                p.LastUpdateTimestamp = timestamp;
-                                p.Endpoint = endpoint;
+                                PlayerMetadata me = Players[MyUuid];
+                                me.Endpoint = endpoint;
+                                Players[uuid] = me;
+                                return;
                             }
-                            Players[uuid] = p;
+                            else
+                            {
+                                PlayerMetadata p = Players.GetOrAdd(uuid, (guid) =>
+                                {
+                                    var np = new PlayerMetadata(
+                                        Endpoint: endpoint,
+                                        Uuid: guid,
+                                        CurrentLevelName: lvl,
+                                        Position: pos,
+                                        Action: act,
+                                        AnimFrame: frame,
+                                        LookingDirection: lookdir,
+                                        LastUpdateTimestamp: timestamp
+                                    );
+                                    return np;
+                                });
+                                if (timestamp > p.LastUpdateTimestamp)//Ensure we're not saving old data
+                                {
+                                    //update player
+                                    p.CurrentLevelName = lvl;
+                                    p.Position = pos;
+                                    p.Action = act;
+                                    p.AnimFrame = frame;
+                                    p.LookingDirection = lookdir;
+                                    p.LastUpdateTimestamp = timestamp;
+                                    p.Endpoint = endpoint;
+                                }
+                                Players[uuid] = p;
+                            }
                             break;
                         }
                     case PacketType.Notice:

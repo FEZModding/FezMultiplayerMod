@@ -17,10 +17,6 @@ For a full list of features, see [changelog.txt](/changelog.txt)
 
 ## Installation
 
-> __Note__: due to how winforms doesn't seem to work that great on any OS besides Windows, the currently only supported OS is Windows 10.
-
-### Method 1: HAT
-
 1. Install [HAT](https://github.com/Krzyhau/HAT) via the instructions there
 2. Download FezMultiplayerMod.zip from https://github.com/FEZModding/FezMultiplayerMod/releases/latest and put it in the "Mods" directory.
 3. Run `MONOMODDED_FEZ.exe` and enjoy!
