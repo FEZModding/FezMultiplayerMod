@@ -138,7 +138,6 @@ namespace FezGame.MultiplayerMod
                 if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)
                 {
                     DrawPlayer(p);
-                    //TODO actually draw the players on the screen 
                 }
             }
             drawer.DrawString(FontManager.Big, s, Vector2.Zero, Color.Gray, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
@@ -167,7 +166,7 @@ namespace FezGame.MultiplayerMod
             mesh.Texture = animation.Texture;
             mesh.FirstGroup.TextureMatrix.Set(new Matrix((float)rectangle.Width / (float)width, 0f, 0f, 0f, 0f, (float)rectangle.Height / (float)height, 0f, 0f, (float)rectangle.X / (float)width, (float)rectangle.Y / (float)height, 1f, 0f, 0f, 0f, 0f, 0f));
             mesh.Scale = new Vector3(animation.FrameWidth / 16f, animation.FrameHeight / 16f, 1f);
-            mesh.Position = p.Position;// + GetPositionOffset(PlayerManager);//TODO probably why everyone is floating
+            mesh.Position = p.Position + GetPositionOffset(p, ref animation);
             if (!CameraManager.Viewpoint.IsOrthographic() && CameraManager.LastViewpoint != 0)
             {
                 mesh.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, CameraManager.LastViewpoint.ToPhi());
@@ -203,6 +202,17 @@ namespace FezGame.MultiplayerMod
             effect.Silhouette = false;
             mesh.Draw();
             graphicsDevice.PrepareStencilWrite(StencilMask.None);
+        }
+        //Adapted from GomezHost.GetPositionOffset
+        private Vector3 GetPositionOffset(MultiplayerClient.PlayerMetadata p, ref AnimatedTexture anim)
+        {
+            float playerSizeY = p.Action.IsCarry() ? (Enum.GetName(typeof(ActionType), p.Action).Contains("Heavy") ? 1.75f : 1.9375f) : 0.9375f;//numbers from PlayerManager.SyncCollisionSize
+            float num = playerSizeY + ((p.Action.IsCarry() || p.Action == ActionType.ThrowingHeavy) ? (-2) : 0);
+            Vector3 vector = (1f - num) / 2f * Vector3.UnitY;
+            Vector2 vector2 = p.Action.GetOffset() / 16f;
+            vector2.Y -= anim.PotOffset.Y / 64f;
+            Viewpoint view = ((CameraManager.Viewpoint.IsOrthographic() || !CameraManager.ActionRunning) ? CameraManager.Viewpoint : CameraManager.LastViewpoint);
+            return vector + (vector2.X * view.RightVector() * p.LookingDirection.Sign() + vector2.Y * Vector3.UnitY);
         }
     }
 }
