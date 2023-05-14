@@ -61,13 +61,20 @@ namespace FezGame.MultiplayerMod
 
         public static FezMultiplayerMod Instance;
 
-        private MultiplayerClient mp;
+        private readonly MultiplayerClient mp;
+        public bool ShowDebugInfo = true;
 
         public FezMultiplayerMod(Game game)
             : base(game)
         {
+            //Fez.SkipIntro = true;
             Instance = this;
-            mp = new MultiplayerClient(game);
+            mp = new MultiplayerClient(listenPort: 7777,
+            mainEndpoint: null,
+            adjustListenPortOnBindFail: true,
+            serverless: true,
+            overduetimeout: 30_000_000
+            );
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
         }
@@ -128,15 +135,21 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
-            string s = "";
+            PlayerManager.CanRotate = true;
+            LevelManager.Flat = false;
+            GameState.SaveData.HasFPView = true;
+            string s = mp.ErrorMessage != null ? $"{mp.ErrorMessage}\n" : "";
             drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
             foreach (var p in mp.Players.Values)
             {
-                if (p.Uuid == mp.MyUuid)
+                if (ShowDebugInfo)
                 {
-                    s += "(you): ";
+                    if (p.Uuid == mp.MyUuid)
+                    {
+                        s += "(you): ";
+                    }
+                    s += $"{p.Endpoint}, {p.Uuid}, {p.CurrentLevelName}, {p.Action}, {p.CameraViewpoint}, {p.Position}, {p.LastUpdateTimestamp}\n";
                 }
-                s += $"{p.Endpoint}, {p.Uuid}, {p.CurrentLevelName}, {p.Action}, {p.Position}, {p.LastUpdateTimestamp}\n";
                 //draw other player to screen if in the same level
                 if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)
                 {
@@ -156,17 +169,20 @@ namespace FezGame.MultiplayerMod
         #region internal drawing stuff
 
         private GomezEffect effect;
-        private Mesh mesh = new Mesh();
-        private bool lastBackground;
+        private readonly Mesh mesh = new Mesh();
         private TimeSpan sinceBackgroundChanged = TimeSpan.Zero;
         internal void DrawPlayer(MultiplayerClient.PlayerMetadata p, GameTime gameTime)
         {
             #region adapted from GomezHost.Update
-            if (GameState.Loading || GameState.InMap || GameState.Paused || FezMath.AlmostEqual(PlayerManager.GomezOpacity, 0f) || p.Action==ActionType.None)
+            if (GameState.Loading
+                || GameState.InMap
+                || GameState.Paused
+                || (FezMath.AlmostEqual(PlayerManager.GomezOpacity, 0f) && CameraManager.Viewpoint != Viewpoint.Perspective)
+                || p.Action == ActionType.None)
             {
                 return;
             }
-            //TODO fix the problem with different viewpoints 
+            //TODO fix the problem with different viewpoints; see p.CameraViewpoint
             AnimatedTexture animation = PlayerManager.GetAnimation(p.Action);
             if(animation.Offsets.Length < 0)
             {
@@ -188,33 +204,30 @@ namespace FezGame.MultiplayerMod
             mesh.SamplerState = SamplerState.PointClamp;
             mesh.Texture = animation.Texture;
             mesh.FirstGroup.TextureMatrix.Set(new Matrix((float)rectangle.Width / (float)width, 0f, 0f, 0f, 0f, (float)rectangle.Height / (float)height, 0f, 0f, (float)rectangle.X / (float)width, (float)rectangle.Y / (float)height, 1f, 0f, 0f, 0f, 0f, 0f));
-            if (lastBackground != PlayerManager.Background && !p.Action.NoBackgroundDarkening())
+            bool playerinbackground = false;// PlayerManager.Background;
+            /*if (lastBackground != playerinbackground && !p.Action.NoBackgroundDarkening())
             {
                 sinceBackgroundChanged = TimeSpan.Zero;
-                lastBackground = PlayerManager.Background;
-                /*if (!LevelManager.LowPass && EndCutscene32Host.Instance == null && EndCutscene64Host.Instance == null)
-                {
-                    SoundManager.FadeFrequencies(PlayerManager.Background);
-                }*/
-            }
+                lastBackground = playerinbackground;
+            }*/
             if (sinceBackgroundChanged.TotalSeconds < 1.0)
             {
                 sinceBackgroundChanged += gameTime.ElapsedGameTime;
             }
-            effect.Background = (PlayerManager.Action.NoBackgroundDarkening() ? 0f : FezMath.Saturate(PlayerManager.Background ? ((float)sinceBackgroundChanged.TotalSeconds * 2f) : (1f - (float)sinceBackgroundChanged.TotalSeconds * 2f)));
+            effect.Background = p.Action.NoBackgroundDarkening() ? 0f : FezMath.Saturate(playerinbackground ? ((float)sinceBackgroundChanged.TotalSeconds * 2f) : (1f - (float)sinceBackgroundChanged.TotalSeconds * 2f));
             mesh.Scale = new Vector3(animation.FrameWidth / 16f, animation.FrameHeight / 16f, 1f);
             mesh.Position = p.Position + GetPositionOffset(p, ref animation);
             #endregion
             #region adapted from GomezHost.DoDraw_Internal
             //if (GameState.StereoMode || LevelManager.Quantum)
             //{
-            if (!CameraManager.Viewpoint.IsOrthographic() && CameraManager.LastViewpoint != 0)
+            /*if (!CameraManager.Viewpoint.IsOrthographic() && CameraManager.LastViewpoint != 0)
             {
                 mesh.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, CameraManager.LastViewpoint.ToPhi());
             }
-            else
+            else*/
             {
-                mesh.Rotation = CameraManager.Rotation;
+                mesh.Rotation = CameraManager.Rotation;//always point the mesh at the camera so first person mode looks good
             }
             if (p.LookingDirection == HorizontalDirection.Left)
             {
@@ -240,7 +253,7 @@ namespace FezGame.MultiplayerMod
                 effect.Silhouette = true;
                 mesh.Draw();
             }
-            if (!PlayerManager.Background)
+            if (!playerinbackground)
             {
                 graphicsDevice.PrepareStencilRead(CompareFunction.Equal, StencilMask.Hole);
                 mesh.AlwaysOnTop = true;

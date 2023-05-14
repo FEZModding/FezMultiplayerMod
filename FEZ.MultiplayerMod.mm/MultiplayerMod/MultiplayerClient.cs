@@ -31,6 +31,9 @@ namespace FezGame.MultiplayerMod
         [ServiceDependency]
         public IGameLevelManager LevelManager { private get; set; }
 
+        [ServiceDependency]
+        public IGameCameraManager CameraManager { private get; set; }
+
         [Serializable]
         public struct PlayerMetadata
         {
@@ -42,8 +45,9 @@ namespace FezGame.MultiplayerMod
             public int AnimFrame;
             public long LastUpdateTimestamp;
             public HorizontalDirection LookingDirection;
+            public Viewpoint CameraViewpoint;
 
-            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string CurrentLevelName, Vector3 Position, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
+            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             {
                 IPAddress ip = Endpoint.Address;
                 if (ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
@@ -58,22 +62,40 @@ namespace FezGame.MultiplayerMod
                 this.AnimFrame = AnimFrame;
                 this.LookingDirection = LookingDirection;
                 this.LastUpdateTimestamp = LastUpdateTimestamp;
+                this.CameraViewpoint = CameraViewpoint;
             }
         }
 
-        private const int mainPort = 7777;
-        private int listenPort = mainPort;//TODO add a way to change the port
         private volatile UdpClient udpListener;
         private readonly Thread listenerThread;
         private readonly Thread timeoutthread;
-        public IPEndPoint[] mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, mainPort) };//TODO add a way to change the targets
+        private readonly IPEndPoint[] mainEndpoint;
         public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
-        //Note: it has to connect to another player before it propagates the player information
         private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.Endpoint).Concat(mainEndpoint);
         public readonly Guid MyUuid = Guid.NewGuid();
 
-        internal MultiplayerClient(Game game)
+        //Note: it has to connect to another player before it propagates the player information
+        private readonly bool serverless;//TODO implement the case where this is false; for true it relays the IP addresses of all the players to all the other players
+
+        public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
+
+        /// <summary>
+        /// Creates a new instance of this class with the provided parameters.
+        /// For any errors that get encountered while performing <see cref="ErrorMessage"/>
+        /// </summary>
+        /// <param name="listenPort">The port to listen on</param>
+        /// <param name="mainEndpoint">An array representing the main endpoint(s) to talk to.</param>
+        /// <param name="adjustListenPortOnBindFail">Whether to automatically use the next available port as the port to listen to, or to just throw an error. In case of an error, see <see cref="ErrorMessage"/></param>
+        /// <param name="serverless">Determines if the IP addresses of the players should be relayed to all the other players.</param>
+        /// <param name="overduetimeout">The amount of time, in <see cref="System.DateTime.Ticks">ticks</see>, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.</param>
+        internal MultiplayerClient(int listenPort = 7777, IPEndPoint[] mainEndpoint = null, bool adjustListenPortOnBindFail = true, bool serverless = true, long overduetimeout = 30_000_000)
         {
+            this.serverless = serverless;
+            if(mainEndpoint == null || mainEndpoint.Length == 0)
+            {
+                mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, listenPort) };
+            }
+            this.mainEndpoint = mainEndpoint;
             _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () => ServiceHelper.InjectServices(this));
 
             listenerThread = new Thread(() =>
@@ -86,9 +108,18 @@ namespace FezGame.MultiplayerMod
                         udpListener = new UdpClient(listenPort);
                         init = false;
                     }
-                    catch (Exception)
+                    catch (Exception e)
                     {
-                        listenPort++;
+                        if (adjustListenPortOnBindFail)
+                        {
+                            listenPort++;
+                        }
+                        else
+                        {
+                            //ErrorMessage = e.Message;
+                            ErrorMessage = $"Port number {listenPort} is already in use";
+                            throw e;
+                        }
                     }
                 }
                 while (!disposing)
@@ -105,7 +136,6 @@ namespace FezGame.MultiplayerMod
             {
                 while (!disposing)
                 {
-                    const long overduetimeout = 30_000_000;//3 seconds //TODO probably should make this customizable
                     foreach (PlayerMetadata p in Players.Values)
                     {
                         if (p.LastUpdateTimestamp < Players[MyUuid].LastUpdateTimestamp - overduetimeout)
@@ -143,7 +173,7 @@ namespace FezGame.MultiplayerMod
 
             PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) =>
             {
-                return new PlayerMetadata((IPEndPoint)udpListener.Client.LocalEndPoint, guid, null, Vector3.Zero, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
+                return new PlayerMetadata((IPEndPoint)udpListener.Client.LocalEndPoint, guid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
             });
 
             //update MyPlayer
@@ -155,11 +185,15 @@ namespace FezGame.MultiplayerMod
                 p.LookingDirection = PlayerManager.LookingDirection;
                 p.AnimFrame = PlayerManager.Animation?.Timing?.Frame ?? 0;
             }
+            if (CameraManager != null)
+            {
+                p.CameraViewpoint = CameraManager.Viewpoint;
+            }
             p.LastUpdateTimestamp = DateTime.UtcNow.Ticks;
             Players[MyUuid] = p;
 
             //SendPlayerDataToAll
-            foreach (PlayerMetadata m in Players.Values)//Note: could also send the info for the other players if we want
+            foreach (PlayerMetadata m in Players.Values)
             {
                 SendToAll(Serialize(m));
             }
@@ -167,7 +201,7 @@ namespace FezGame.MultiplayerMod
 
         #region network packet stuff
         private const string ProtocolSignature = "FezMultiplayer";// Do not change
-        private const string ProtocolVersion = "acht";//Update this ever time you change something that affect the packets
+        private const string ProtocolVersion = "十";//Update this ever time you change something that affect the packets
 
         private static void SendUdp(byte[] msg, IPEndPoint targ)
         {
@@ -249,6 +283,7 @@ namespace FezGame.MultiplayerMod
                     writer.Write((Single)p.Position.X);
                     writer.Write((Single)p.Position.Y);
                     writer.Write((Single)p.Position.Z);
+                    writer.Write((Int32)p.CameraViewpoint);
                     writer.Write((Int32)p.Action);
                     writer.Write((Int32)p.AnimFrame);
                     writer.Write((Int32)p.LookingDirection);
@@ -299,6 +334,7 @@ namespace FezGame.MultiplayerMod
                             Guid uuid = Guid.Parse(reader.ReadString());
                             string lvl = reader.ReadString();
                             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+                            Viewpoint vp = (Viewpoint)reader.ReadInt32();
                             ActionType act = (ActionType)reader.ReadInt32();
                             int frame = reader.ReadInt32();
                             HorizontalDirection lookdir = (HorizontalDirection)reader.ReadInt32();
@@ -319,6 +355,7 @@ namespace FezGame.MultiplayerMod
                                         Uuid: guid,
                                         CurrentLevelName: lvl,
                                         Position: pos,
+                                        CameraViewpoint: vp,
                                         Action: act,
                                         AnimFrame: frame,
                                         LookingDirection: lookdir,
@@ -331,6 +368,7 @@ namespace FezGame.MultiplayerMod
                                     //update player
                                     p.CurrentLevelName = lvl;
                                     p.Position = pos;
+                                    p.CameraViewpoint = vp;
                                     p.Action = act;
                                     p.AnimFrame = frame;
                                     p.LookingDirection = lookdir;
@@ -364,7 +402,7 @@ namespace FezGame.MultiplayerMod
                             default:
                                 {
                                     //Unsupported packet type
-                                    throw new NotSupportedException("Unsupported NoticeType: " + noticeType);
+                                    throw new NotSupportedException(ErrorMessage = "Unsupported NoticeType: " + noticeType);
                                 }
                             }
                             break;
@@ -372,7 +410,7 @@ namespace FezGame.MultiplayerMod
                     default:
                         {
                             //Unsupported packet type
-                            throw new NotSupportedException("Unsupported PacketType: " + packetType);
+                            throw new NotSupportedException(ErrorMessage = "Unsupported PacketType: " + packetType);
                         }
                     }
                 }
