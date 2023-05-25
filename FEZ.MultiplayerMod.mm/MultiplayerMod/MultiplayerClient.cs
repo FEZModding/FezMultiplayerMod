@@ -254,7 +254,7 @@ namespace FezGame.MultiplayerMod
 
         #region network packet stuff
         private const string ProtocolSignature = "FezMultiplayer";// Do not change
-        private const string ProtocolVersion = "十";//Update this ever time you change something that affect the packets
+        private const string ProtocolVersion = "onze";//Update this ever time you change something that affect the packets
 
         private static void SendUdp(byte[] msg, IPEndPoint targ)
         {
