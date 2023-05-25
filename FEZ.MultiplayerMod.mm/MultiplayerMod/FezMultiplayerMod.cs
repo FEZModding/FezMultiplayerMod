@@ -96,12 +96,14 @@ namespace FezGame.MultiplayerMod
             //Fez.SkipIntro = true;
             Instance = this;
             ServiceHelper.AddComponent(debugTextDrawer = new DebugTextDrawer(game, Instance), false);
-            mp = new MultiplayerClient(listenPort: 7777,
-            mainEndpoint: null,
-            maxAdjustListenPortOnBindFail: 1000,
-            serverless: true,
-            overduetimeout: 30_000_000
-            );
+            mp = new MultiplayerClient(new MultiplayerClient.MultiplayerClientSettings()
+            {
+                listenPort = 7777,
+                mainEndpoint = null,
+                maxAdjustListenPortOnBindFail = 1000,
+                serverless = false,
+                overduetimeout = 30_000_000
+            });
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
         }

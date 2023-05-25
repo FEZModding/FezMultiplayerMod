@@ -25,6 +25,34 @@ namespace FezGame.MultiplayerMod
     /// </summary>
     public class MultiplayerClient : IDisposable
     {
+        public class MultiplayerClientSettings
+        {
+            /// <param name="listenPort">The port to listen on</param>
+            /// <param name="mainEndpoint"></param>
+            /// <param name="maxAdjustListenPortOnBindFail"></param>
+            /// <param name="serverless"></param>
+            /// <param name="overduetimeout">The</param>
+            
+            public int listenPort = 7777;
+            /// <summary>
+            /// An array representing the main endpoint(s) to talk to.
+            /// </summary>
+            public IPEndPoint[] mainEndpoint = null;
+            /// <summary>
+            /// The amount of times to attempt to use the next port as the port to listen to, or to just throw an error. In case of an error, see <see cref="ErrorMessage"/>
+            /// </summary>
+            public int maxAdjustListenPortOnBindFail = 1000;
+            /// <summary>
+            /// Determines if the IP addresses of the players should be relayed to all the other players.
+            /// </summary>
+            public bool serverless = true;
+            /// <summary>
+            ///  amount of time, in <see cref="System.DateTime.Ticks">ticks</see>, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.
+            /// </summary>
+            public long overduetimeout = 30_000_000;
+
+        }
+
         [ServiceDependency]
         public IPlayerManager PlayerManager { private get; set; }
 
@@ -89,14 +117,15 @@ namespace FezGame.MultiplayerMod
         /// <param name="maxAdjustListenPortOnBindFail">The amount of times to attempt to use the next port as the port to listen to, or to just throw an error. In case of an error, see <see cref="ErrorMessage"/></param>
         /// <param name="serverless">Determines if the IP addresses of the players should be relayed to all the other players.</param>
         /// <param name="overduetimeout">The amount of time, in <see cref="System.DateTime.Ticks">ticks</see>, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.</param>
-        internal MultiplayerClient(int listenPort = 7777, IPEndPoint[] mainEndpoint = null, int maxAdjustListenPortOnBindFail = 1000, bool serverless = true, long overduetimeout = 30_000_000)
+        internal MultiplayerClient(MultiplayerClientSettings settings)
         {
-            this.serverless = serverless;
+            this.serverless = settings.serverless;
+            int listenPort = settings.listenPort;
+            this.mainEndpoint = settings.mainEndpoint;
             if(mainEndpoint == null || mainEndpoint.Length == 0)
             {
                 mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, listenPort) };
             }
-            this.mainEndpoint = mainEndpoint;
             _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () => ServiceHelper.InjectServices(this));
 
             listenerThread = new Thread(() =>
@@ -112,14 +141,14 @@ namespace FezGame.MultiplayerMod
                     }
                     catch (Exception e)
                     {
-                        if (maxAdjustListenPortOnBindFail > retries++)
+                        if (settings.maxAdjustListenPortOnBindFail > retries++)
                         {
                             listenPort++;
                         }
                         else
                         {
                             //ErrorMessage = e.Message;
-                            ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - maxAdjustListenPortOnBindFail} to {listenPort} are already in use";
+                            ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - settings.maxAdjustListenPortOnBindFail} to {listenPort} are already in use";
                             listenerThread.Abort(e);
                         }
                     }
@@ -140,13 +169,14 @@ namespace FezGame.MultiplayerMod
                 {
                     foreach (PlayerMetadata p in Players.Values)
                     {
-                        if (p.LastUpdateTimestamp < Players[MyUuid].LastUpdateTimestamp - overduetimeout)
+                        if (p.LastUpdateTimestamp < DateTime.UtcNow.Ticks - settings.overduetimeout)
                         {
                             _ = Players.TryRemove(p.Uuid, out _);
                         }
                     }
                 }
             });
+            timeoutthread.Start();
         }
 
         private bool disposing = false;
