@@ -38,6 +38,31 @@ namespace FezGame.MultiplayerMod
 #endif
         ;//TODO add a version checker to check for new versions? (accessing the internet might trigger antivirus); see System.Net.WebClient.DownloadStringAsync
 
+        private class DebugTextDrawer : DrawableGameComponent
+        {
+            private FezMultiplayerMod mod;
+            public string Text = "";
+            public Color Color = Color.Gray;
+
+            public DebugTextDrawer(Game game, FezMultiplayerMod mod)
+                : base(game)
+            {
+                this.mod = mod;
+                this.DrawOrder = int.MaxValue;
+            }
+            public override void Draw(GameTime gameTime)
+            {
+                if (mod == null || mod.drawer == null || mod.FontManager == null)
+                {
+                    return;
+                }
+
+                mod.drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                mod.drawer.DrawString(mod.FontManager.Big, Text, Vector2.Zero, Color, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
+                mod.drawer.End();
+            }
+        }
+
         #region ServiceDependencies
         [ServiceDependency]
         public IPlayerManager PlayerManager { private get; set; }
@@ -63,15 +88,17 @@ namespace FezGame.MultiplayerMod
 
         private readonly MultiplayerClient mp;
         public bool ShowDebugInfo = true;
+        private readonly DebugTextDrawer debugTextDrawer;
 
         public FezMultiplayerMod(Game game)
             : base(game)
         {
             //Fez.SkipIntro = true;
             Instance = this;
+            ServiceHelper.AddComponent(debugTextDrawer = new DebugTextDrawer(game, Instance), false);
             mp = new MultiplayerClient(listenPort: 7777,
             mainEndpoint: null,
-            adjustListenPortOnBindFail: true,
+            maxAdjustListenPortOnBindFail: 1000,
             serverless: true,
             overduetimeout: 30_000_000
             );
@@ -138,32 +165,43 @@ namespace FezGame.MultiplayerMod
             PlayerManager.CanRotate = true;
             LevelManager.Flat = false;
             GameState.SaveData.HasFPView = true;
-            string s = mp.ErrorMessage != null ? $"{mp.ErrorMessage}\n" : "";
-            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-            foreach (var p in mp.Players.Values)
+            string s = "";
+            if(mp.ErrorMessage != null)
             {
-                if (ShowDebugInfo)
-                {
-                    if (p.Uuid == mp.MyUuid)
-                    {
-                        s += "(you): ";
-                    }
-                    s += $"{p.Endpoint}, {p.Uuid}, {p.CurrentLevelName}, {p.Action}, {p.CameraViewpoint}, {p.Position}, {p.LastUpdateTimestamp}\n";
-                }
-                //draw other player to screen if in the same level
-                if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)
-                {
-                    try
-                    {
-                        DrawPlayer(p, gameTime);
-                    }
-                    catch { }
-                }
+                debugTextDrawer.Color = Color.Red;
+                s += $"{mp.ErrorMessage}\n";
             }
-            drawer.End();
-            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-            drawer.DrawString(FontManager.Big, s, Vector2.Zero, Color.Gray, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
-            drawer.End();
+            if (mp.Listening)
+            {
+                debugTextDrawer.Color = Color.Gray;
+                drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                foreach (var p in mp.Players.Values)
+                {
+                    if (ShowDebugInfo)
+                    {
+                        if (p.Uuid == mp.MyUuid)
+                        {
+                            s += "(you): ";
+                        }
+                        s += $"{p.Endpoint}, {p.Uuid}, {p.CurrentLevelName}, {p.Action}, {p.CameraViewpoint}, {p.Position}, {p.LastUpdateTimestamp}\n";
+                    }
+                    //draw other player to screen if in the same level
+                    if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)
+                    {
+                        try
+                        {
+                            DrawPlayer(p, gameTime);
+                        }
+                        catch { }
+                    }
+                }
+                drawer.End();
+            }
+            else
+            {
+                s += "Not connected";
+            }
+            debugTextDrawer.Text = s;
         }
 
         #region internal drawing stuff

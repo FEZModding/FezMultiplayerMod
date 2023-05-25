@@ -8,5 +8,5 @@ Development starts
 Added basic multiplayer stuff
 
 0.0.2
-
+various bug fixes and improvements
 

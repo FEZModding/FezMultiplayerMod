@@ -72,6 +72,7 @@ namespace FezGame.MultiplayerMod
         private readonly IPEndPoint[] mainEndpoint;
         public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
         private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.Endpoint).Concat(mainEndpoint);
+        public bool Listening => udpListener?.Client?.IsBound ?? false;
         public readonly Guid MyUuid = Guid.NewGuid();
 
         //Note: it has to connect to another player before it propagates the player information
@@ -85,10 +86,10 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         /// <param name="listenPort">The port to listen on</param>
         /// <param name="mainEndpoint">An array representing the main endpoint(s) to talk to.</param>
-        /// <param name="adjustListenPortOnBindFail">Whether to automatically use the next available port as the port to listen to, or to just throw an error. In case of an error, see <see cref="ErrorMessage"/></param>
+        /// <param name="maxAdjustListenPortOnBindFail">The amount of times to attempt to use the next port as the port to listen to, or to just throw an error. In case of an error, see <see cref="ErrorMessage"/></param>
         /// <param name="serverless">Determines if the IP addresses of the players should be relayed to all the other players.</param>
         /// <param name="overduetimeout">The amount of time, in <see cref="System.DateTime.Ticks">ticks</see>, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.</param>
-        internal MultiplayerClient(int listenPort = 7777, IPEndPoint[] mainEndpoint = null, bool adjustListenPortOnBindFail = true, bool serverless = true, long overduetimeout = 30_000_000)
+        internal MultiplayerClient(int listenPort = 7777, IPEndPoint[] mainEndpoint = null, int maxAdjustListenPortOnBindFail = 1000, bool serverless = true, long overduetimeout = 30_000_000)
         {
             this.serverless = serverless;
             if(mainEndpoint == null || mainEndpoint.Length == 0)
@@ -100,25 +101,26 @@ namespace FezGame.MultiplayerMod
 
             listenerThread = new Thread(() =>
             {
-                bool init = true;
-                while (init)
+                bool initializing = true;
+                int retries = 0;
+                while (initializing)
                 {
                     try
                     {
                         udpListener = new UdpClient(listenPort);
-                        init = false;
+                        initializing = false;
                     }
                     catch (Exception e)
                     {
-                        if (adjustListenPortOnBindFail)
+                        if (maxAdjustListenPortOnBindFail > retries++)
                         {
                             listenPort++;
                         }
                         else
                         {
                             //ErrorMessage = e.Message;
-                            ErrorMessage = $"Port number {listenPort} is already in use";
-                            throw e;
+                            ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - maxAdjustListenPortOnBindFail} to {listenPort} are already in use";
+                            listenerThread.Abort(e);
                         }
                     }
                 }
@@ -169,11 +171,16 @@ namespace FezGame.MultiplayerMod
 
         public void Update(GameTime gameTime)
         {
+            if(!Listening)
+            {
+                return;
+            }
+            
             //UpdateMyPlayer
 
             PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) =>
             {
-                return new PlayerMetadata((IPEndPoint)udpListener.Client.LocalEndPoint, guid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
+                return new PlayerMetadata((IPEndPoint)udpListener?.Client?.LocalEndPoint ?? new IPEndPoint(IPAddress.Loopback, mainEndpoint[0].Port), guid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
             });
 
             //update MyPlayer
@@ -228,7 +235,7 @@ namespace FezGame.MultiplayerMod
         {
             //arbitrary values
             Disconnect = 7,
-            Message = 9,
+            Message = 9,//currently unused
         }
 
         private static byte[] SerializeNotice(NoticeType type, string data)
@@ -402,7 +409,8 @@ namespace FezGame.MultiplayerMod
                             default:
                                 {
                                     //Unsupported packet type
-                                    throw new NotSupportedException(ErrorMessage = "Unsupported NoticeType: " + noticeType);
+                                    ErrorMessage = "Unsupported NoticeType: " + noticeType;
+                                    return;
                                 }
                             }
                             break;
@@ -410,7 +418,8 @@ namespace FezGame.MultiplayerMod
                     default:
                         {
                             //Unsupported packet type
-                            throw new NotSupportedException(ErrorMessage = "Unsupported PacketType: " + packetType);
+                            ErrorMessage = "Unsupported PacketType: " + packetType;
+                            return;
                         }
                     }
                 }
