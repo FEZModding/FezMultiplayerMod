@@ -96,12 +96,12 @@ namespace FezGame.MultiplayerMod
             //Fez.SkipIntro = true;
             Instance = this;
             ServiceHelper.AddComponent(debugTextDrawer = new DebugTextDrawer(game, Instance), false);
-            mp = new MultiplayerClient(new MultiplayerClient.MultiplayerClientSettings()
+            mp = new MultiplayerClient(new MultiplayerClient.MultiplayerClientSettings()//TODO make these settings customizable 
             {
                 listenPort = 7777,
                 mainEndpoint = null,
                 maxAdjustListenPortOnBindFail = 1000,
-                serverless = false,
+                serverless = true,
                 overduetimeout = 30_000_000
             });
             drawer = new SpriteBatch(GraphicsDevice);

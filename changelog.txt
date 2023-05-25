@@ -9,4 +9,7 @@ Added basic multiplayer stuff
 
 0.0.2
 various bug fixes and improvements
+added server mode
+
+
 

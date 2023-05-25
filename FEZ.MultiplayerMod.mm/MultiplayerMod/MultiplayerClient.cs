@@ -77,11 +77,6 @@ namespace FezGame.MultiplayerMod
 
             public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             {
-                IPAddress ip = Endpoint.Address;
-                if (ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
-                {
-                    Endpoint.Address = IPAddress.Loopback;
-                }
                 this.Endpoint = Endpoint;
                 this.Uuid = Uuid;
                 this.CurrentLevelName = CurrentLevelName;
@@ -104,7 +99,10 @@ namespace FezGame.MultiplayerMod
         public readonly Guid MyUuid = Guid.NewGuid();
 
         //Note: it has to connect to another player before it propagates the player information
-        private readonly bool serverless;//TODO implement the case where this is false; for true it relays the IP addresses of all the players to all the other players
+        /// <summary>
+        /// for true it relays the IP endpoints of all the players to all the other players, otherwise IP addressed will only be sent to the <see cref="MultiplayerClientSettings.mainEndpoint"/>.
+        /// </summary>
+        private readonly bool serverless;
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
 
@@ -210,7 +208,14 @@ namespace FezGame.MultiplayerMod
 
             PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) =>
             {
-                return new PlayerMetadata((IPEndPoint)udpListener?.Client?.LocalEndPoint ?? new IPEndPoint(IPAddress.Loopback, mainEndpoint[0].Port), guid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
+                IPEndPoint Endpoint = (IPEndPoint)udpListener?.Client?.LocalEndPoint ?? new IPEndPoint(IPAddress.Loopback, mainEndpoint[0].Port);
+                IPAddress ip = Endpoint.Address;
+                if (ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
+                {
+                    Endpoint.Address = IPAddress.Loopback;
+                }
+
+                return new PlayerMetadata(Endpoint, guid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
             });
 
             //update MyPlayer
@@ -230,9 +235,20 @@ namespace FezGame.MultiplayerMod
             Players[MyUuid] = p;
 
             //SendPlayerDataToAll
-            foreach (PlayerMetadata m in Players.Values)
+            if (serverless)
             {
-                SendToAll(Serialize(m));
+                foreach (PlayerMetadata m in Players.Values)
+                {
+                    SendToAll(Serialize(m, false));
+                }
+            }
+            else
+            {
+                foreach (PlayerMetadata m in Players.Values)
+                {
+                    //Note: probably should refactor these methods
+                    SendToAll((targ)=>Serialize(m, mainEndpoint.Contains(targ)));
+                }
             }
         }
 
@@ -247,11 +263,30 @@ namespace FezGame.MultiplayerMod
             Client.Close();
         }
 
+        private void SendToAll(Func<IPEndPoint, byte[]> msgGenerator)
+        {
+            IEnumerable<IPEndPoint> targets = serverless || mainEndpoint.Contains(Players[MyUuid].Endpoint) ? Targets : mainEndpoint;
+            // Send the message to all recipients
+            System.Threading.Tasks.Parallel.ForEach(targets,
+                targ => {
+                    if (targ.Address != IPAddress.None && targ.Port > 0)
+                    {
+                        SendUdp(msgGenerator.Invoke(targ), targ);
+                    }
+                });
+        }
+
         private void SendToAll(byte[] msg)
         {
+            IEnumerable<IPEndPoint> targets = serverless || mainEndpoint.Contains(Players[MyUuid].Endpoint) ? Targets : mainEndpoint;
             // Send the message to all recipients
-            System.Threading.Tasks.Parallel.ForEach(Targets,
-                targ => SendUdp(msg, targ));
+            System.Threading.Tasks.Parallel.ForEach(targets,
+                targ => {
+                    if (targ.Address != IPAddress.None && targ.Port > 0)
+                    {
+                        SendUdp(msg, targ);
+                    }
+                });
         }
 
         private enum PacketType
@@ -295,7 +330,7 @@ namespace FezGame.MultiplayerMod
             }
         }
 
-        private byte[] Serialize(PlayerMetadata p)
+        private byte[] Serialize(PlayerMetadata p, bool mainTarget)
         {
             using (MemoryStream m = new MemoryStream())
             {
@@ -312,8 +347,16 @@ namespace FezGame.MultiplayerMod
                     writer.Write((String)ProtocolVersion);
                     writer.Write((Byte)PacketType.PlayerInfo);
                     writer.Write((Int64)p.LastUpdateTimestamp);
-                    writer.Write((String)((IPAddress)p.Endpoint.Address).ToString());
-                    writer.Write((Int32)p.Endpoint.Port);
+                    if (serverless || mainTarget)
+                    {
+                        writer.Write((String)((IPAddress)p.Endpoint.Address).ToString());
+                        writer.Write((Int32)p.Endpoint.Port);
+                    }
+                    else
+                    {
+                        writer.Write((String)IPAddress.None.ToString());
+                        writer.Write((Int32)0);
+                    }
                     writer.Write((bool)p.Uuid.Equals(MyUuid));
                     writer.Write((String)p.Uuid.ToString());
                     writer.Write((String)p.CurrentLevelName ?? "");
@@ -357,17 +400,21 @@ namespace FezGame.MultiplayerMod
                     {
                     case PacketType.PlayerInfo:
                         {
-                            IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(reader.ReadString()), reader.ReadInt32());
+                            IPEndPoint endpoint;
+                            try
+                            {
+                                endpoint = new IPEndPoint(IPAddress.Parse(reader.ReadString()), reader.ReadInt32());
+                            }
+                            catch(Exception)
+                            {
+                                endpoint = new IPEndPoint(IPAddress.None, 0);
+                            }
                             bool infoFromOwner = reader.ReadBoolean();
                             if (infoFromOwner)
                             {
                                 endpoint.Address = remoteHost.Address;
                             }
                             IPAddress ip = remoteHost.Address;
-                            if (ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
-                            {
-                                endpoint.Address = IPAddress.Loopback;
-                            }
                             Guid uuid = Guid.Parse(reader.ReadString());
                             string lvl = reader.ReadString();
                             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
@@ -378,10 +425,13 @@ namespace FezGame.MultiplayerMod
 
                             if (uuid == MyUuid)//ignore the other stuff if it's ourself
                             {
-                                PlayerMetadata me = Players[MyUuid];
-                                me.Endpoint = endpoint;
-                                Players[uuid] = me;
-                                return;
+                                if (serverless)
+                                {
+                                    PlayerMetadata me = Players[MyUuid];
+                                    me.Endpoint = endpoint;
+                                    Players[uuid] = me;
+                                    return;
+                                }
                             }
                             else
                             {
