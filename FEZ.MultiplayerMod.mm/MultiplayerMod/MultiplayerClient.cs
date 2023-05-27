@@ -25,34 +25,6 @@ namespace FezGame.MultiplayerMod
     /// </summary>
     public class MultiplayerClient : IDisposable
     {
-        public class MultiplayerClientSettings
-        {
-            /// <param name="listenPort">The port to listen on</param>
-            /// <param name="mainEndpoint"></param>
-            /// <param name="maxAdjustListenPortOnBindFail"></param>
-            /// <param name="serverless"></param>
-            /// <param name="overduetimeout">The</param>
-            
-            public int listenPort = 7777;
-            /// <summary>
-            /// An array representing the main endpoint(s) to talk to.
-            /// </summary>
-            public IPEndPoint[] mainEndpoint = null;
-            /// <summary>
-            /// The amount of times to attempt to use the next port as the port to listen to, or to just throw an error. In case of an error, see <see cref="ErrorMessage"/>
-            /// </summary>
-            public int maxAdjustListenPortOnBindFail = 1000;
-            /// <summary>
-            /// Determines if the IP addresses of the players should be relayed to all the other players.
-            /// </summary>
-            public bool serverless = true;
-            /// <summary>
-            ///  amount of time, in <see cref="System.DateTime.Ticks">ticks</see>, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.
-            /// </summary>
-            public long overduetimeout = 30_000_000;
-
-        }
-
         [ServiceDependency]
         public IPlayerManager PlayerManager { private get; set; }
 
@@ -105,16 +77,16 @@ namespace FezGame.MultiplayerMod
         private readonly bool serverless;
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
+        /// <summary>
+        /// If not null, contains a fatal exception that was thrown on a child Thread
+        /// </summary>
+        public volatile Exception FatalException = null;
 
         /// <summary>
         /// Creates a new instance of this class with the provided parameters.
-        /// For any errors that get encountered while performing <see cref="ErrorMessage"/>
+        /// For any errors that get encountered see <see cref="ErrorMessage"/> an <see cref="FatalException"/>
         /// </summary>
-        /// <param name="listenPort">The port to listen on</param>
-        /// <param name="mainEndpoint">An array representing the main endpoint(s) to talk to.</param>
-        /// <param name="maxAdjustListenPortOnBindFail">The amount of times to attempt to use the next port as the port to listen to, or to just throw an error. In case of an error, see <see cref="ErrorMessage"/></param>
-        /// <param name="serverless">Determines if the IP addresses of the players should be relayed to all the other players.</param>
-        /// <param name="overduetimeout">The amount of time, in <see cref="System.DateTime.Ticks">ticks</see>, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.</param>
+        /// <param name="settings">The <see cref="MultiplayerClientSettings"/> to use to create this instance.</param>
         internal MultiplayerClient(MultiplayerClientSettings settings)
         {
             this.serverless = settings.serverless;
@@ -128,51 +100,60 @@ namespace FezGame.MultiplayerMod
 
             listenerThread = new Thread(() =>
             {
-                bool initializing = true;
-                int retries = 0;
-                while (initializing)
+                try
                 {
-                    try
+                    bool initializing = true;
+                    int retries = 0;
+                    while (initializing)
                     {
-                        udpListener = new UdpClient(listenPort);
-                        initializing = false;
+                        try
+                        {
+                            udpListener = new UdpClient(listenPort);
+                            initializing = false;
+                        }
+                        catch (Exception e)
+                        {
+                            if (settings.maxAdjustListenPortOnBindFail > retries++)
+                            {
+                                listenPort++;
+                            }
+                            else
+                            {
+                                //ErrorMessage = e.Message;
+                                ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - retries + 1} to {listenPort} are already in use";
+                                listenerThread.Abort(e);//does this even work?
+                                return;
+                            }
+                        }
                     }
-                    catch (Exception e)
+                    while (!disposing)
                     {
-                        if (settings.maxAdjustListenPortOnBindFail > retries++)
-                        {
-                            listenPort++;
-                        }
-                        else
-                        {
-                            //ErrorMessage = e.Message;
-                            ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - settings.maxAdjustListenPortOnBindFail} to {listenPort} are already in use";
-                            listenerThread.Abort(e);
-                        }
+                        //IPEndPoint object will allow us to read datagrams sent from any source.
+                        IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
+                        ProcessDatagram(udpListener.Receive(ref t), t);
                     }
+                    udpListener.Close();
                 }
-                while (!disposing)
-                {
-                    //IPEndPoint object will allow us to read datagrams sent from any source.
-                    IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
-                    ProcessDatagram(udpListener.Receive(ref t), t);
-                }
-                udpListener.Close();
+                catch (Exception e) { FatalException = e; }
             });
             listenerThread.Start();
 
             timeoutthread = new Thread(() =>
             {
-                while (!disposing)
+                try
                 {
-                    foreach (PlayerMetadata p in Players.Values)
+                    while (!disposing)
                     {
-                        if (p.LastUpdateTimestamp < DateTime.UtcNow.Ticks - settings.overduetimeout)
+                        foreach (PlayerMetadata p in Players.Values)
                         {
-                            _ = Players.TryRemove(p.Uuid, out _);
+                            if (p.LastUpdateTimestamp < DateTime.UtcNow.Ticks - settings.overduetimeout)
+                            {
+                                _ = Players.TryRemove(p.Uuid, out _);
+                            }
                         }
                     }
                 }
+                catch (Exception e) { FatalException = e; }
             });
             timeoutthread.Start();
         }
@@ -199,6 +180,11 @@ namespace FezGame.MultiplayerMod
 
         public void Update(GameTime gameTime)
         {
+            if (FatalException != null)
+            {
+                throw FatalException;//This should never happen
+            }
+            
             if(!Listening)
             {
                 return;
