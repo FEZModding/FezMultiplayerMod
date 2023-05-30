@@ -42,6 +42,7 @@ namespace FezGame.MultiplayerMod
         public long overduetimeout = 30_000_000;
 
         private const char IniKeyValDelimiter = '=';
+        private const string FezMultiplayerModVersionName = "FezMultiplayerMod.Version";//TODO use to check the settings file version?
         public static MultiplayerClientSettings ReadSettingsFile(string filepath)
         {
             MultiplayerClientSettings settings = new MultiplayerClientSettings();
@@ -77,13 +78,26 @@ namespace FezGame.MultiplayerMod
         }
         public static void WriteSettingsFile(string filepath, MultiplayerClientSettings settings)
         {
-            List<string> lines = new List<string>();
+            List<string> lines = new List<string>()
+            {
+                "; FezMultiplayerMod settings",
+                "",
+                "; Note:",
+                "; Everything has default values; if a setting is not in the settings file, the mod will use the default value and will add the setting with the default value to the settings file.",
+                "; Also any modifications apart from the values for the settings will be erased.",
+                "",
+                "[Metadata]",
+                $"{FezMultiplayerModVersionName}{IniKeyValDelimiter}{FezMultiplayerMod.Version}",
+                "",
+                "[Settings]",
+            };
 
             FieldInfo[] fields = typeof(MultiplayerClientSettings).GetFields();
             foreach (var field in fields)
             {
                 lines.Add("; " + (field.GetCustomAttributes(typeof(DescriptionAttribute), true).FirstOrDefault() as DescriptionAttribute)?.Description);
                 lines.Add(field.Name + IniKeyValDelimiter + FormatObject(field.GetValue(settings)));
+                lines.Add("");
             }
 
             File.WriteAllLines(filepath, lines, System.Text.Encoding.UTF8);
