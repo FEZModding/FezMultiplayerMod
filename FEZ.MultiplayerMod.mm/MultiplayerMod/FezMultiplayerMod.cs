@@ -231,7 +231,7 @@ namespace FezGame.MultiplayerMod
             }
             int width = animation.Texture.Width;
             int height = animation.Texture.Height;
-            int frame = animation.Timing.Frame = p.AnimFrame;
+            int frame = p.AnimFrame;
             if(frame >= animation.Offsets.Length)
             {
                 frame = 0;
