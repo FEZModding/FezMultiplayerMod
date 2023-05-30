@@ -46,33 +46,36 @@ namespace FezGame.MultiplayerMod
         public static MultiplayerClientSettings ReadSettingsFile(string filepath)
         {
             MultiplayerClientSettings settings = new MultiplayerClientSettings();
-
-            var fields = typeof(MultiplayerClientSettings).GetFields().ToDictionary(a => a.Name, StringComparer.InvariantCultureIgnoreCase);
-
-            string[] lines = File.ReadAllLines(filepath, System.Text.Encoding.UTF8);
-            foreach (var line in lines)
+            try
             {
-                var trimmed = line.TrimStart();
-                if (trimmed.StartsWith(";") || trimmed.Length <= 0)
-                    continue;
-                if (trimmed.StartsWith("["))
-                {
-                    continue;
-                }
-                var kvmatch = Regex.Match(trimmed, $@"(.*?)(?:{IniKeyValDelimiter}(.*))?$");
-                string key = kvmatch.Groups[1].Value.Trim();
-                string value = kvmatch.Groups[2].Success ? kvmatch.Groups[2].Value : "";
+                var fields = typeof(MultiplayerClientSettings).GetFields().ToDictionary(a => a.Name, StringComparer.InvariantCultureIgnoreCase);
 
-                if (fields.ContainsKey(key))
+                string[] lines = File.ReadAllLines(filepath, System.Text.Encoding.UTF8);
+                foreach (var line in lines)
                 {
-                    var f = fields[key];
-                    object v = ParseObject(f.FieldType, value.Trim());
-                    if (v != null)
+                    var trimmed = line.TrimStart();
+                    if (trimmed.StartsWith(";") || trimmed.Length <= 0)
+                        continue;
+                    if (trimmed.StartsWith("["))
                     {
-                        f.SetValue(settings, v);
+                        continue;
+                    }
+                    var kvmatch = Regex.Match(trimmed, $@"(.*?)(?:{IniKeyValDelimiter}(.*))?$");
+                    string key = kvmatch.Groups[1].Value.Trim();
+                    string value = kvmatch.Groups[2].Success ? kvmatch.Groups[2].Value : "";
+
+                    if (fields.ContainsKey(key))
+                    {
+                        var f = fields[key];
+                        object v = ParseObject(f.FieldType, value.Trim());
+                        if (v != null)
+                        {
+                            f.SetValue(settings, v);
+                        }
                     }
                 }
             }
+            catch (Exception) { }
 
             return settings;
         }
