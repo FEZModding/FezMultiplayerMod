@@ -96,16 +96,17 @@ namespace FezGame.MultiplayerMod
             //Fez.SkipIntro = true;
             Instance = this;
             ServiceHelper.AddComponent(debugTextDrawer = new DebugTextDrawer(game, Instance), false);
+            const int TestPort = 7777;
             var settings = new MultiplayerClientSettings()
             {
-                listenPort = 7777,
-                mainEndpoint = null,
+                listenPort = TestPort,
+                mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, TestPort), new IPEndPoint(IPAddress.Loopback, TestPort+1), new IPEndPoint(IPAddress.Loopback, TestPort+2) },
                 maxAdjustListenPortOnBindFail = 1000,
                 serverless = true,
                 overduetimeout = 30_000_000
             };
             const string SettingsFilePath = "FezMultiplayerMod.ini";
-            settings = MultiplayerClientSettings.ReadSettingsFile(SettingsFilePath);
+            //settings = MultiplayerClientSettings.ReadSettingsFile(SettingsFilePath);
             mp = new MultiplayerClient(settings);
             MultiplayerClientSettings.WriteSettingsFile(SettingsFilePath, new MultiplayerClientSettings());
 

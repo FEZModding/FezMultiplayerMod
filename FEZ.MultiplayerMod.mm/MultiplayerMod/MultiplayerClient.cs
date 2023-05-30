@@ -108,7 +108,7 @@ namespace FezGame.MultiplayerMod
                     {
                         try
                         {
-                            udpListener = new UdpClient(listenPort);
+                            udpListener = new UdpClient(listenPort, AddressFamily.InterNetwork);
                             initializing = false;
                         }
                         catch (Exception e)
