@@ -7,7 +7,7 @@ Development starts
 0.0.1 - 2023-05-14T05:47:36Z
 Added basic multiplayer stuff
 
-0.0.2
+0.0.2 - 2023-05-30T17:05:36Z
 various bug fixes and improvements
 added server mode
 added settings file
