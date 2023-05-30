@@ -106,9 +106,9 @@ namespace FezGame.MultiplayerMod
                 overduetimeout = 30_000_000
             };
             const string SettingsFilePath = "FezMultiplayerMod.ini";
-            //settings = MultiplayerClientSettings.ReadSettingsFile(SettingsFilePath);
+            settings = MultiplayerClientSettings.ReadSettingsFile(SettingsFilePath);
             mp = new MultiplayerClient(settings);
-            MultiplayerClientSettings.WriteSettingsFile(SettingsFilePath, new MultiplayerClientSettings());
+            MultiplayerClientSettings.WriteSettingsFile(SettingsFilePath, settings);
 
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);

@@ -62,10 +62,14 @@ namespace FezGame.MultiplayerMod
                 string key = kvmatch.Groups[1].Value.Trim();
                 string value = kvmatch.Groups[2].Success ? kvmatch.Groups[2].Value : "";
 
-                if(fields.ContainsKey(key))
+                if (fields.ContainsKey(key))
                 {
                     var f = fields[key];
-                    f.SetValue(settings, ParseObject(f.FieldType, value));
+                    object v = ParseObject(f.FieldType, value.Trim());
+                    if (v != null)
+                    {
+                        f.SetValue(settings, v);
+                    }
                 }
             }
 
@@ -76,7 +80,7 @@ namespace FezGame.MultiplayerMod
             List<string> lines = new List<string>();
 
             FieldInfo[] fields = typeof(MultiplayerClientSettings).GetFields();
-            foreach(var field in fields)
+            foreach (var field in fields)
             {
                 lines.Add("; " + (field.GetCustomAttributes(typeof(DescriptionAttribute), true).FirstOrDefault() as DescriptionAttribute)?.Description);
                 lines.Add(field.Name + IniKeyValDelimiter + FormatObject(field.GetValue(settings)));
@@ -86,22 +90,65 @@ namespace FezGame.MultiplayerMod
         }
         private static string FormatObject(object obj)
         {
-            if(obj == null)
+            if (obj == null)
             {
                 return "";
             }
-            if(obj.GetType().IsArray)
+            if (obj.GetType().IsArray)
             {
                 object[] arr = (object[])obj;
                 return String.Join(", ", arr);
             }
-            return ""+obj;
+            return "" + obj;
         }
         private static object ParseObject(Type t, string str)
         {
-            object obj = str;
-            //TODO
-            return obj;
+            try
+            {
+                if (typeof(long).Equals(t))
+                {
+                    return long.Parse(str);
+                }
+                if (typeof(int).Equals(t))
+                {
+                    return int.Parse(str);
+                }
+                if (typeof(bool).Equals(t))
+                {
+                    return str != null && str.Equals("true", StringComparison.InvariantCultureIgnoreCase);//bool.Parse(str);
+                }
+                if (t.IsArray)
+                {
+                    Type elementType = t.GetElementType();
+                    if (typeof(IPEndPoint).Equals(elementType))
+                    {
+                        return str.Split(',').Select(a =>
+                        {
+                            try
+                            {
+                                a = a.Trim();
+                                int portsepindex = a.LastIndexOf(':');
+                                if (portsepindex < 0)
+                                {
+                                }
+                                string addr = a.Substring(0, portsepindex).Replace("[", "").Replace("]", "");//Note: the replaces are for IPv6
+                                string port = a.Substring(portsepindex + 1);
+                                return new IPEndPoint(IPAddress.Parse(addr), int.Parse(port));
+                            }
+                            catch (Exception e)
+                            {
+                                throw new ArgumentException($"String \"{a}\" is not a valid IPEndPoint.", "str", e);
+                            }
+                        }).ToArray();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                throw e;//TODO?
+            }
+
+            throw new ArgumentException($"Type \"{t.FullName}\" is not supported.", "t");
         }
     }
 }
