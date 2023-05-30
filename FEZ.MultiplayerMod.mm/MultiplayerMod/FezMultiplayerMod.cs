@@ -38,6 +38,9 @@ namespace FezGame.MultiplayerMod
 #endif
         ;//TODO add a version checker to check for new versions? (accessing the internet might trigger antivirus); see System.Net.WebClient.DownloadStringAsync
 
+        /// <summary>
+        /// This class is mainly so we can get text to display over everything else but still have the other players render on the correct layer. 
+        /// </summary>
         private class DebugTextDrawer : DrawableGameComponent
         {
             private FezMultiplayerMod mod;
@@ -96,17 +99,9 @@ namespace FezGame.MultiplayerMod
             //Fez.SkipIntro = true;
             Instance = this;
             ServiceHelper.AddComponent(debugTextDrawer = new DebugTextDrawer(game, Instance), false);
-            const int TestPort = 7777;
-            var settings = new MultiplayerClientSettings()
-            {
-                listenPort = TestPort,
-                mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, TestPort), new IPEndPoint(IPAddress.Loopback, TestPort+1), new IPEndPoint(IPAddress.Loopback, TestPort+2) },
-                maxAdjustListenPortOnBindFail = 1000,
-                serverless = true,
-                overduetimeout = 30_000_000
-            };
-            const string SettingsFilePath = "FezMultiplayerMod.ini";
-            settings = MultiplayerClientSettings.ReadSettingsFile(SettingsFilePath);
+
+            const string SettingsFilePath = "FezMultiplayerMod.ini";//TODO: probably should use an actual path instead of just the file name
+            MultiplayerClientSettings settings = MultiplayerClientSettings.ReadSettingsFile(SettingsFilePath);
             mp = new MultiplayerClient(settings);
             MultiplayerClientSettings.WriteSettingsFile(SettingsFilePath, settings);
 

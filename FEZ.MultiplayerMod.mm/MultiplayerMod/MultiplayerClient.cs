@@ -282,7 +282,7 @@ namespace FezGame.MultiplayerMod
             Notice = 3,
         }
 
-        private enum NoticeType
+        private enum NoticeType //Honestly, these could probably be merged into PacketType
         {
             //arbitrary values
             Disconnect = 7,
