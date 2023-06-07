@@ -65,7 +65,7 @@ namespace FezGame.MultiplayerMod
         private readonly Thread listenerThread;
         private readonly Thread timeoutthread;
         private readonly IPEndPoint[] mainEndpoint;
-        public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
+        public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();//TODO performance improvements because I suspect being concurrent means the updating the entries blocks execution of FezMultiplayerMod.Draw
         private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.Endpoint).Concat(mainEndpoint);
         public bool Listening => udpListener?.Client?.IsBound ?? false;
         public readonly Guid MyUuid = Guid.NewGuid();
@@ -220,21 +220,27 @@ namespace FezGame.MultiplayerMod
             p.LastUpdateTimestamp = DateTime.UtcNow.Ticks;
             Players[MyUuid] = p;
 
-            //SendPlayerDataToAll
-            if (serverless)
-            {
-                foreach (PlayerMetadata m in Players.Values)
+            try {
+
+                //SendPlayerDataToAll
+                if (serverless)
                 {
-                    SendToAll(Serialize(m, false));
+                    foreach (PlayerMetadata m in Players.Values)
+                    {
+                        SendToAll(Serialize(m, false));
+                    }
+                }
+                else
+                {
+                    foreach (PlayerMetadata m in Players.Values)
+                    {
+                        //Note: probably should refactor these methods
+                        SendToAll((targ) => Serialize(m, mainEndpoint.Contains(targ)));
+                    }
                 }
             }
-            else
-            {
-                foreach (PlayerMetadata m in Players.Values)
-                {
-                    //Note: probably should refactor these methods
-                    SendToAll((targ)=>Serialize(m, mainEndpoint.Contains(targ)));
-                }
+            catch(KeyNotFoundException)
+            { 
             }
         }
 

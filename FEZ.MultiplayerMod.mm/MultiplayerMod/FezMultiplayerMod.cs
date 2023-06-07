@@ -32,7 +32,7 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// A string representing the current version of this class.
         /// </summary>
-        public static readonly string Version = "0.0.2"
+        public static readonly string Version = "0.0.3"
 #if DEBUG
         + $" (debug build {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version})"
 #endif
@@ -43,7 +43,7 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         private class DebugTextDrawer : DrawableGameComponent
         {
-            private FezMultiplayerMod mod;
+            private readonly FezMultiplayerMod mod;
             public string Text = "";
             public Color Color = Color.Gray;
 
@@ -81,9 +81,6 @@ namespace FezGame.MultiplayerMod
 
         [ServiceDependency]
         public IFontManager FontManager { private get; set; }
-
-        [ServiceDependency]
-        public ILightingPostProcess LightingPostProcess { private get; set; }
 
         #endregion
 
@@ -124,8 +121,14 @@ namespace FezGame.MultiplayerMod
         private readonly SpriteBatch drawer;
         public override void Initialize()
         {
-            DrawOrder = 9;//Same as GomezHost.DrawOrder
-            LightingPostProcess.DrawGeometryLights += PreDraw;
+            DrawOrder = 9;//player gomez is at 9, bombs and trixel partical system and warp gates are at 10, black holes & liquids are at 50, split up cubes at 75, cloud shadows at 100
+            //dunno if there's a good way to get the other players to appear on top of the water in first person mode
+            LevelManager.LevelChanged += delegate
+            {
+                effect.ColorSwapMode = ((LevelManager.WaterType == LiquidType.Sewer) ? ColorSwapMode.Gameboy : ((LevelManager.WaterType == LiquidType.Lava) ? ColorSwapMode.VirtualBoy : (LevelManager.BlinkingAlpha ? ColorSwapMode.Cmyk : ColorSwapMode.None)));
+            };
+            ILightingPostProcess lpp = null;
+            _ = Waiters.Wait(() => (lpp = ServiceHelper.Get<ILightingPostProcess>()) != null, () => lpp.DrawGeometryLights += PreDraw);
             DrawActionScheduler.Schedule(delegate
             {
                 mesh.Effect = (effect = new GomezEffect());
@@ -153,7 +156,11 @@ namespace FezGame.MultiplayerMod
                 {
                     base.GraphicsDevice.PrepareStencilWrite(StencilMask.None);
                 }
-                mesh.Draw();
+                foreach (var p in mp.Players.Values)
+                {
+                    DrawPlayer(p, gameTime, false);
+                    mesh.Draw();
+                }
                 base.GraphicsDevice.PrepareStencilWrite(StencilMask.None);
                 effect.Pass = LightingEffectPass.Main;
             }
@@ -165,15 +172,20 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
+
+#if DEBUG
             PlayerManager.CanRotate = true;
             LevelManager.Flat = false;
             GameState.SaveData.HasFPView = true;
+#endif
+
             string s = "";
             if(mp.ErrorMessage != null)
             {
                 debugTextDrawer.Color = Color.Red;
                 s += $"{mp.ErrorMessage}\n";
             }
+            s += $"ColorSwapMode: {effect.ColorSwapMode}\n";
             if (mp.Listening)
             {
                 debugTextDrawer.Color = Color.Gray;
@@ -209,10 +221,16 @@ namespace FezGame.MultiplayerMod
 
         #region internal drawing stuff
 
+        /// <summary>
+        /// used for areas with colored filters (e.g., lava, sewer, cmy, etc.)
+        /// </summary>
         private GomezEffect effect;
-        private readonly Mesh mesh = new Mesh();
+        private readonly Mesh mesh = new Mesh()
+        {
+            SamplerState = SamplerState.PointClamp
+        };
         private TimeSpan sinceBackgroundChanged = TimeSpan.Zero;
-        internal void DrawPlayer(MultiplayerClient.PlayerMetadata p, GameTime gameTime)
+        internal void DrawPlayer(MultiplayerClient.PlayerMetadata p, GameTime gameTime, bool doDraw = true)
         {
             #region adapted from GomezHost.Update
             if (GameState.Loading
@@ -242,7 +260,6 @@ namespace FezGame.MultiplayerMod
             }
             Rectangle rectangle = animation.Offsets[frame];
             effect.Animation = animation.Texture;
-            mesh.SamplerState = SamplerState.PointClamp;
             mesh.Texture = animation.Texture;
             mesh.FirstGroup.TextureMatrix.Set(new Matrix((float)rectangle.Width / (float)width, 0f, 0f, 0f, 0f, (float)rectangle.Height / (float)height, 0f, 0f, (float)rectangle.X / (float)width, (float)rectangle.Y / (float)height, 1f, 0f, 0f, 0f, 0f, 0f));
             bool playerinbackground = false;// PlayerManager.Background;
@@ -292,7 +309,7 @@ namespace FezGame.MultiplayerMod
                 mesh.DepthWrites = false;
                 mesh.AlwaysOnTop = true;
                 effect.Silhouette = true;
-                mesh.Draw();
+                if(doDraw) mesh.Draw();
             }
             if (!playerinbackground)
             {
@@ -300,14 +317,14 @@ namespace FezGame.MultiplayerMod
                 mesh.AlwaysOnTop = true;
                 mesh.DepthWrites = false;
                 effect.Silhouette = false;
-                mesh.Draw();
+                if (doDraw) mesh.Draw();
             }
             //finally draw the mesh
             graphicsDevice.PrepareStencilWrite(StencilMask.Gomez);
             mesh.AlwaysOnTop = p.Action.NeedsAlwaysOnTop();
             mesh.DepthWrites = !GameState.InFpsMode;
             effect.Silhouette = false;
-            mesh.Draw();
+            if (doDraw) mesh.Draw();
             graphicsDevice.PrepareStencilWrite(StencilMask.None);
             #endregion
         }

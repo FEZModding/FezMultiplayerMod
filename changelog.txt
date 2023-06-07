@@ -12,4 +12,6 @@ various bug fixes and improvements
 added server mode
 added settings file
 
+0.0.3
+bug fixes
 
