@@ -395,9 +395,13 @@ namespace FezGame.MultiplayerMod
                             IPEndPoint endpoint;
                             try
                             {
-                                endpoint = new IPEndPoint(IPAddress.Parse(reader.ReadString()), reader.ReadInt32());
+                                string endip = reader.ReadString();
+                                int endport = reader.ReadInt32();
+                                // Note: the above reads from the binary reader are there to ensure they both get called so the reader doesn't skip a value
+                                endpoint = new IPEndPoint(IPAddress.Parse(endip), endport);
                             }
-                            catch(Exception)
+                            catch (Exception)//catches exceptions for when the IP endpoint received is invalid
+                                             // probably should be changed so it doesn't catch the exceptions thrown by the reader, but it's probably fine
                             {
                                 endpoint = new IPEndPoint(IPAddress.None, 0);
                             }
