@@ -139,7 +139,7 @@ namespace FezGame.MultiplayerMod
             base.Update(gameTime);
             if (!GameState.Paused)
             {
-                mp.Update(gameTime);
+                mp.Update();
             }
         }
 

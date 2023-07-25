@@ -14,4 +14,8 @@ added settings file
 
 0.0.3
 bug fixes
+refactoring
+added new optional dedicated server exe
+
+
 

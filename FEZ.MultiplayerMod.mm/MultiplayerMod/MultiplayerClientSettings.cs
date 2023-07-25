@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Linq;
 using System;
-using Common;
+using System.ComponentModel;
 
 namespace FezGame.MultiplayerMod
 {
@@ -79,6 +79,7 @@ namespace FezGame.MultiplayerMod
 
             return settings;
         }
+        #if FEZCLIENT
         public static void WriteSettingsFile(string filepath, MultiplayerClientSettings settings)
         {
             List<string> lines = new List<string>()
@@ -105,6 +106,7 @@ namespace FezGame.MultiplayerMod
 
             File.WriteAllLines(filepath, lines, System.Text.Encoding.UTF8);
         }
+        #endif
         private static string FormatObject(object obj)
         {
             if (obj == null)
