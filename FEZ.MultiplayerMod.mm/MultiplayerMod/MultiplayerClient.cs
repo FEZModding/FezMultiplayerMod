@@ -65,7 +65,7 @@ namespace FezGame.MultiplayerMod
                     Endpoint.Address = IPAddress.Loopback;
                 }
 
-                return new PlayerMetadata(Endpoint, guid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
+                return new PlayerMetadata(Endpoint, guid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks, DateTime.UtcNow.Ticks);
             });
 
             //update MyPlayer
@@ -82,6 +82,7 @@ namespace FezGame.MultiplayerMod
                 p.CameraViewpoint = CameraManager.Viewpoint;
             }
             p.LastUpdateTimestamp = DateTime.UtcNow.Ticks;
+            p.LastUpdateLocalTimestamp = DateTime.UtcNow.Ticks;
             Players[MyUuid] = p;
         }
     }

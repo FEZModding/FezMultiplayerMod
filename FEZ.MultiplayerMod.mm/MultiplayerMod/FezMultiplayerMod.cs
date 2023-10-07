@@ -185,7 +185,6 @@ namespace FezGame.MultiplayerMod
                 debugTextDrawer.Color = Color.Red;
                 s += $"{mp.ErrorMessage}\n";
             }
-            s += $"ColorSwapMode: {effect.ColorSwapMode}\n";
             if (mp.Listening)
             {
                 debugTextDrawer.Color = Color.Gray;

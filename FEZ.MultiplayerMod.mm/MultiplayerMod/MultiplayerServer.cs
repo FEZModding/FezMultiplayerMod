@@ -47,8 +47,12 @@ namespace FezGame.MultiplayerMod
             public long LastUpdateTimestamp;
             public HorizontalDirection LookingDirection;
             public Viewpoint CameraViewpoint;
+            /// <summary>
+            /// for auto-disposing, since LastUpdateTimestamp shouldn't be used for that because the system clocks of the two protocols could be different
+            /// </summary>
+            public long LastUpdateLocalTimestamp;
 
-            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
+            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp, long LastUpdateLocalTimestamp)
             {
                 this.Endpoint = Endpoint;
                 this.Uuid = Uuid;
@@ -59,6 +63,7 @@ namespace FezGame.MultiplayerMod
                 this.LookingDirection = LookingDirection;
                 this.LastUpdateTimestamp = LastUpdateTimestamp;
                 this.CameraViewpoint = CameraViewpoint;
+                this.LastUpdateLocalTimestamp = LastUpdateLocalTimestamp;
             }
         }
 
@@ -151,7 +156,7 @@ namespace FezGame.MultiplayerMod
                     {
                         foreach (PlayerMetadata p in Players.Values)
                         {
-                            if (p.LastUpdateTimestamp < DateTime.UtcNow.Ticks - settings.overduetimeout)
+                            if (p.LastUpdateLocalTimestamp < DateTime.UtcNow.Ticks - settings.overduetimeout)
                             {
                                 _ = Players.TryRemove(p.Uuid, out _);
                             }
@@ -227,6 +232,7 @@ namespace FezGame.MultiplayerMod
         private static void SendUdp(byte[] msg, IPEndPoint targ)
         {
             UdpClient Client = new UdpClient();
+            Client.Ttl = 3;//TODO idk about this; should probably be settings.overduetimeout
             Client.Send(msg, msg.Length, targ);
             Client.Close();
         }
@@ -400,7 +406,10 @@ namespace FezGame.MultiplayerMod
                                 if (serverless)
                                 {
                                     PlayerMetadata me = Players[MyUuid];
-                                    me.Endpoint = endpoint;
+                                    if (!endpoint.Address.Equals(IPAddress.Loopback))
+                                    {
+                                        me.Endpoint = endpoint;
+                                    }
                                     Players[uuid] = me;
                                     return;
                                 }
@@ -418,7 +427,8 @@ namespace FezGame.MultiplayerMod
                                         Action: act,
                                         AnimFrame: frame,
                                         LookingDirection: lookdir,
-                                        LastUpdateTimestamp: timestamp
+                                        LastUpdateTimestamp: timestamp,
+                                        LastUpdateLocalTimestamp: DateTime.UtcNow.Ticks
                                     );
                                     return np;
                                 });
@@ -432,7 +442,11 @@ namespace FezGame.MultiplayerMod
                                     p.AnimFrame = frame;
                                     p.LookingDirection = lookdir;
                                     p.LastUpdateTimestamp = timestamp;
-                                    p.Endpoint = endpoint;
+                                    if (!endpoint.Address.Equals(IPAddress.Loopback))
+                                    {
+                                        p.Endpoint = endpoint;
+                                    }
+                                    p.LastUpdateLocalTimestamp = DateTime.UtcNow.Ticks;//for auto-dispose
                                 }
                                 Players[uuid] = p;
                             }
