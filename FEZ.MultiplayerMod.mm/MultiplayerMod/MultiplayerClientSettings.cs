@@ -23,7 +23,7 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// An array representing the main endpoint(s) to talk to. Note: Currently only supports IPv4
         /// </summary>
-        [Description("An array representing the main endpoint(s) to talk to. Note: Currently only supports IPv4")]
+        [Description("An comma-separated list representing the main endpoint(s) to talk to. Note: Currently only supports IPv4")]
         public IPEndPoint[] mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, DefaultPort) };
         /// <summary>
         /// The amount of times to attempt to use the next port as the port to listen to before giving up. In case of an error, see <see cref="MultiplayerClient.ErrorMessage"/>
@@ -46,36 +46,33 @@ namespace FezGame.MultiplayerMod
         public static MultiplayerClientSettings ReadSettingsFile(string filepath)
         {
             MultiplayerClientSettings settings = new MultiplayerClientSettings();
-            try
+
+            var fields = typeof(MultiplayerClientSettings).GetFields().ToDictionary(a => a.Name, StringComparer.InvariantCultureIgnoreCase);
+
+            string[] lines = File.ReadAllLines(filepath, System.Text.Encoding.UTF8);
+            foreach (var line in lines)
             {
-                var fields = typeof(MultiplayerClientSettings).GetFields().ToDictionary(a => a.Name, StringComparer.InvariantCultureIgnoreCase);
-
-                string[] lines = File.ReadAllLines(filepath, System.Text.Encoding.UTF8);
-                foreach (var line in lines)
+                var trimmed = line.TrimStart();
+                if (trimmed.StartsWith(";") || trimmed.Length <= 0)
+                    continue;
+                if (trimmed.StartsWith("["))
                 {
-                    var trimmed = line.TrimStart();
-                    if (trimmed.StartsWith(";") || trimmed.Length <= 0)
-                        continue;
-                    if (trimmed.StartsWith("["))
-                    {
-                        continue;
-                    }
-                    var kvmatch = Regex.Match(trimmed, $@"(.*?)(?:{IniKeyValDelimiter}(.*))?$");
-                    string key = kvmatch.Groups[1].Value.Trim();
-                    string value = kvmatch.Groups[2].Success ? kvmatch.Groups[2].Value : "";
+                    continue;
+                }
+                var kvmatch = Regex.Match(trimmed, $@"(.*?)(?:{IniKeyValDelimiter}(.*))?$");
+                string key = kvmatch.Groups[1].Value.Trim();
+                string value = kvmatch.Groups[2].Success ? kvmatch.Groups[2].Value : "";
 
-                    if (fields.ContainsKey(key))
+                if (fields.ContainsKey(key))
+                {
+                    var f = fields[key];
+                    object v = ParseObject(f.FieldType, value.Trim());
+                    if (v != null)
                     {
-                        var f = fields[key];
-                        object v = ParseObject(f.FieldType, value.Trim());
-                        if (v != null)
-                        {
-                            f.SetValue(settings, v);
-                        }
+                        f.SetValue(settings, v);
                     }
                 }
             }
-            catch (Exception) { }
 
             return settings;
         }
@@ -147,11 +144,23 @@ namespace FezGame.MultiplayerMod
                             {
                                 a = a.Trim();
                                 int portsepindex = a.LastIndexOf(':');
+                                string addr;//Note: the replaces are for IPv6
+                                string port;
                                 if (portsepindex < 0)
                                 {
+                                    portsepindex = a.Length;
+                                    port = "" + DefaultPort;
+                                    string msg = $"port for endpoint \"{a}\" not found. Using default port ({DefaultPort})";
+                                    #if FEZCLIENT
+                                    Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, msg);
+                                    #endif
+                                    Console.WriteLine("Warning: " + msg);
                                 }
-                                string addr = a.Substring(0, portsepindex).Replace("[", "").Replace("]", "");//Note: the replaces are for IPv6
-                                string port = a.Substring(portsepindex + 1);
+                                else
+                                {
+                                    port = a.Substring(portsepindex + 1);
+                                }
+                                addr = a.Substring(0, portsepindex).Replace("[", "").Replace("]", "");//Note: the replaces are for IPv6
                                 return new IPEndPoint(IPAddress.Parse(addr), int.Parse(port));
                             }
                             catch (Exception e)
