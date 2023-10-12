@@ -16,6 +16,9 @@ added settings file
 bug fixes
 refactoring
 added new optional dedicated server exe
+fix problems due to time differences
+implicitly assign port to endpoint if missing
+fixed KeyNotFoundException sometimes being thrown when iterating over Players.Values
 
 
 

@@ -131,7 +131,7 @@ namespace FezGame.MultiplayerMod
                             {
                                 //ErrorMessage = e.Message;
                                 ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - retries + 1} to {listenPort} are already in use";
-                                listenerThread.Abort(e);//does this even work?
+                                //listenerThread.Abort(e);//does this even work?//calling Abort is a bad idea
                                 return;
                             }
                         }
@@ -178,25 +178,50 @@ namespace FezGame.MultiplayerMod
             timeoutthread.Start();
         }
 
-        private bool disposing = false;
+        // I was told "Your Dispose implementation needs work https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern"
+        // and stuff like "It technically works but is dangerous" and "always use an internal protected Dispose method" and "always call GC.SuppressFinalize(this) in the public Dispose method"
+        // so I added all this extra stuff even though it technically already worked fine, so hopefully this works fine
+        private bool disposed = false;
+        /// <summary>
+        /// used to tell notify the child threads to stop
+        /// </summary>
+        private volatile bool disposing = false;
         public void Dispose()
         {
-            if (this.disposing)
-                return;
-            this.disposing = true;
-
-            Thread.Sleep(100);
-            if (listenerThread.IsAlive)
-            {
-                listenerThread.Abort();
-            }
-            if (timeoutthread.IsAlive)
-            {
-                timeoutthread.Abort();
-            }
-            udpListener.Close();
-            OnDispose();
+            Dispose(true);
+            GC.SuppressFinalize(this);
         }
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposed)
+            {
+                if (disposing)
+                {
+                    // Dispose managed resources here
+
+                    this.disposing = true;//let child threads know it's disposing time
+                    Thread.Sleep(100);//try to wait for child threads to stop on their own
+                    if (listenerThread.IsAlive)
+                    {
+                        listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
+                    }
+                    if (timeoutthread.IsAlive)
+                    {
+                        timeoutthread.Abort();//assume the thread is stuck and forcibly terminate it
+                    }
+                    udpListener.Close();//must be after listenerThread is stopped
+                }
+
+                // Dispose unmanaged resources here
+
+                disposed = true;
+            }
+        }
+        ~MultiplayerServer()
+        {
+            Dispose(false);
+        }
+
         public void Update()
         {
             if (FatalException != null)
