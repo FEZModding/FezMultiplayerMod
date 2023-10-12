@@ -154,12 +154,22 @@ namespace FezGame.MultiplayerMod
                 {
                     while (!disposing)
                     {
-                        foreach (PlayerMetadata p in Players.Values)
+                        try
                         {
-                            if (p.LastUpdateLocalTimestamp < DateTime.UtcNow.Ticks - settings.overduetimeout)
+                            foreach (PlayerMetadata p in Players.Values)
                             {
-                                _ = Players.TryRemove(p.Uuid, out _);
+                                if (p.LastUpdateLocalTimestamp < DateTime.UtcNow.Ticks - settings.overduetimeout)
+                                {
+                                    //it'd be bad if we removed ourselves from our own list, so we check for that, even though it shouldn't happen
+                                    if (p.Uuid != MyUuid)
+                                    {
+                                        _ = Players.TryRemove(p.Uuid, out _);
+                                    }
+                                }
                             }
+                        }
+                        catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
+                        {
                         }
                     }
                 }
@@ -220,8 +230,8 @@ namespace FezGame.MultiplayerMod
                     }
                 }
             }
-            catch(KeyNotFoundException)
-            { 
+            catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
+            {
             }
         }
 
@@ -462,9 +472,12 @@ namespace FezGame.MultiplayerMod
                                 {
                                     try
                                     {
-                                        _ = Players.TryRemove(Players.First(p => noticeData.Equals(p.Value.Endpoint.ToString())).Key, out _);
+                                        //TODO this might have inintended effects if two players have the same endpoint; might be a better idea to use GUID instead
+                                        //it'd be bad if we removed ourselves from our own list, so we check for that with p.Key != MyUuid
+                                        _ = Players.TryRemove(Players.First(p => p.Key != MyUuid && noticeData.Equals(p.Value.Endpoint.ToString())).Key, out _);
                                     }
                                     catch (InvalidOperationException) { }
+                                    catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
 
                                     break;
                                 }

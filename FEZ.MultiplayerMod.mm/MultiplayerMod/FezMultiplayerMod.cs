@@ -156,10 +156,16 @@ namespace FezGame.MultiplayerMod
                 {
                     base.GraphicsDevice.PrepareStencilWrite(StencilMask.None);
                 }
-                foreach (var p in mp.Players.Values)
+                try
                 {
-                    DrawPlayer(p, gameTime, false);
-                    mesh.Draw();
+                    foreach (var p in mp.Players.Values)
+                    {
+                        DrawPlayer(p, gameTime, false);
+                        mesh.Draw();
+                    }
+                }
+                catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
+                {
                 }
                 base.GraphicsDevice.PrepareStencilWrite(StencilMask.None);
                 effect.Pass = LightingEffectPass.Main;
@@ -189,25 +195,31 @@ namespace FezGame.MultiplayerMod
             {
                 debugTextDrawer.Color = Color.Gray;
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-                foreach (var p in mp.Players.Values)
+                try
                 {
-                    if (ShowDebugInfo)
+                    foreach (var p in mp.Players.Values)
                     {
-                        if (p.Uuid == mp.MyUuid)
+                        if (ShowDebugInfo)
                         {
-                            s += "(you): ";
+                            if (p.Uuid == mp.MyUuid)
+                            {
+                                s += "(you): ";
+                            }
+                            s += $"{p.Endpoint}, {p.Uuid}, {p.CurrentLevelName}, {p.Action}, {p.CameraViewpoint}, {p.Position}, {p.LastUpdateTimestamp}\n";
                         }
-                        s += $"{p.Endpoint}, {p.Uuid}, {p.CurrentLevelName}, {p.Action}, {p.CameraViewpoint}, {p.Position}, {p.LastUpdateTimestamp}\n";
-                    }
-                    //draw other player to screen if in the same level
-                    if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)
-                    {
-                        try
+                        //draw other player to screen if in the same level
+                        if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)
                         {
-                            DrawPlayer(p, gameTime);
+                            try
+                            {
+                                DrawPlayer(p, gameTime);
+                            }
+                            catch { }
                         }
-                        catch { }
                     }
+                }
+                catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
+                {
                 }
                 drawer.End();
             }

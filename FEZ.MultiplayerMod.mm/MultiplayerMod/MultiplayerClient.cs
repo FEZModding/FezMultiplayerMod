@@ -49,7 +49,11 @@ namespace FezGame.MultiplayerMod
 
         public void Disconnect()
         {
-            SendToAll(SerializeNotice(NoticeType.Disconnect, Players[MyUuid].Endpoint?.ToString() ?? ""));
+            //check to make sure Players[MyUuid] exists, as accessing it directly could throw KeyNotFoundException
+            if (Players.TryGetValue(MyUuid, out PlayerMetadata myplayer))
+            {
+                SendToAll(SerializeNotice(NoticeType.Disconnect, myplayer.Endpoint?.ToString() ?? ""));
+            }
         }
 
         public void UpdateMyPlayer()

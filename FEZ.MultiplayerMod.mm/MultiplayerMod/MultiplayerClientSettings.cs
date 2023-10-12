@@ -76,7 +76,6 @@ namespace FezGame.MultiplayerMod
 
             return settings;
         }
-        #if FEZCLIENT
         public static void WriteSettingsFile(string filepath, MultiplayerClientSettings settings)
         {
             List<string> lines = new List<string>()
@@ -87,8 +86,11 @@ namespace FezGame.MultiplayerMod
                 "; Everything has default values; if a setting is not in the settings file, the mod will use the default value and will add the setting with the default value to the settings file.",
                 "; Also any modifications apart from the values for the settings will be erased.",
                 "",
+        #if FEZCLIENT
+        //TODO fix FezMultiplayerMod.Version not existing on the standalone server executable
                 "[Metadata]",
                 $"{FezMultiplayerModVersionName}{IniKeyValDelimiter}{FezMultiplayerMod.Version}",
+        #endif
                 "",
                 "[Settings]",
             };
@@ -103,7 +105,6 @@ namespace FezGame.MultiplayerMod
 
             File.WriteAllLines(filepath, lines, System.Text.Encoding.UTF8);
         }
-        #endif
         private static string FormatObject(object obj)
         {
             if (obj == null)
