@@ -40,6 +40,7 @@ namespace FezGame.MultiplayerMod
         {
             public IPEndPoint Endpoint;
             public readonly Guid Uuid;
+            public string PlayerName;
             public string CurrentLevelName;
             public Vector3 Position;
             public ActionType Action;
@@ -52,10 +53,11 @@ namespace FezGame.MultiplayerMod
             /// </summary>
             public long LastUpdateLocalTimestamp;
 
-            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp, long LastUpdateLocalTimestamp)
+            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string PlayerName, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp, long LastUpdateLocalTimestamp)
             {
                 this.Endpoint = Endpoint;
                 this.Uuid = Uuid;
+                this.PlayerName = PlayerName;
                 this.CurrentLevelName = CurrentLevelName;
                 this.Position = Position;
                 this.Action = Action;
@@ -76,6 +78,7 @@ namespace FezGame.MultiplayerMod
         public bool Listening => udpListener?.Client?.IsBound ?? false;
         public EndPoint LocalEndPoint => udpListener?.Client?.LocalEndPoint;
         public readonly Guid MyUuid = Guid.NewGuid();
+        public string MyPlayerName = "";
 
         //Note: it has to connect to another player before it propagates the player information
         /// <summary>
@@ -100,6 +103,7 @@ namespace FezGame.MultiplayerMod
         /// <param name="settings">The <see cref="MultiplayerClientSettings"/> to use to create this instance.</param>
         internal MultiplayerServer(MultiplayerClientSettings settings)
         {
+            this.MyPlayerName = settings.myPlayerName;
             this.serverless = settings.serverless;
             int listenPort = settings.listenPort;
             this.mainEndpoint = settings.mainEndpoint;
@@ -262,7 +266,7 @@ namespace FezGame.MultiplayerMod
 
         #region network packet stuff
         private const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public const string ProtocolVersion = "onze";//Update this ever time you change something that affect the packets
+        public const string ProtocolVersion = "doce";//Update this ever time you change something that affect the packets
 
         private static void SendUdp(byte[] msg, IPEndPoint targ)
         {
@@ -368,6 +372,7 @@ namespace FezGame.MultiplayerMod
                     }
                     writer.Write((bool)p.Uuid.Equals(MyUuid));
                     writer.Write((String)p.Uuid.ToString());
+                    writer.Write((String)p.PlayerName ?? "");
                     writer.Write((String)p.CurrentLevelName ?? "");
                     writer.Write((Single)p.Position.X);
                     writer.Write((Single)p.Position.Y);
@@ -429,6 +434,7 @@ namespace FezGame.MultiplayerMod
                             }
                             IPAddress ip = remoteHost.Address;
                             Guid uuid = Guid.Parse(reader.ReadString());
+                            string playername = reader.ReadString();
                             string lvl = reader.ReadString();
                             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
                             Viewpoint vp = (Viewpoint)reader.ReadInt32();
@@ -456,6 +462,7 @@ namespace FezGame.MultiplayerMod
                                     var np = new PlayerMetadata(
                                         Endpoint: endpoint,
                                         Uuid: guid,
+                                        PlayerName: playername,
                                         CurrentLevelName: lvl,
                                         Position: pos,
                                         CameraViewpoint: vp,
@@ -470,6 +477,7 @@ namespace FezGame.MultiplayerMod
                                 if (timestamp > p.LastUpdateTimestamp)//Ensure we're not saving old data
                                 {
                                     //update player
+                                    p.PlayerName = playername;
                                     p.CurrentLevelName = lvl;
                                     p.Position = pos;
                                     p.CameraViewpoint = vp;

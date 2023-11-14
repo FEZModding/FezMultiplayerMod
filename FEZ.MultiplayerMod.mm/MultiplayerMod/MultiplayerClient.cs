@@ -69,7 +69,7 @@ namespace FezGame.MultiplayerMod
                     Endpoint.Address = IPAddress.Loopback;
                 }
 
-                return new PlayerMetadata(Endpoint, guid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks, DateTime.UtcNow.Ticks);
+                return new PlayerMetadata(Endpoint, guid, MyPlayerName, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks, DateTime.UtcNow.Ticks);
             });
 
             //update MyPlayer

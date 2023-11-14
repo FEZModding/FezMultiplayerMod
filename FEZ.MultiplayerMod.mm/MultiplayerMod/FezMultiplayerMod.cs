@@ -205,7 +205,7 @@ namespace FezGame.MultiplayerMod
                             {
                                 s += "(you): ";
                             }
-                            s += $"{p.Endpoint}, {p.Uuid}, {p.CurrentLevelName}, {p.Action}, {p.CameraViewpoint}, {p.Position}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp)/(double)TimeSpan.TicksPerSecond}\n";
+                            s += $"{p.PlayerName}, {p.Endpoint}, {Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, {p.CurrentLevelName}, {p.Action}, {p.CameraViewpoint}, {p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp)/(double)TimeSpan.TicksPerSecond}\n";
                         }
                         //draw other player to screen if in the same level
                         if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)
@@ -337,6 +337,12 @@ namespace FezGame.MultiplayerMod
             effect.Silhouette = false;
             if (doDraw) mesh.Draw();
             graphicsDevice.PrepareStencilWrite(StencilMask.None);
+            #endregion
+            #region draw player name
+            //Note: could move this to its own method if we ever want to draw the name of ourself on the screen
+            //Note: sanitize player name because the game's font doesn't have every character; possibly limit it to only writable ASCII characters?
+            //TODO draw the name to a Texture2D, assign the texture to a Mesh, and draw the Mesh; See SpeechBubble for inspiration 
+            //TODO alternatively we could simply draw the text on top of everything else using the same method as the debug text, but that'd look strange in first-person
             #endregion
         }
         //Adapted from GomezHost.GetPositionOffset

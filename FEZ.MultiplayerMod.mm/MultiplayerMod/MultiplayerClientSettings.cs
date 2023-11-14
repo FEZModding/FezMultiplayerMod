@@ -40,6 +40,11 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         [Description("The amount of time, in ticks, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.")]
         public long overduetimeout = 30_000_000;
+        /// <summary>
+        /// A string representing the name to display for this client.
+        /// </summary>
+        [Description("A string representing the name to display for this client.")]
+        public string myPlayerName = "Player";
 
         private const char IniKeyValDelimiter = '=';
         private const string FezMultiplayerModVersionName = "FezMultiplayerMod.Version";//TODO use to check the settings file version?
@@ -170,6 +175,10 @@ namespace FezGame.MultiplayerMod
                             }
                         }).ToArray();
                     }
+                }
+                if(typeof(string).Equals(t))
+                {
+                    return str;
                 }
             }
             catch (Exception e)
