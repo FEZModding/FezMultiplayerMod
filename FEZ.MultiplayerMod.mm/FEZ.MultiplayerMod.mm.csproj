@@ -75,6 +75,7 @@
     <Compile Include="MultiplayerMod\MultiplayerClient.cs" />
     <Compile Include="MultiplayerMod\FezMultiplayerMod.cs" />
     <Compile Include="MultiplayerMod\MultiplayerClientSettings.cs" />
+    <Compile Include="MultiplayerMod\TextDrawer3D.cs" />
     <Compile Include="Patches\Fez.cs" />
   </ItemGroup>
   <ItemGroup>

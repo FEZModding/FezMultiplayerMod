@@ -13,7 +13,7 @@
 
 - [ ] Might be able to use name as unique identifiers instead of GUID; would require handshake
 
-- [ ] display names above players heads
+- [x] display names above players heads
 
 - [ ] add IP verifying and banning functionality; requires a handshake when the client connects to the server
 

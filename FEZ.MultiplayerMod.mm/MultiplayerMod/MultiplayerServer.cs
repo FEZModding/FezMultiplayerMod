@@ -144,7 +144,7 @@ namespace FezGame.MultiplayerMod
                     {
                         //IPEndPoint object will allow us to read datagrams sent from any source.
                         IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
-                        ProcessDatagram(udpListener.Receive(ref t), t);
+                        ProcessDatagram(udpListener.Receive(ref t), t);//Note: udpListener.Receive blocks until there is a datagram o read
                     }
                     udpListener.Close();
                 }

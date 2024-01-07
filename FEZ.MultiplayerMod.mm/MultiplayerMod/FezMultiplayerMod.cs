@@ -119,6 +119,7 @@ namespace FezGame.MultiplayerMod
         }
 
         private readonly SpriteBatch drawer;
+        private TextDrawer3D textDrawer;
         public override void Initialize()
         {
             DrawOrder = 9;//player gomez is at 9, bombs and trixel partical system and warp gates are at 10, black holes & liquids are at 50, split up cubes at 75, cloud shadows at 100
@@ -129,6 +130,8 @@ namespace FezGame.MultiplayerMod
             };
             ILightingPostProcess lpp = null;
             _ = Waiters.Wait(() => (lpp = ServiceHelper.Get<ILightingPostProcess>()) != null, () => lpp.DrawGeometryLights += PreDraw);
+            textDrawer = new TextDrawer3D(this.Game, FontManager.Big);
+
             DrawActionScheduler.Schedule(delegate
             {
                 mesh.Effect = (effect = new GomezEffect());
@@ -197,7 +200,8 @@ namespace FezGame.MultiplayerMod
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 try
                 {
-                    foreach (var p in mp.Players.Values)
+                    var players = mp.Players.Values.OrderByDescending(p => Vector3.Distance(mp.Players[mp.MyUuid].Position, p.Position));
+                    foreach (var p in players)
                     {
                         if (ShowDebugInfo)
                         {
@@ -338,11 +342,11 @@ namespace FezGame.MultiplayerMod
             if (doDraw) mesh.Draw();
             graphicsDevice.PrepareStencilWrite(StencilMask.None);
             #endregion
+
             #region draw player name
-            //Note: could move this to its own method if we ever want to draw the name of ourself on the screen
-            //Note: sanitize player name because the game's font doesn't have every character; possibly limit it to only writable ASCII characters?
-            //TODO draw the name to a Texture2D, assign the texture to a Mesh, and draw the Mesh; See SpeechBubble for inspiration 
-            //TODO alternatively we could simply draw the text on top of everything else using the same method as the debug text, but that'd look strange in first-person
+            Vector3 namePos = p.Position + Vector3.Up;//TODO center text over mesh 
+            //TODO: sanitize player name because the game's font doesn't have every character; See CommonChars below
+            textDrawer.DrawPlayerName(GraphicsDevice, p.PlayerName, namePos, CameraManager.Rotation, mesh.DepthWrites);
             #endregion
         }
         //Adapted from GomezHost.GetPositionOffset
@@ -357,5 +361,115 @@ namespace FezGame.MultiplayerMod
             return vector + (vector2.X * view.RightVector() * p.LookingDirection.Sign() + vector2.Y * Vector3.UnitY);
         }
         #endregion
+
+        //
+        //
+        // For player names and whatnot
+        // should be an inclusive list of all characters supported by all of the languages' game fonts
+        // probably should restrict certain characters for internal use (like punctuation and symbols)
+        // also need to figure out how to handle people using characters that are not in this list
+        //
+        // Complete list: (?<=")[A-Za-z0-9 !"#$%&'()*+,\-./:;<>=?@\[\]\\^_`{}|~]+(?=")
+        //
+        // Common punctuation characters: [ !"#$%&'()*+,\-./:;<>=?@\[\]^_`{}|~]
+        // Potential reserved characters: [ #$&\\`]
+        //
+        public static readonly string[] CommonChars = new string[]{
+            " ",
+            "!",
+            "\"",
+            "#",
+            "$",
+            "%",
+            "&",
+            "'",
+            "(",
+            ")",
+            "*",
+            "+",
+            ",",
+            "-",
+            ".",
+            "/",
+            "0",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            ":",
+            ";",
+            "<",
+            "=",
+            ">",
+            "?",
+            "@",
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G",
+            "H",
+            "I",
+            "J",
+            "K",
+            "L",
+            "M",
+            "N",
+            "O",
+            "P",
+            "Q",
+            "R",
+            "S",
+            "T",
+            "U",
+            "V",
+            "W",
+            "X",
+            "Y",
+            "Z",
+            "[",
+            "\\",
+            "]",
+            "^",
+            "_",
+            "`",
+            "a",
+            "b",
+            "c",
+            "d",
+            "e",
+            "f",
+            "g",
+            "h",
+            "i",
+            "j",
+            "k",
+            "l",
+            "m",
+            "n",
+            "o",
+            "p",
+            "q",
+            "r",
+            "s",
+            "t",
+            "u",
+            "v",
+            "w",
+            "x",
+            "y",
+            "z",
+            "{",
+            "|",
+            "}",
+            "~"
+        };
     }
 }
