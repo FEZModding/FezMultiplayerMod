@@ -74,6 +74,13 @@ namespace FezGame.MultiplayerMod
         private readonly Thread timeoutthread;
         protected readonly IPEndPoint[] mainEndpoint;
         protected readonly long overduetimeout;
+        /// <summary>
+        /// How long to wait, in ticks, before stopping sending or receiving packets for this player.
+        /// This is required otherwise race conditions can occur.
+        /// <br /><br />Note: could make this customizable
+        /// </summary>
+        private readonly long preoverduetimeoutoffset = TimeSpan.TicksPerSecond * 5;
+
         public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
         private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.Endpoint).Concat(mainEndpoint);
         public bool Listening => udpListener?.Client?.IsBound ?? false;
@@ -249,7 +256,7 @@ namespace FezGame.MultiplayerMod
                 {
                     foreach (PlayerMetadata m in Players.Values)
                     {
-                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + TimeSpan.TicksPerSecond * 5 > overduetimeout && m.Uuid != MyUuid)
+                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout && m.Uuid != MyUuid)
                         {
                             continue;
                         }
@@ -260,7 +267,7 @@ namespace FezGame.MultiplayerMod
                 {
                     foreach (PlayerMetadata m in Players.Values)
                     {
-                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + TimeSpan.TicksPerSecond * 5 > overduetimeout && m.Uuid != MyUuid)
+                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout && m.Uuid != MyUuid)
                         {
                             continue;
                         }
@@ -468,7 +475,7 @@ namespace FezGame.MultiplayerMod
                             else
                             {
                                 if (Players.ContainsKey(uuid)
-                                        && (DateTime.UtcNow.Ticks - Players[uuid].LastUpdateLocalTimestamp) + TimeSpan.TicksPerSecond * 5 > overduetimeout
+                                        && (DateTime.UtcNow.Ticks - Players[uuid].LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout
                                         && uuid != MyUuid)
                                 {
                                     return;//ignore packets for players that should be disconnected; if they want to reconnect they can send another datagram
