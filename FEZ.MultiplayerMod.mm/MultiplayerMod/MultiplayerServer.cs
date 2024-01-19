@@ -164,7 +164,7 @@ namespace FezGame.MultiplayerMod
                         {
                             foreach (PlayerMetadata p in Players.Values)
                             {
-                                if (p.LastUpdateLocalTimestamp < DateTime.UtcNow.Ticks - settings.overduetimeout)
+                                if ((DateTime.UtcNow.Ticks - p.LastUpdateLocalTimestamp) > overduetimeout)
                                 {
                                     //it'd be bad if we removed ourselves from our own list, so we check for that, even though it shouldn't happen
                                     if (p.Uuid != MyUuid)
@@ -249,6 +249,10 @@ namespace FezGame.MultiplayerMod
                 {
                     foreach (PlayerMetadata m in Players.Values)
                     {
+                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + TimeSpan.TicksPerSecond * 5 > overduetimeout && m.Uuid != MyUuid)
+                        {
+                            continue;
+                        }
                         SendToAll(Serialize(m, false));
                     }
                 }
@@ -256,6 +260,10 @@ namespace FezGame.MultiplayerMod
                 {
                     foreach (PlayerMetadata m in Players.Values)
                     {
+                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + TimeSpan.TicksPerSecond * 5 > overduetimeout && m.Uuid != MyUuid)
+                        {
+                            continue;
+                        }
                         //Note: probably should refactor these methods
                         SendToAll((targ) => Serialize(m, mainEndpoint.Contains(targ)));
                     }
@@ -460,7 +468,7 @@ namespace FezGame.MultiplayerMod
                             else
                             {
                                 if (Players.ContainsKey(uuid)
-                                        && Players[uuid].LastUpdateLocalTimestamp < DateTime.UtcNow.Ticks - overduetimeout
+                                        && (DateTime.UtcNow.Ticks - Players[uuid].LastUpdateLocalTimestamp) + TimeSpan.TicksPerSecond * 5 > overduetimeout
                                         && uuid != MyUuid)
                                 {
                                     return;//ignore packets for players that should be disconnected; if they want to reconnect they can send another datagram
