@@ -11,11 +11,9 @@
 
 - [ ] add names
 
-- [ ] Might be able to use name as unique identifiers instead of GUID; would require handshake
-
 - [x] display names above players heads
 
-- [ ] add IP verifying and banning functionality; requires a handshake when the client connects to the server
+- [ ] add IP verifying and banning functionality; should these setting be named "blocklist" and "allowlist"? Also, need to figure out what the syntax should be like
 
 - [ ] add option for syncing inventory; requires handshake and unique identifiers for every collectible
 
