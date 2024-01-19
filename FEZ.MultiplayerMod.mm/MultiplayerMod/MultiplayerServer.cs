@@ -73,6 +73,7 @@ namespace FezGame.MultiplayerMod
         private readonly Thread listenerThread;
         private readonly Thread timeoutthread;
         protected readonly IPEndPoint[] mainEndpoint;
+        protected readonly long overduetimeout;
         public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
         private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.Endpoint).Concat(mainEndpoint);
         public bool Listening => udpListener?.Client?.IsBound ?? false;
@@ -107,6 +108,7 @@ namespace FezGame.MultiplayerMod
             this.serverless = settings.serverless;
             int listenPort = settings.listenPort;
             this.mainEndpoint = settings.mainEndpoint;
+            this.overduetimeout = settings.overduetimeout;
             if(mainEndpoint == null || mainEndpoint.Length == 0)
             {
                 mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, listenPort) };
@@ -457,6 +459,13 @@ namespace FezGame.MultiplayerMod
                             }
                             else
                             {
+                                if (Players.ContainsKey(uuid)
+                                        && Players[uuid].LastUpdateLocalTimestamp < DateTime.UtcNow.Ticks - overduetimeout
+                                        && uuid != MyUuid)
+                                {
+                                    return;//ignore packets for players that should be disconnected; if they want to reconnect they can send another datagram
+                                }
+
                                 PlayerMetadata p = Players.GetOrAdd(uuid, (guid) =>
                                 {
                                     var np = new PlayerMetadata(

@@ -32,7 +32,7 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// A string representing the current version of this class.
         /// </summary>
-        public static readonly string Version = "0.0.3"
+        public static readonly string Version = "0.1.0"
 #if DEBUG
         + $" (debug build {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version})"
 #endif
@@ -137,13 +137,17 @@ namespace FezGame.MultiplayerMod
                 mesh.Effect = (effect = new GomezEffect());
             });
         }
+        private const int updatesBetweenUpdates = 1;
+        private int updatesSinceLastSent = 0;
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
-            if (!GameState.Paused)
+            if (!GameState.Paused && updatesBetweenUpdates<= updatesSinceLastSent)
             {
+                updatesSinceLastSent = 0;
                 mp.Update();
             }
+            ++updatesSinceLastSent;
         }
 
         private void PreDraw(GameTime gameTime)

@@ -20,5 +20,8 @@ fix problems due to time differences
 implicitly assign port to endpoint if missing
 fixed KeyNotFoundException sometimes being thrown when iterating over Players.Values
 Added player names
+fixed players not rendering in the correct order
 
-
+0.1.0
+Fixed disconnected players not getting disconnected
+Improved performance
