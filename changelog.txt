@@ -25,3 +25,5 @@ fixed players not rendering in the correct order
 0.1.0
 Fixed disconnected players not getting disconnected
 Improved performance
+fixed name rendering issues
+

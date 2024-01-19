@@ -59,9 +59,9 @@ namespace FezGame.MultiplayerMod
                 {
                     return;
                 }
-
+                float scale = 2f * (mod.FontManager.BigFactor / 2f);
                 mod.drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-                mod.drawer.DrawString(mod.FontManager.Big, Text, Vector2.Zero, Color, 0f, Vector2.Zero, 2f, SpriteEffects.None, 0f);
+                mod.drawer.DrawString(mod.FontManager.Big, Text, Vector2.Zero, Color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
                 mod.drawer.End();
             }
         }
@@ -350,7 +350,7 @@ namespace FezGame.MultiplayerMod
             #region draw player name
             Vector3 namePos = p.Position + Vector3.Up;//TODO center text over mesh 
             //TODO: sanitize player name because the game's font doesn't have every character; See CommonChars below
-            textDrawer.DrawPlayerName(GraphicsDevice, p.PlayerName, namePos, CameraManager.Rotation, mesh.DepthWrites);
+            textDrawer.DrawPlayerName(GraphicsDevice, p.PlayerName, namePos, CameraManager.Rotation, mesh.DepthWrites, FontManager.BigFactor*2, 1f);
             #endregion
         }
         //Adapted from GomezHost.GetPositionOffset
