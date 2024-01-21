@@ -13,7 +13,7 @@
 
 - [x] display names above players heads
 
-- [ ] add IP verifying and banning functionality; should these setting be named "blocklist" and "allowlist"? Also, need to figure out what the syntax should be like
+- [ ] add IP verifying and banning functionality; these settings should be named "blocklist" and "allowlist", must not overwrite their values in the settings file, and the syntax will be like that which cPanel uses, but with entries separated by commas: https://docs.cpanel.net/cpanel/security/ip-blocker/
 
 - [ ] add option for syncing inventory; requires handshake and unique identifiers for every collectible
 
