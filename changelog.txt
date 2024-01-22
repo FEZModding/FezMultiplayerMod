@@ -26,4 +26,5 @@ fixed players not rendering in the correct order
 Fixed disconnected players not getting disconnected
 Improved performance
 fixed name rendering issues
-
+Fixed name scaling issues
+added background for names

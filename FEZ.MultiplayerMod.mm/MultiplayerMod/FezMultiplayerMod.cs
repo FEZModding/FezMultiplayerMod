@@ -350,7 +350,7 @@ namespace FezGame.MultiplayerMod
             #region draw player name
             Vector3 namePos = p.Position + Vector3.Up;//TODO center text over mesh 
             //TODO: sanitize player name because the game's font doesn't have every character; See CommonChars below
-            textDrawer.DrawPlayerName(GraphicsDevice, p.PlayerName, namePos, CameraManager.Rotation, mesh.DepthWrites, FontManager.BigFactor*2, 1f);
+            textDrawer.DrawPlayerName(GraphicsDevice, p.PlayerName, namePos, CameraManager.Rotation, mesh.DepthWrites, FontManager.BigFactor*2, GraphicsDevice.GetViewScale()/32);
             #endregion
         }
         //Adapted from GomezHost.GetPositionOffset
