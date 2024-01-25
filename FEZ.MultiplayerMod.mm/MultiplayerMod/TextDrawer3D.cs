@@ -37,8 +37,9 @@ namespace FezGame.MultiplayerMod
         /// <param name="DepthDraw">If true, the depth of the mesh will be ignored when drawing. This should be false if you want to render something in 3D.</param>
         /// <param name="fontScale">The scale at which to generate the mesh texture.</param>
         /// <param name="renderScale">The scale at which to render the name in-game.</param>
+        /// <param name="renderScaleY">The scale at which the renderScale will be scaled for the vertical height of the name in-game.</param>
         // draws the name to a Texture2D, assign the texture to a Mesh, and draw the Mesh; See SpeechBubble for inspiration
-        internal void DrawPlayerName(GraphicsDevice GraphicsDevice, string playerName, Vector3 position, Quaternion rotation, bool DepthDraw, float fontScale, float renderScale)
+        internal void DrawPlayerName(GraphicsDevice GraphicsDevice, string playerName, Vector3 position, Quaternion rotation, bool DepthDraw, float fontScale, float renderScale, float renderScaleY=1)
         {
             Mesh mesh;
             Vector2 scalableMiddleSize;
@@ -95,7 +96,7 @@ namespace FezGame.MultiplayerMod
             mesh.Rotation = rotation;
             mesh.Position = position;
             mesh.DepthWrites = DepthDraw;
-            mesh.Scale = new Vector3(scalableMiddleSize.X * renderScale + 1f, scalableMiddleSize.Y * renderScale + 1f, 1f);
+            mesh.Scale = new Vector3(scalableMiddleSize.X * renderScale + 1f, scalableMiddleSize.Y * renderScale * renderScaleY + 1f, 1f);
             mesh.Draw();
         }
         public void ClearMeshes(){
