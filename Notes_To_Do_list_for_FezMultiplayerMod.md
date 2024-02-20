@@ -5,6 +5,10 @@
 
 - [ ] Verify the player's remote IP is reachable before transmitting data; requires handshake. Just ping the remote endpoint or something. Note: if their IP endpoint changes, probably should refresh the handshake. Note: some clients may connect from multiple IP addresses at the same time; dunno how to handle that. Really we just don't want to be sending data to a local IP when it should be sent to a local IP on a different network. This should only really be a problem for serverless mode though.
 
+- [ ] Add option for custom player skins; requires handshake.
+
+- [ ] Add extensible modding support 
+
 - [x] ~~Note: using strings may result in DoS attacks; someone could send a packet with really long strings. Consider sending the raw byte array instead, as then its length could be measured before it reads the data.~~ Maximum UDP datagram length is 65535 bytes, so it's not worth checking datagram size.
 
 - [ ] Add more security measures, since rn it's possible to use an existing player's unique identifier, which would cause some problems. Could have the handshake when connecting check if the name is already taken, and use that in supplement to GUID
