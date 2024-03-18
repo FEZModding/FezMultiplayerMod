@@ -52,6 +52,10 @@ namespace FezGame.MultiplayerMod
         {
             MultiplayerClientSettings settings = new MultiplayerClientSettings();
 
+            if(!File.Exists(filepath)){
+                return settings;
+            }
+
             var fields = typeof(MultiplayerClientSettings).GetFields().ToDictionary(a => a.Name, StringComparer.InvariantCultureIgnoreCase);
 
             string[] lines = File.ReadAllLines(filepath, System.Text.Encoding.UTF8);

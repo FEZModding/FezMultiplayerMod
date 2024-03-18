@@ -22,6 +22,9 @@ namespace FezMultiplayerDedicatedServer
 
             //MultiplayerClientSettings.WriteSettingsFile(SettingsFilePath, settings);//TODO
 
+            //Note: the following line can fail due to race conditions, since the listening thread might not be initialized yet
+            Console.WriteLine("Listening on port " + ((System.Net.IPEndPoint)server.LocalEndPoint).Port);
+
             Timer myTimer = new Timer();
             myTimer.Elapsed += (a,b) => { server.Update(); };
             myTimer.Interval = 1f / 60f * 1000; // 1000 ms is one second
@@ -29,8 +32,6 @@ namespace FezMultiplayerDedicatedServer
 
             //Note: gotta keep the program busy otherwise it'll close
 
-            //Note: the following line can fail due to race conditions 
-            //Console.WriteLine("Listening on port " + ((System.Net.IPEndPoint)server.LocalEndPoint).Port);
 
             string line;
             while(true)
