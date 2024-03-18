@@ -22,7 +22,15 @@ namespace FezMultiplayerDedicatedServer
 
             //MultiplayerClientSettings.WriteSettingsFile(SettingsFilePath, settings);//TODO
 
-            //Note: the following line can fail due to race conditions, since the listening thread might not be initialized yet
+            while(server.LocalEndPoint==null && server.FatalException==null){
+                System.Threading.Thread.Sleep(1);
+            }
+            if(server.FatalException!=null){
+                Console.WriteLine(server.ErrorMessage);
+                Console.WriteLine(server.FatalException);
+            }
+
+            //Note: the following line can fail due to race conditions, since the listening thread might not be initialized yet; this is the reason of the above sleep
             Console.WriteLine("Listening on port " + ((System.Net.IPEndPoint)server.LocalEndPoint).Port);
 
             Timer myTimer = new Timer();
