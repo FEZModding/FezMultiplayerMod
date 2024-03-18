@@ -318,7 +318,7 @@ namespace FezGame.MultiplayerMod
                     }
                 });
         }
-
+        //TODO make these packet things more extensible somehow?
         private enum PacketType
         {
             //arbitrary values
