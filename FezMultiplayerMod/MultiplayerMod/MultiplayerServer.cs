@@ -283,7 +283,7 @@ namespace FezGame.MultiplayerMod
 
         #region network packet stuff
         private const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public const string ProtocolVersion = "doce";//Update this ever time you change something that affect the packets
+        public const string ProtocolVersion = "trece";//Update this ever time you change something that affect the packets
 
         private static void SendUdp(byte[] msg, IPEndPoint targ)
         {
@@ -388,6 +388,7 @@ namespace FezGame.MultiplayerMod
                         writer.Write((Int32)0);
                     }
                     writer.Write((bool)p.Uuid.Equals(MyUuid));
+                    writer.Write(p.Uuid.ToByteArray());
                     writer.Write((String)p.Uuid.ToString());
                     writer.Write((String)p.PlayerName ?? "");
                     writer.Write((String)p.CurrentLevelName ?? "");
@@ -450,7 +451,7 @@ namespace FezGame.MultiplayerMod
                                 endpoint.Address = remoteHost.Address;
                             }
                             IPAddress ip = remoteHost.Address;
-                            Guid uuid = Guid.Parse(reader.ReadString());
+                            Guid uuid = new Guid(reader.ReadInt32(), reader.ReadInt16(), reader.ReadInt16(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte());
                             string playername = reader.ReadString();
                             string lvl = reader.ReadString();
                             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());

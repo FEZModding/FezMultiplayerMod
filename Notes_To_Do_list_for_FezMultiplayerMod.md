@@ -1,7 +1,7 @@
 
 # Notes / To Do list for FezMultiplayerMod
 
-- [ ] It'd be faster to send GUID as byte[], and parse it using `Guid(Int32, Int16, Int16, Byte, Byte, Byte, Byte, Byte, Byte, Byte, Byte)`
+- [x] It'd be faster to send GUID as byte[], and parse it using `Guid(Int32, Int16, Int16, Byte, Byte, Byte, Byte, Byte, Byte, Byte, Byte)`
 
 - [ ] Verify the player's remote IP is reachable before transmitting data; requires handshake. Just ping the remote endpoint or something. Note: if their IP endpoint changes, probably should refresh the handshake. Note: some clients may connect from multiple IP addresses at the same time; dunno how to handle that. Really we just don't want to be sending data to a local IP when it should be sent to a local IP on a different network. This should only really be a problem for serverless mode though.
 
@@ -13,7 +13,7 @@
 
 - [ ] Add more security measures, since rn it's possible to use an existing player's unique identifier, which would cause some problems. Could have the handshake when connecting check if the name is already taken, and use that in supplement to GUID
 
-- [ ] add names
+- [ ] add names (note: fonts do not support the same characters; consider sterilizing names to only chars in the range 0x20 to 0x7E, inclusive (subnote: all fonts except zuish also support 0x0A (Lf), 0x0D (Cr), 0xA0 (nbsp), 0xC7 (C with cedilla), 0xC9 (E with acute), 0xE7 (c with cedilla), and 0xE9 (e with acute), but newlines should not be possible to enter into the name field via the ini file, and nbsp should be drawn as normal spaces)) (note2: players can currently have the same name; to remedy this we must add more security measures)
 
 - [x] display names above players heads
 
