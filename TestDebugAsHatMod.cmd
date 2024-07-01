@@ -13,7 +13,7 @@ cd /d %fezpath%
 
 @if ERRORLEVEL 0 (
 	@REM 
-	copy "D:\Github\FezMultiplayerMod\FEZ.MultiplayerMod.mm\bin\Debug\*"
+	copy "D:\Github\FezMultiplayerMod\FezMultiplayerMod\bin\Debug\*"
 	copy "D:\Github\FezMultiplayerMod\Metadata.xml"
 	
 	cd ..\..
