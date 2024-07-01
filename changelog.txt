@@ -28,3 +28,7 @@ Improved performance
 fixed name rendering issues
 Fixed name scaling issues
 added background for names
+Serious refactoring
+Improved error handling 
+Added debug info toggle keybind (F3)
+
