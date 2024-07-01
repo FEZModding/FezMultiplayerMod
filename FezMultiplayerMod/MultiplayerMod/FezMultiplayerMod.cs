@@ -82,12 +82,16 @@ namespace FezGame.MultiplayerMod
         [ServiceDependency]
         public IFontManager FontManager { private get; set; }
 
+        [ServiceDependency]
+        public IKeyboardStateManager KeyboardState { private get; set; }
+
         #endregion
 
         public static FezMultiplayerMod Instance;
 
         private readonly MultiplayerClient mp;
-        public bool ShowDebugInfo = true;
+        public volatile bool ShowDebugInfo = true;
+        private const Microsoft.Xna.Framework.Input.Keys ToggleMPDebug = Microsoft.Xna.Framework.Input.Keys.F3;
         private readonly DebugTextDrawer debugTextDrawer;
 
         public FezMultiplayerMod(Game game)
@@ -104,6 +108,7 @@ namespace FezGame.MultiplayerMod
 
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
+
         }
 
         private bool disposing = false;
@@ -136,12 +141,20 @@ namespace FezGame.MultiplayerMod
             {
                 mesh.Effect = (effect = new GomezEffect());
             });
+
+            KeyboardState.RegisterKey(ToggleMPDebug);
         }
         private const int updatesBetweenUpdates = 1;
         private int updatesSinceLastSent = 0;
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
+
+            if (KeyboardState.GetKeyState(ToggleMPDebug) == FezButtonState.Pressed)
+            {
+                ShowDebugInfo = !ShowDebugInfo;
+            }
+
             if (!GameState.Paused && updatesBetweenUpdates<= updatesSinceLastSent)
             {
                 updatesSinceLastSent = 0;
@@ -209,6 +222,7 @@ namespace FezGame.MultiplayerMod
                     {
                         if (ShowDebugInfo)
                         {
+                            //s += "Keys pressed: " + String.Join(", ", Microsoft.Xna.Framework.Input.Keyboard.GetState().GetPressedKeys()/*.Select(k => k.ToString())*/) + "\n";
                             if (p.Uuid == mp.MyUuid)
                             {
                                 s += "(you): ";
