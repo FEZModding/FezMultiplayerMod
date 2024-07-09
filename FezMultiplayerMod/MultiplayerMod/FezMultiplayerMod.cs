@@ -206,7 +206,15 @@ namespace FezGame.MultiplayerMod
 #endif
 
             string s = "";
-            if(mp.ErrorMessage != null)
+            if (ShowDebugInfo)
+            {
+                //s += $"GameTime:{gameTime.TotalGameTime.TotalSeconds}\n";
+                //var kbd = Microsoft.Xna.Framework.Input.Keyboard.GetState();
+                //s += "Keys pressed: " + String.Join(", ", kbd.GetPressedKeys()/*.Select(k => k.ToString())*/) + "\n";
+                //var mouse = Microsoft.Xna.Framework.Input.Mouse.GetState();
+                //s += $"Mouse state: X:{mouse.X}, Y:{mouse.Y}, Scroll:{mouse.ScrollWheelValue}, buttons:{String.Join(", ", new[] { mouse.LeftButton, mouse.RightButton, mouse.MiddleButton }.Select((mb,i) => new Object[] { mb == Microsoft.Xna.Framework.Input.ButtonState.Pressed, i }).Where(a=>(bool)a[0]).Select(a=>"M"+(1+(int)a[1])))}\n";
+            }
+            if (mp.ErrorMessage != null)
             {
                 debugTextDrawer.Color = Color.Red;
                 s += $"{mp.ErrorMessage}\n";
@@ -222,7 +230,6 @@ namespace FezGame.MultiplayerMod
                     {
                         if (ShowDebugInfo)
                         {
-                            //s += "Keys pressed: " + String.Join(", ", Microsoft.Xna.Framework.Input.Keyboard.GetState().GetPressedKeys()/*.Select(k => k.ToString())*/) + "\n";
                             if (p.Uuid == mp.MyUuid)
                             {
                                 s += "(you): ";

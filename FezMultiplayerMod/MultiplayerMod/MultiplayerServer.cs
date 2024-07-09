@@ -74,6 +74,10 @@ namespace FezGame.MultiplayerMod
         private readonly Thread timeoutthread;
         protected readonly IPEndPoint[] mainEndpoint;
         protected readonly long overduetimeout;
+        private readonly bool useAllowList;
+        private readonly IPFilter AllowList;
+        private readonly IPFilter BlockList;
+
         /// <summary>
         /// How long to wait, in ticks, before stopping sending or receiving packets for this player.
         /// This is required otherwise race conditions can occur.
@@ -116,6 +120,9 @@ namespace FezGame.MultiplayerMod
             int listenPort = settings.listenPort;
             this.mainEndpoint = settings.mainEndpoint;
             this.overduetimeout = settings.overduetimeout;
+            this.useAllowList = settings.useAllowList;
+            this.AllowList = settings.AllowList;
+            this.BlockList = settings.BlockList;
             if(mainEndpoint == null || mainEndpoint.Length == 0)
             {
                 mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, listenPort) };
@@ -409,6 +416,11 @@ namespace FezGame.MultiplayerMod
 
         private void ProcessDatagram(byte[] data, IPEndPoint remoteHost)
         {
+            if (BlockList.ContainsIP(remoteHost.Address)
+                || (useAllowList && !AllowList.ContainsIP(remoteHost.Address)))
+            {
+                return;
+            }
             using (MemoryStream m = new MemoryStream(data))
             {
                 using (BinaryReader reader = new BinaryReader(m))

@@ -45,6 +45,23 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         [Description("A string representing the name to display for this client.")]
         public string myPlayerName = "Player";
+        /// <summary>
+        /// TODO add description
+        /// </summary>
+        [Description("To do: add description")]
+        public bool useAllowList = false;
+        /// <summary>
+        /// If useAllowList is true, only packets from IP addresses included in this list will be accepted.
+        /// <inheritdoc cref='IPFilter.IPFilter(string)'/>
+        /// </summary>
+        [Description("To do: add description")]
+        public IPFilter AllowList = new IPFilter("");
+        /// <summary>
+        /// Packets from IP addresses included in this list will be ignored.
+        /// <inheritdoc cref='IPFilter.IPFilter(string)' path="//para[@name='desc']"/>
+        /// </summary>
+        [Description("To do: add description")]
+        public IPFilter BlockList = new IPFilter("");
 
         private const char IniKeyValDelimiter = '=';
         private const string FezMultiplayerModVersionName = "FezMultiplayerMod.Version";//TODO use to check the settings file version?
@@ -191,6 +208,70 @@ namespace FezGame.MultiplayerMod
             }
 
             throw new ArgumentException($"Type \"{t.FullName}\" is not supported.", "t");
+        }
+    }
+
+    public class IPFilter
+    {
+        private string filterString;
+        public string FilterString
+        {
+            get => filterString;
+            set {
+                filterString = value;
+                ReloadFilterString();
+            }
+        }
+
+        private void ReloadFilterString()
+        {
+            var entries = filterString.Split(',');
+            foreach(string entry in entries){
+                //TODO
+            }
+        }
+
+        /// <summary>
+        /// <para>
+        /// Creates a new IP Filter from the provided string, with the syntax being comma-separated entries according to the syntax described on
+        /// <see href="https://docs.cpanel.net/cpanel/security/ip-blocker/">cPanel Docs "IP Blocker" page</see>,
+        /// which should be the same as the following list.
+        /// </para>
+        /// <para name="desc">
+        /// You can enter IP addresses as comma-separated entries of any combination of the following formats:
+        /// <list type="bullet">
+        ///     <item>
+        ///         <description>Single IP address, e.g., <c>10.5.3.33</c></description>
+        ///     </item>
+        ///     <item>
+        ///         <description>Range, e.g., <c>10.5.3.3-10.5.3.40).</c></description>
+        ///     </item>
+        ///     <item>
+        ///         <description>Implied range, e.g., <c>10.5.3.3-40).</c></description>
+        ///     </item>
+        ///     <item>
+        ///         <description>CIDR format (for example, <c>10.5.3.3/32</c> ).</description>
+        ///     </item>
+        ///     <item>
+        ///         <description>Implied IP address (for example, 10.).</description>
+        ///     </item>
+        /// </list>
+        /// </para>
+        /// </summary>
+        /// <param name="filterString">The string to convert to an IP Filter</param>
+        public IPFilter(string filterString)
+        {
+            FilterString = filterString;
+        }
+
+        public bool ContainsIP(IPAddress address){
+            //TODO
+            return false;
+        }
+
+        public override string ToString()
+        {
+            return FilterString;
         }
     }
 }
