@@ -243,15 +243,10 @@ namespace FezGame.MultiplayerMod
                     //CIDR format
                     var parts = str.Split('/');
                     //convert IP string to UInt32
-                    //TODO ensure correct endianness ; use BitConverter.IsLittleEndian and/or IPAddress.HostToNetworkOrder
-                    var bytes = IPAddress.Parse(parts[0]).GetAddressBytes();
-                    if(BitConverter.IsLittleEndian){
-                        Array.Reverse(bytes);
-                    }
-                    UInt32 b = BitConverter.ToUInt32(bytes, 0);
-                    UInt32 mask = ((UInt32)Math.Pow(2, 32-int.Parse(parts[1]))-1);
-                    UInt32 lowb = b & ~mask;
-                    UInt32 highb = b | mask;
+                    UInt32 b = BitConverter.ToUInt32(IPAddress.Parse(parts[0]).GetAddressBytes(), 0);
+                    UInt32 mask = (UInt32)IPAddress.HostToNetworkOrder((Int32)Math.Pow(2, 32-int.Parse(parts[1]))-1);
+                    UInt32 lowb = (UInt32)(b & ~mask);
+                    UInt32 highb = (UInt32)(b | mask);
                     //convert Int32 back to IPAddress
                     low = new IPAddress(lowb);
                     high = new IPAddress(highb);
@@ -276,18 +271,24 @@ namespace FezGame.MultiplayerMod
             }
         }
 
+        private static UInt32 IPAddressToHostUInt32(IPAddress address){
+            if(address.AddressFamily!=System.Net.Sockets.AddressFamily.InterNetwork){
+                throw new ArgumentException("Expected an IPv4 address, got " + address + " instead");
+            }
+            return (UInt32)IPAddress.NetworkToHostOrder((Int32)BitConverter.ToUInt32(address.GetAddressBytes(), 0));
+        }
         private struct IPAddressRange {
-            private readonly IPAddress low;
-            private readonly IPAddress high;
+            private readonly UInt32 low;
+            private readonly UInt32 high;
 
             public IPAddressRange(IPAddress low, IPAddress high)
             {
-                this.low = low;
-                this.high = high;
+                this.low = IPAddressToHostUInt32(low);
+                this.high = IPAddressToHostUInt32(high);
             }
             public bool Contains(IPAddress address){
-                //TODO
-                return false;
+                var val = IPAddressToHostUInt32(address);
+                return val >= low && val <= high;
             }
         }
 
