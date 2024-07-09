@@ -416,8 +416,8 @@ namespace FezGame.MultiplayerMod
 
         private void ProcessDatagram(byte[] data, IPEndPoint remoteHost)
         {
-            if (BlockList.ContainsIP(remoteHost.Address)
-                || (useAllowList && !AllowList.ContainsIP(remoteHost.Address)))
+            if (BlockList.Contains(remoteHost.Address)
+                || (useAllowList && !AllowList.Contains(remoteHost.Address)))
             {
                 return;
             }

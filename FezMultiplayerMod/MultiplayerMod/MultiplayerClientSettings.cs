@@ -223,11 +223,71 @@ namespace FezGame.MultiplayerMod
             }
         }
 
+        private List<IPAddressRange> ranges = new List<IPAddressRange>();
         private void ReloadFilterString()
         {
+            ranges.Clear();
             var entries = filterString.Split(',');
-            foreach(string entry in entries){
+            foreach (string entry in entries) {
+                var str = entry.Trim();
+                if(str.Contains(":")){
+                    throw new NotImplementedException("IPv6 is currently not supported");
+                }
+                IPAddress low = IPAddress.Any, high = IPAddress.Any;
+                if(Regex.IsMatch(@"\d+\.\d+\.\d+\.\d+", str)){
+                    //single IP address
+                    low = high = IPAddress.Parse(str);
+                }
+                else if (Regex.IsMatch(@"\A\d+\.\d+\.\d+\.\d+/\d+\Z", str))
+                {
+                    //CIDR format
+                    var parts = str.Split('/');
+                    //convert IP string to UInt32
+                    //TODO ensure correct endianness ; use BitConverter.IsLittleEndian and/or IPAddress.HostToNetworkOrder
+                    var bytes = IPAddress.Parse(parts[0]).GetAddressBytes();
+                    if(BitConverter.IsLittleEndian){
+                        Array.Reverse(bytes);
+                    }
+                    UInt32 b = BitConverter.ToUInt32(bytes, 0);
+                    UInt32 mask = ((UInt32)Math.Pow(2, 32-int.Parse(parts[1]))-1);
+                    UInt32 lowb = b & ~mask;
+                    UInt32 highb = b | mask;
+                    //convert Int32 back to IPAddress
+                    low = new IPAddress(lowb);
+                    high = new IPAddress(highb);
+                }
+                else if (str.Contains("-"))
+                {
+                    //range or implied range ( could be "10.5.3.3-10.5.3.40" or "10.5.3.3-40" )
+                    //TODO
+                }
+                else if (Regex.IsMatch(@"\A(\d+\.){1,3}\Z", str))
+                {
+                    //Implied IP address (e.g., 10. )
+                    //TODO
+                }
+                else
+                {
+                    //unsupported syntax
+                    continue;
+                }
                 //TODO
+                ranges.Add(new IPAddressRange(low,high));
+            }
+        }
+
+        private struct IPAddressRange {
+            private readonly IPAddress low;
+            private readonly IPAddress high;
+
+            public IPAddressRange(IPAddress low, IPAddress high)
+            {
+                this.low = low;
+                this.high = high;
+            }
+            public bool Contains(IPAddress address){
+                //TODO
+                return false;
             }
         }
 
@@ -241,19 +301,21 @@ namespace FezGame.MultiplayerMod
         /// You can enter IP addresses as comma-separated entries of any combination of the following formats:
         /// <list type="bullet">
         ///     <item>
-        ///         <description>Single IP address, e.g., <c>10.5.3.33</c></description>
+        ///         <description>Single IP address, e.g., <c>10.5.3.33</c> </description>
         ///     </item>
         ///     <item>
-        ///         <description>Range, e.g., <c>10.5.3.3-10.5.3.40).</c></description>
+        ///         <description>Range, e.g., <c>10.5.3.3-10.5.3.40</c> </description>
         ///     </item>
         ///     <item>
-        ///         <description>Implied range, e.g., <c>10.5.3.3-40).</c></description>
+        ///         <description>Implied range, e.g., <c>10.5.3.3-40</c> </description>
         ///     </item>
         ///     <item>
-        ///         <description>CIDR format (for example, <c>10.5.3.3/32</c> ).</description>
+        ///         <description>CIDR format (for example, in <c>10.56.27.0/24</c>,
+        ///         the first 24 bits are constant, and the last 8 bits are wild,
+        ///         so the resulting range is <c>10.56.27.0</c> to <c>10.56.27.255</c></description>
         ///     </item>
         ///     <item>
-        ///         <description>Implied IP address (for example, 10.).</description>
+        ///         <description>Implied IP address (for example, <c>10.</c> gets interpreted as <c>10.*.*.*</c></description>
         ///     </item>
         /// </list>
         /// </para>
@@ -264,9 +326,8 @@ namespace FezGame.MultiplayerMod
             FilterString = filterString;
         }
 
-        public bool ContainsIP(IPAddress address){
-            //TODO
-            return false;
+        public bool Contains(IPAddress address){
+            return ranges.Any(range => range.Contains(address));
         }
 
         public override string ToString()
