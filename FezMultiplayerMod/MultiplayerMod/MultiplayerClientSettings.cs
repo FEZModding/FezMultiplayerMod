@@ -242,11 +242,14 @@ namespace FezGame.MultiplayerMod
                 {
                     //CIDR format
                     var parts = str.Split('/');
+
+                    //Important Note: all four of these UInt32 are in network order, not host order, so don't do comparisons with them
                     //convert IP string to UInt32
                     UInt32 b = BitConverter.ToUInt32(IPAddress.Parse(parts[0]).GetAddressBytes(), 0);
                     UInt32 mask = (UInt32)IPAddress.HostToNetworkOrder((Int32)Math.Pow(2, 32-int.Parse(parts[1]))-1);
                     UInt32 lowb = (UInt32)(b & ~mask);
                     UInt32 highb = (UInt32)(b | mask);
+
                     //convert Int32 back to IPAddress
                     low = new IPAddress(lowb);
                     high = new IPAddress(highb);
