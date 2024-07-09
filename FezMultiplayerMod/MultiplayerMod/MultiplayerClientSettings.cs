@@ -69,7 +69,8 @@ namespace FezGame.MultiplayerMod
         {
             MultiplayerClientSettings settings = new MultiplayerClientSettings();
 
-            if(!File.Exists(filepath)){
+            if (!File.Exists(filepath))
+            {
                 return settings;
             }
 
@@ -178,9 +179,9 @@ namespace FezGame.MultiplayerMod
                                     portsepindex = a.Length;
                                     port = "" + DefaultPort;
                                     string msg = $"port for endpoint \"{a}\" not found. Using default port ({DefaultPort})";
-                                    #if FEZCLIENT
+#if FEZCLIENT
                                     Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, msg);
-                                    #endif
+#endif
                                     Console.WriteLine("Warning: " + msg);
                                 }
                                 else
@@ -197,7 +198,7 @@ namespace FezGame.MultiplayerMod
                         }).ToArray();
                     }
                 }
-                if(typeof(string).Equals(t))
+                if (typeof(string).Equals(t))
                 {
                     return str;
                 }
@@ -217,7 +218,8 @@ namespace FezGame.MultiplayerMod
         public string FilterString
         {
             get => filterString;
-            set {
+            set
+            {
                 filterString = value;
                 ReloadFilterString();
             }
@@ -228,13 +230,16 @@ namespace FezGame.MultiplayerMod
         {
             ranges.Clear();
             var entries = filterString.Split(',');
-            foreach (string entry in entries) {
+            foreach (string entry in entries)
+            {
                 var str = entry.Trim();
-                if(str.Contains(":")){
+                if (str.Contains(":"))
+                {
                     throw new NotImplementedException("IPv6 is currently not supported");
                 }
                 IPAddress low = IPAddress.Any, high = IPAddress.Any;
-                if(Regex.IsMatch(@"\d+\.\d+\.\d+\.\d+", str)){
+                if (Regex.IsMatch(@"\d+\.\d+\.\d+\.\d+", str))
+                {
                     //single IP address
                     low = high = IPAddress.Parse(str);
                 }
@@ -246,7 +251,7 @@ namespace FezGame.MultiplayerMod
                     //Important Note: all four of these UInt32 are in network order, not host order, so don't do comparisons with them
                     //convert IP string to UInt32
                     UInt32 b = BitConverter.ToUInt32(IPAddress.Parse(parts[0]).GetAddressBytes(), 0);
-                    UInt32 mask = (UInt32)IPAddress.HostToNetworkOrder((Int32)Math.Pow(2, 32-int.Parse(parts[1]))-1);
+                    UInt32 mask = (UInt32)IPAddress.HostToNetworkOrder((Int32)Math.Pow(2, 32 - int.Parse(parts[1])) - 1);
                     UInt32 lowb = (UInt32)(b & ~mask);
                     UInt32 highb = (UInt32)(b | mask);
 
@@ -270,17 +275,20 @@ namespace FezGame.MultiplayerMod
                     continue;
                 }
                 //TODO
-                ranges.Add(new IPAddressRange(low,high));
+                ranges.Add(new IPAddressRange(low, high));
             }
         }
 
-        private static UInt32 IPAddressToHostUInt32(IPAddress address){
-            if(address.AddressFamily!=System.Net.Sockets.AddressFamily.InterNetwork){
+        private static UInt32 IPAddressToHostUInt32(IPAddress address)
+        {
+            if (address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+            {
                 throw new ArgumentException("Expected an IPv4 address, got " + address + " instead");
             }
             return (UInt32)IPAddress.NetworkToHostOrder((Int32)BitConverter.ToUInt32(address.GetAddressBytes(), 0));
         }
-        private struct IPAddressRange {
+        private struct IPAddressRange
+        {
             private readonly UInt32 low;
             private readonly UInt32 high;
 
@@ -289,7 +297,8 @@ namespace FezGame.MultiplayerMod
                 this.low = IPAddressToHostUInt32(low);
                 this.high = IPAddressToHostUInt32(high);
             }
-            public bool Contains(IPAddress address){
+            public bool Contains(IPAddress address)
+            {
                 var val = IPAddressToHostUInt32(address);
                 return val >= low && val <= high;
             }
@@ -330,7 +339,8 @@ namespace FezGame.MultiplayerMod
             FilterString = filterString;
         }
 
-        public bool Contains(IPAddress address){
+        public bool Contains(IPAddress address)
+        {
             return ranges.Any(range => range.Contains(address));
         }
 

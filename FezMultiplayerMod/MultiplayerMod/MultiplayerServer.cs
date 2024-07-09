@@ -123,7 +123,7 @@ namespace FezGame.MultiplayerMod
             this.useAllowList = settings.useAllowList;
             this.AllowList = settings.AllowList;
             this.BlockList = settings.BlockList;
-            if(mainEndpoint == null || mainEndpoint.Length == 0)
+            if (mainEndpoint == null || mainEndpoint.Length == 0)
             {
                 mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, listenPort) };
             }
@@ -248,15 +248,16 @@ namespace FezGame.MultiplayerMod
             {
                 throw FatalException;//This should never happen
             }
-            
-            if(!Listening)
+
+            if (!Listening)
             {
                 return;
             }
-            
+
             OnUpdate();
 
-            try {
+            try
+            {
 
                 //SendPlayerDataToAll
                 if (serverless)
@@ -305,7 +306,8 @@ namespace FezGame.MultiplayerMod
             IEnumerable<IPEndPoint> targets = serverless || mainEndpoint.Contains(Players[MyUuid].Endpoint) ? Targets : mainEndpoint;
             // Send the message to all recipients
             System.Threading.Tasks.Parallel.ForEach(targets,
-                targ => {
+                targ =>
+                {
                     if (targ.Address != IPAddress.None && targ.Port > 0)
                     {
                         SendUdp(msgGenerator.Invoke(targ), targ);
@@ -318,7 +320,8 @@ namespace FezGame.MultiplayerMod
             IEnumerable<IPEndPoint> targets = serverless || mainEndpoint.Contains(Players[MyUuid].Endpoint) ? Targets : mainEndpoint;
             // Send the message to all recipients
             System.Threading.Tasks.Parallel.ForEach(targets,
-                targ => {
+                targ =>
+                {
                     if (targ.Address != IPAddress.None && targ.Port > 0)
                     {
                         SendUdp(msg, targ);

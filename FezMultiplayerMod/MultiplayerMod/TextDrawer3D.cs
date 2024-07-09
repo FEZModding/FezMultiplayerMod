@@ -17,7 +17,7 @@ namespace FezGame.MultiplayerMod
         private readonly SpriteFont Font;
         private SpriteBatch spriteBatch;
         private Color TextColor = Color.White;
-        private Color BackgroundColor = new Color(0f,0f,0f,0.8f);
+        private Color BackgroundColor = new Color(0f, 0f, 0f, 0.8f);
         const int padding_top = 0;
         const int padding_bottom = 0;
         const int padding_sides = 16;
@@ -39,7 +39,7 @@ namespace FezGame.MultiplayerMod
         /// <param name="renderScale">The scale at which to render the name in-game.</param>
         /// <param name="renderScaleY">The scale at which the renderScale will be scaled for the vertical height of the name in-game.</param>
         // draws the name to a Texture2D, assign the texture to a Mesh, and draw the Mesh; See SpeechBubble for inspiration
-        internal void DrawPlayerName(GraphicsDevice GraphicsDevice, string playerName, Vector3 position, Quaternion rotation, bool DepthDraw, float fontScale, float renderScale, float renderScaleY=1)
+        internal void DrawPlayerName(GraphicsDevice GraphicsDevice, string playerName, Vector3 position, Quaternion rotation, bool DepthDraw, float fontScale, float renderScale, float renderScaleY = 1)
         {
             Mesh mesh;
             Vector2 scalableMiddleSize;
@@ -99,10 +99,12 @@ namespace FezGame.MultiplayerMod
             mesh.Scale = new Vector3(scalableMiddleSize.X * renderScale + 1f, scalableMiddleSize.Y * renderScale * renderScaleY + 1f, 1f);
             mesh.Draw();
         }
-        public void ClearMeshes(){
+        public void ClearMeshes()
+        {
             meshes.Clear();
         }
-        public bool RemoveMesh(string key){
+        public bool RemoveMesh(string key)
+        {
             return meshes.Remove(key);
         }
     }

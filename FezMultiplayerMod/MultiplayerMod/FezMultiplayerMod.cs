@@ -155,7 +155,7 @@ namespace FezGame.MultiplayerMod
                 ShowDebugInfo = !ShowDebugInfo;
             }
 
-            if (!GameState.Paused && updatesBetweenUpdates<= updatesSinceLastSent)
+            if (!GameState.Paused && updatesBetweenUpdates <= updatesSinceLastSent)
             {
                 updatesSinceLastSent = 0;
                 mp.Update();
@@ -234,7 +234,7 @@ namespace FezGame.MultiplayerMod
                             {
                                 s += "(you): ";
                             }
-                            s += $"{p.PlayerName}, {p.Endpoint}, {Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, {p.CurrentLevelName}, {p.Action}, {p.CameraViewpoint}, {p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp)/(double)TimeSpan.TicksPerSecond}\n";
+                            s += $"{p.PlayerName}, {p.Endpoint}, {Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, {p.CurrentLevelName}, {p.Action}, {p.CameraViewpoint}, {p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
                         }
                         //draw other player to screen if in the same level
                         if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)
@@ -283,18 +283,18 @@ namespace FezGame.MultiplayerMod
             }
             //TODO fix the problem with different viewpoints; see p.CameraViewpoint
             AnimatedTexture animation = PlayerManager.GetAnimation(p.Action);
-            if(animation.Offsets.Length < 0)
+            if (animation.Offsets.Length < 0)
             {
                 return;
             }
             int width = animation.Texture.Width;
             int height = animation.Texture.Height;
             int frame = p.AnimFrame;
-            if(frame >= animation.Offsets.Length)
+            if (frame >= animation.Offsets.Length)
             {
                 frame = 0;
             }
-            if(frame < 0)
+            if (frame < 0)
             {
                 return;
             }
@@ -349,7 +349,7 @@ namespace FezGame.MultiplayerMod
                 mesh.DepthWrites = false;
                 mesh.AlwaysOnTop = true;
                 effect.Silhouette = true;
-                if(doDraw) mesh.Draw();
+                if (doDraw) mesh.Draw();
             }
             if (!playerinbackground)
             {
@@ -371,7 +371,7 @@ namespace FezGame.MultiplayerMod
             #region draw player name
             Vector3 namePos = p.Position + Vector3.Up * 1.35f;//center text over player 
             //TODO: sanitize player name because the game's font doesn't have every character; See CommonChars below
-            textDrawer.DrawPlayerName(GraphicsDevice, p.PlayerName, namePos, CameraManager.Rotation, mesh.DepthWrites, FontManager.BigFactor*2, GraphicsDevice.GetViewScale()/32f/1.5f, 0.35f);
+            textDrawer.DrawPlayerName(GraphicsDevice, p.PlayerName, namePos, CameraManager.Rotation, mesh.DepthWrites, FontManager.BigFactor * 2, GraphicsDevice.GetViewScale() / 32f / 1.5f, 0.35f);
             #endregion
         }
         //Adapted from GomezHost.GetPositionOffset

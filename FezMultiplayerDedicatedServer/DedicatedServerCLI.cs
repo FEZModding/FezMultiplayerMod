@@ -22,10 +22,12 @@ namespace FezMultiplayerDedicatedServer
 
             //MultiplayerClientSettings.WriteSettingsFile(SettingsFilePath, settings);//TODO
 
-            while(server.LocalEndPoint==null && server.FatalException==null){
+            while (server.LocalEndPoint == null && server.FatalException == null)
+            {
                 System.Threading.Thread.Sleep(1);
             }
-            if(server.FatalException!=null){
+            if (server.FatalException != null)
+            {
                 Console.WriteLine(server.ErrorMessage);
                 Console.WriteLine(server.FatalException);
             }
@@ -34,7 +36,7 @@ namespace FezMultiplayerDedicatedServer
             Console.WriteLine("Listening on port " + ((System.Net.IPEndPoint)server.LocalEndPoint).Port);
 
             Timer myTimer = new Timer();
-            myTimer.Elapsed += (a,b) => { server.Update(); };
+            myTimer.Elapsed += (a, b) => { server.Update(); };
             myTimer.Interval = 1f / 60f * 1000; // 1000 ms is one second
             myTimer.Start();
 
@@ -42,7 +44,7 @@ namespace FezMultiplayerDedicatedServer
 
 
             string line;
-            while(true)
+            while (true)
             {
                 line = Console.ReadLine().Trim().ToLowerInvariant();
 
