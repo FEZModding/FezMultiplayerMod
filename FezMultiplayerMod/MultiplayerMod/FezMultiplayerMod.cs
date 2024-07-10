@@ -284,7 +284,11 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
-            //TODO fix the problem with different viewpoints; see p.CameraViewpoint
+            //TODO fix the problem with climbing in different viewpoints; see p.CameraViewpoint
+            if (CameraManager.Viewpoint.GetOpposite() == p.CameraViewpoint)
+            {
+                p.LookingDirection = p.LookingDirection.GetOpposite();
+            }
             AnimatedTexture animation = PlayerManager.GetAnimation(p.Action);
             if (animation.Offsets.Length < 0)
             {
