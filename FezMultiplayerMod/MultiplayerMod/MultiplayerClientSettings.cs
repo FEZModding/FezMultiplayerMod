@@ -202,6 +202,10 @@ namespace FezGame.MultiplayerMod
                 {
                     return str;
                 }
+                if (typeof(IPFilter).Equals(t))
+                {
+                    return new IPFilter(str);
+                }
             }
             catch (Exception e)
             {
@@ -237,13 +241,13 @@ namespace FezGame.MultiplayerMod
                 {
                     throw new NotImplementedException("IPv6 is currently not supported");
                 }
-                IPAddress low = IPAddress.Any, high = IPAddress.Any;
-                if (Regex.IsMatch(@"\d+\.\d+\.\d+\.\d+", str))
+                IPAddress low = null, high = null;
+                if (Regex.IsMatch(str, @"\d+\.\d+\.\d+\.\d+"))
                 {
                     //single IP address
                     low = high = IPAddress.Parse(str);
                 }
-                else if (Regex.IsMatch(@"\A\d+\.\d+\.\d+\.\d+/\d+\Z", str))
+                else if (Regex.IsMatch(str, @"\A\d+\.\d+\.\d+\.\d+/\d+\Z"))
                 {
                     //CIDR format
                     var parts = str.Split('/');
@@ -264,17 +268,32 @@ namespace FezGame.MultiplayerMod
                     //range or implied range ( could be "10.5.3.3-10.5.3.40" or "10.5.3.3-40" )
                     //TODO
                 }
-                else if (Regex.IsMatch(@"\A(\d+\.){1,3}\Z", str))
+                else if (Regex.IsMatch(str, @"\A(\d+\.){1,3}\Z"))
                 {
                     //Implied IP address (e.g., 10. )
-                    //TODO
+                    var lowstr = str;
+                    while(lowstr.Count(c=>c=='.')<3){
+                        lowstr += "0.";
+                    }
+                    lowstr += "0";
+                    var highstr = str;
+                    while(highstr.Count(c=>c=='.')<3){
+                        highstr += "255.";
+                    }
+                    highstr += "255";
+                    low = IPAddress.Parse(lowstr);
+                    high = IPAddress.Parse(highstr);
                 }
                 else
                 {
                     //unsupported syntax
+                    //TODO
                     continue;
                 }
-                //TODO
+                if(low == null || high == null)
+                {
+                    throw new Exception("A problem was encountered when parsing a well-formed IP address range");
+                }
                 ranges.Add(new IPAddressRange(low, high));
             }
         }
