@@ -399,7 +399,6 @@ namespace FezGame.MultiplayerMod
                     }
                     writer.Write((bool)p.Uuid.Equals(MyUuid));
                     writer.Write(p.Uuid.ToByteArray());
-                    writer.Write((String)p.Uuid.ToString());
                     writer.Write((String)p.PlayerName ?? "");
                     writer.Write((String)p.CurrentLevelName ?? "");
                     writer.Write((Single)p.Position.X);
