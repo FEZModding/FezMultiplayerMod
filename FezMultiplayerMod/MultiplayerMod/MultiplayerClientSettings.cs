@@ -266,7 +266,22 @@ namespace FezGame.MultiplayerMod
                 else if (str.Contains("-"))
                 {
                     //range or implied range ( could be "10.5.3.3-10.5.3.40" or "10.5.3.3-40" )
+                    var parts = str.Split('-');
+                    string lowstr = parts[0], highstr;
+                    var highstr__end = parts[1];
+                    var endpartcount = highstr__end.Count(c=>c=='.')+1;
+                    if (endpartcount == 4)
+                    {
+                        highstr = highstr__end;
+                    }
+                    else
+                    {
+                        var rg = @"\." + String.Join(@"\.", Enumerable.Repeat(@"\d+", endpartcount)) + @"\Z";
+                        highstr = Regex.Replace(lowstr, rg, "." + highstr__end);
+                    }
                     //TODO
+                    low = IPAddress.Parse(lowstr);
+                    high = IPAddress.Parse(highstr);
                 }
                 else if (Regex.IsMatch(str, @"\A(\d+\.){1,3}\Z"))
                 {
