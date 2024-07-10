@@ -242,7 +242,7 @@ namespace FezGame.MultiplayerMod
                     throw new NotImplementedException("IPv6 is currently not supported");
                 }
                 IPAddress low = null, high = null;
-                if (Regex.IsMatch(str, @"\d+\.\d+\.\d+\.\d+"))
+                if (Regex.IsMatch(str, @"\A\d+\.\d+\.\d+\.\d+\Z"))
                 {
                     //single IP address
                     low = high = IPAddress.Parse(str);
