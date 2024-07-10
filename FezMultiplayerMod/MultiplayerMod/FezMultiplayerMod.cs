@@ -234,7 +234,10 @@ namespace FezGame.MultiplayerMod
                             {
                                 s += "(you): ";
                             }
-                            s += $"{p.PlayerName}, {p.Endpoint}, {Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, {p.CurrentLevelName}, {p.Action}, {p.CameraViewpoint}, {p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
+                            s += $"{p.PlayerName}, {p.Endpoint}, "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
+                                + $"{((p.CurrentLevelName==null || p.CurrentLevelName.Length==0) ? "???" : p.CurrentLevelName)}, "
+                                + $"{p.Action}, {p.CameraViewpoint}, "
+                                + $"{p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
                         }
                         //draw other player to screen if in the same level
                         if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)

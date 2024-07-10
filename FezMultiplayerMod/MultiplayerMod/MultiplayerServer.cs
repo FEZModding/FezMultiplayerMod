@@ -220,7 +220,7 @@ namespace FezGame.MultiplayerMod
                     // Dispose managed resources here
 
                     this.disposing = true;//let child threads know it's disposing time
-                    Thread.Sleep(100);//try to wait for child threads to stop on their own
+                    Thread.Sleep(1000);//try to wait for child threads to stop on their own
                     if (listenerThread.IsAlive)
                     {
                         listenerThread.Abort();//assume the thread is stuck and forcibly terminate it

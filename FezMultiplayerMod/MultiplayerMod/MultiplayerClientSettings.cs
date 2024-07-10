@@ -46,22 +46,29 @@ namespace FezGame.MultiplayerMod
         [Description("A string representing the name to display for this client.")]
         public string myPlayerName = "Player";
         /// <summary>
-        /// TODO add description
+        /// If true, only packets from IP addresses included in the AllowList list will be accepted.
         /// </summary>
-        [Description("To do: add description")]
+        [Description("If true, only packets from IP addresses included in the AllowList list will be accepted.")]
         public bool useAllowList = false;
+
+        private const string IPFilterDesc = "Supports comma-separated entries of any combination of the following formats: " +
+        "Single IP address (e.g., 10.5.3.33), " +
+        "Range (e.g., 10.5.3.3-10.5.3.40), " +
+        "Implied range (e.g., 10.5.3.3-40), " +
+        "CIDR format, " +
+        "or Implied IP address (for example, 10. filters all IP addresses that start with 10.)";
         /// <summary>
         /// If useAllowList is true, only packets from IP addresses included in this list will be accepted.
         /// <inheritdoc cref='IPFilter.IPFilter(string)'/>
         /// </summary>
-        [Description("To do: add description")]
-        public IPFilter AllowList = new IPFilter("");
+        [Description("If useAllowList is true, only packets from IP addresses included in this list will be accepted. " + IPFilterDesc)]
+        public readonly IPFilter AllowList = new IPFilter("");
         /// <summary>
         /// Packets from IP addresses included in this list will be ignored.
         /// <inheritdoc cref='IPFilter.IPFilter(string)' path="//para[@name='desc']"/>
         /// </summary>
-        [Description("To do: add description")]
-        public IPFilter BlockList = new IPFilter("");
+        [Description("Packets from IP addresses included in this list will be ignored. "+ IPFilterDesc)]
+        public readonly IPFilter BlockList = new IPFilter("");
 
         private const char IniKeyValDelimiter = '=';
         private const string FezMultiplayerModVersionName = "FezMultiplayerMod.Version";//TODO use to check the settings file version?
@@ -125,7 +132,9 @@ namespace FezGame.MultiplayerMod
             FieldInfo[] fields = typeof(MultiplayerClientSettings).GetFields();
             foreach (var field in fields)
             {
-                lines.Add("; " + (field.GetCustomAttributes(typeof(DescriptionAttribute), true).FirstOrDefault() as DescriptionAttribute)?.Description);
+                var desc = "; " + (field.GetCustomAttributes(typeof(DescriptionAttribute), true).FirstOrDefault() as DescriptionAttribute)?.Description;
+                // desc = Regex.Replace(desc, @"(?<=[a-z]\. )", "\n; ");
+                lines.Add(desc);
                 lines.Add(field.Name + IniKeyValDelimiter + FormatObject(field.GetValue(settings)));
                 lines.Add("");
             }
@@ -229,7 +238,7 @@ namespace FezGame.MultiplayerMod
             }
         }
 
-        private List<IPAddressRange> ranges = new List<IPAddressRange>();
+        private readonly List<IPAddressRange> ranges = new List<IPAddressRange>();
         private void ReloadFilterString()
         {
             ranges.Clear();
@@ -279,7 +288,6 @@ namespace FezGame.MultiplayerMod
                         var rg = @"\." + String.Join(@"\.", Enumerable.Repeat(@"\d+", endpartcount)) + @"\Z";
                         highstr = Regex.Replace(lowstr, rg, "." + highstr__end);
                     }
-                    //TODO
                     low = IPAddress.Parse(lowstr);
                     high = IPAddress.Parse(highstr);
                 }
@@ -302,7 +310,7 @@ namespace FezGame.MultiplayerMod
                 else
                 {
                     //unsupported syntax
-                    //TODO
+                    //TODO notify user?
                     continue;
                 }
                 if(low == null || high == null)
