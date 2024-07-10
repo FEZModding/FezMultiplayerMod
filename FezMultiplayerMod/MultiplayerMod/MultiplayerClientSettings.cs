@@ -71,7 +71,6 @@ namespace FezGame.MultiplayerMod
         public readonly IPFilter BlockList = new IPFilter("");
 
         private const char IniKeyValDelimiter = '=';
-        private const string FezMultiplayerModVersionName = "FezMultiplayerMod.Version";//TODO use to check the settings file version?
         public static MultiplayerClientSettings ReadSettingsFile(string filepath)
         {
             MultiplayerClientSettings settings = new MultiplayerClientSettings();
@@ -119,12 +118,6 @@ namespace FezGame.MultiplayerMod
                 "; Note:",
                 "; Everything has default values; if a setting is not in the settings file, the mod will use the default value and will add the setting with the default value to the settings file.",
                 "; Also any modifications apart from the values for the settings will be erased.",
-                "",
-        #if FEZCLIENT
-        //TODO fix FezMultiplayerMod.Version not existing on the standalone server executable
-                "[Metadata]",
-                $"{FezMultiplayerModVersionName}{IniKeyValDelimiter}{FezMultiplayerMod.Version}",
-        #endif
                 "",
                 "[Settings]",
             };
