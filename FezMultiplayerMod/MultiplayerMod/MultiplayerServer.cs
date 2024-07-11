@@ -86,6 +86,7 @@ namespace FezGame.MultiplayerMod
         private readonly long preoverduetimeoutoffset = TimeSpan.TicksPerSecond * 5;
 
         public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
+        public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
         private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.Endpoint).Concat(mainEndpoint);
         public bool Listening => udpListener?.Client?.IsBound ?? false;
         public EndPoint LocalEndPoint => udpListener?.Client?.LocalEndPoint;
@@ -178,12 +179,27 @@ namespace FezGame.MultiplayerMod
                         {
                             foreach (PlayerMetadata p in Players.Values)
                             {
-                                if ((DateTime.UtcNow.Ticks - p.LastUpdateLocalTimestamp) > overduetimeout)
+                                if ((DateTime.UtcNow.Ticks - p.LastUpdateLocalTimestamp) > overduetimeout || DisconnectedPlayers.ContainsKey(p.Uuid))
                                 {
                                     //it'd be bad if we removed ourselves from our own list, so we check for that, even though it shouldn't happen
                                     if (p.Uuid != MyUuid)
                                     {
                                         _ = Players.TryRemove(p.Uuid, out _);
+                                        if (!DisconnectedPlayers.ContainsKey(p.Uuid))
+                                        {
+                                            _ = DisconnectedPlayers.TryAdd(p.Uuid, p.LastUpdateLocalTimestamp);
+                                        }
+                                    }
+                                }
+                            }
+                            foreach (var dp in DisconnectedPlayers)
+                            {
+                                if ((DateTime.UtcNow.Ticks - dp.Value) > overduetimeout*2)
+                                {
+                                    //it'd be bad if we removed ourselves from our own list, so we check for that, even though it shouldn't happen
+                                    if (dp.Key != MyUuid)
+                                    {
+                                        _ = DisconnectedPlayers.TryRemove(dp.Key, out _);
                                     }
                                 }
                             }
@@ -215,6 +231,7 @@ namespace FezGame.MultiplayerMod
         {
             if (!disposed)
             {
+                OnDispose();
                 if (disposing)
                 {
                     // Dispose managed resources here
@@ -264,7 +281,7 @@ namespace FezGame.MultiplayerMod
                 {
                     foreach (PlayerMetadata m in Players.Values)
                     {
-                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout && m.Uuid != MyUuid)
+                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout && m.Uuid != MyUuid || DisconnectedPlayers.ContainsKey(m.Uuid))
                         {
                             continue;
                         }
@@ -275,7 +292,7 @@ namespace FezGame.MultiplayerMod
                 {
                     foreach (PlayerMetadata m in Players.Values)
                     {
-                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout && m.Uuid != MyUuid)
+                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout && m.Uuid != MyUuid || DisconnectedPlayers.ContainsKey(m.Uuid))
                         {
                             continue;
                         }
@@ -466,6 +483,11 @@ namespace FezGame.MultiplayerMod
                             }
                             IPAddress ip = remoteHost.Address;
                             Guid uuid = new Guid(reader.ReadInt32(), reader.ReadInt16(), reader.ReadInt16(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte());
+                            if(DisconnectedPlayers.ContainsKey(uuid))
+                            {
+                                //ignore
+                                return;
+                            }
                             string playername = reader.ReadString();
                             string lvl = reader.ReadString();
                             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
@@ -546,7 +568,9 @@ namespace FezGame.MultiplayerMod
                                     {
                                         //TODO this might have inintended effects if two players have the same endpoint; might be a better idea to use GUID instead
                                         //it'd be bad if we removed ourselves from our own list, so we check for that with p.Key != MyUuid
-                                        _ = Players.TryRemove(Players.First(p => p.Key != MyUuid && noticeData.Equals(p.Value.Endpoint.ToString())).Key, out _);
+                                        Guid puid = Players.First(p => p.Key != MyUuid && noticeData.Equals(p.Value.Endpoint.ToString())).Key;
+                                        DisconnectedPlayers.TryAdd(puid, DateTime.UtcNow.Ticks);
+                                        _ = Players.TryRemove(puid, out _);
                                     }
                                     catch (InvalidOperationException) { }
                                     catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
