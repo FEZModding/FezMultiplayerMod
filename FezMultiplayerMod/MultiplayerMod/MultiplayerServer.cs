@@ -231,12 +231,12 @@ namespace FezGame.MultiplayerMod
         {
             if (!disposed)
             {
-                OnDispose();
                 if (disposing)
                 {
                     // Dispose managed resources here
 
                     this.disposing = true;//let child threads know it's disposing time
+                    OnDispose();
                     Thread.Sleep(1000);//try to wait for child threads to stop on their own
                     if (listenerThread.IsAlive)
                     {
@@ -247,6 +247,7 @@ namespace FezGame.MultiplayerMod
                         timeoutthread.Abort();//assume the thread is stuck and forcibly terminate it
                     }
                     udpListener.Close();//must be after listenerThread is stopped
+                    OutwardsClient.Close();
                 }
 
                 // Dispose unmanaged resources here
@@ -308,14 +309,19 @@ namespace FezGame.MultiplayerMod
 
         #region network packet stuff
         private const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public const string ProtocolVersion = "catorce";//Update this ever time you change something that affect the packets
+        public const string ProtocolVersion = "quince";//Update this ever time you change something that affect the packets
 
+        private static readonly UdpClient OutwardsClient = new UdpClient()
+        {
+            //Ttl = 36//TODO idk about this
+        };
         private static void SendUdp(byte[] msg, IPEndPoint targ)
         {
-            UdpClient Client = new UdpClient();
-            Client.Ttl = 3;//TODO idk about this; should probably be settings.overduetimeout
-            Client.Send(msg, msg.Length, targ);
-            Client.Close();
+            lock (OutwardsClient)
+            {
+                OutwardsClient.Send(msg, msg.Length, targ);//TODO this can throw SocketException for no apparent reason
+            }
+            return;
         }
 
         private void SendToAll(Func<IPEndPoint, byte[]> msgGenerator)
@@ -350,17 +356,12 @@ namespace FezGame.MultiplayerMod
         {
             //arbitrary values
             PlayerInfo = 1,
-            Notice = 3,
-        }
-
-        protected enum NoticeType //Honestly, these could probably be merged into PacketType
-        {
-            //arbitrary values
+            Notice = 3,//currently unused
             Disconnect = 7,
             Message = 9,//currently unused
         }
 
-        protected static byte[] SerializeNotice(NoticeType type, string data)
+        protected static byte[] SerializeDisconnect(Guid uuid)
         {
             using (MemoryStream m = new MemoryStream())
             {
@@ -375,10 +376,9 @@ namespace FezGame.MultiplayerMod
 #pragma warning disable IDE0049
                     writer.Write((String)ProtocolSignature);
                     writer.Write((String)ProtocolVersion);
-                    writer.Write((Byte)PacketType.Notice);
+                    writer.Write((Byte)PacketType.Disconnect);
                     writer.Write((Int64)DateTime.UtcNow.Ticks);
-                    writer.Write((Byte)type);
-                    writer.Write((String)data);
+                    writer.Write((Guid)uuid);
 #pragma warning restore IDE0004
 #pragma warning restore IDE0049
                     writer.Flush();
@@ -415,7 +415,7 @@ namespace FezGame.MultiplayerMod
                         writer.Write((Int32)0);
                     }
                     writer.Write((bool)p.Uuid.Equals(MyUuid));
-                    writer.Write(p.Uuid.ToByteArray());
+                    writer.Write((Guid)p.Uuid);
                     writer.Write((String)p.PlayerName ?? "");
                     writer.Write((String)p.CurrentLevelName ?? "");
                     writer.Write((Single)p.Position.X);
@@ -482,8 +482,8 @@ namespace FezGame.MultiplayerMod
                                 endpoint.Address = remoteHost.Address;
                             }
                             IPAddress ip = remoteHost.Address;
-                            Guid uuid = new Guid(reader.ReadInt32(), reader.ReadInt16(), reader.ReadInt16(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte());
-                            if(DisconnectedPlayers.ContainsKey(uuid))
+                            Guid uuid = reader.ReadGuid();
+                            if (DisconnectedPlayers.ContainsKey(uuid) && !infoFromOwner)
                             {
                                 //ignore
                                 return;
@@ -556,38 +556,30 @@ namespace FezGame.MultiplayerMod
                             }
                             break;
                         }
-                    case PacketType.Notice:
+                    case PacketType.Disconnect:
                         {
-                            NoticeType noticeType = (NoticeType)reader.ReadByte();
-                            String noticeData = reader.ReadString();
-                            switch (noticeType)
+                            try
                             {
-                            case NoticeType.Disconnect:
+                                Guid puid = reader.ReadGuid();
+                                if (puid != MyUuid && Players.TryGetValue(puid, out var p) && remoteHost.Address.Equals(p.Endpoint.Address))
                                 {
-                                    try
-                                    {
-                                        //TODO this might have inintended effects if two players have the same endpoint; might be a better idea to use GUID instead
-                                        //it'd be bad if we removed ourselves from our own list, so we check for that with p.Key != MyUuid
-                                        Guid puid = Players.First(p => p.Key != MyUuid && noticeData.Equals(p.Value.Endpoint.ToString())).Key;
-                                        DisconnectedPlayers.TryAdd(puid, DateTime.UtcNow.Ticks);
-                                        _ = Players.TryRemove(puid, out _);
-                                    }
-                                    catch (InvalidOperationException) { }
-                                    catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
-
-                                    break;
-                                }
-                            case NoticeType.Message:
-                                {
-                                    break;
-                                }
-                            default:
-                                {
-                                    //Unsupported packet type
-                                    ErrorMessage = "Unsupported NoticeType: " + noticeType;
-                                    return;
+                                    DisconnectedPlayers.TryAdd(puid, DateTime.UtcNow.Ticks);
+                                    _ = Players.TryRemove(puid, out _);
                                 }
                             }
+                            catch (InvalidOperationException) { }
+                            catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
+
+                            break;
+                        }
+                    case PacketType.Message:
+                        {
+                            //TBD
+                            break;
+                        }
+                    case PacketType.Notice:
+                        {
+                            //TBD
                             break;
                         }
                     default:
@@ -601,5 +593,16 @@ namespace FezGame.MultiplayerMod
             }
         }
         #endregion
+    }
+    public static class MyExtensions
+    {
+        public static Guid ReadGuid(this BinaryReader reader)
+        {
+            return new Guid(reader.ReadInt32(), reader.ReadInt16(), reader.ReadInt16(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte());
+        }
+        public static void Write(this BinaryWriter writer, Guid guid)
+        {
+            writer.Write(guid.ToByteArray());
+        }
     }
 }
