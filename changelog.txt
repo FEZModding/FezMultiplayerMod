@@ -22,7 +22,7 @@ fixed KeyNotFoundException sometimes being thrown when iterating over Players.Va
 Added player names
 fixed players not rendering in the correct order
 
-0.1.0
+0.1.0 - 2024-08-04T01:16:13Z
 Fixed disconnected players not getting disconnected
 Improved performance
 fixed name rendering issues
