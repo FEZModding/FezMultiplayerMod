@@ -11,9 +11,11 @@
 
 - [x] ~~Note: using strings may result in DoS attacks; someone could send a packet with really long strings. Consider sending the raw byte array instead, as then its length could be measured before it reads the data.~~ Maximum UDP datagram length is 65535 bytes, so it's not worth checking datagram size.
 
-- [ ] Add more security measures, since rn it's possible to use an existing player's unique identifier, which would cause some problems. Could have the handshake when connecting check if the name is already taken, and use that in supplement to GUID
+- [ ] Add more security measures, since rn it's possible to use an existing player's unique identifier and/or name, which would cause some problems. Could have the handshake when connecting check if the name is already taken, and use that in supplement to GUID
 
-- [ ] add names (note: fonts do not support the same characters; consider sterilizing names to only chars in the range 0x20 to 0x7E, inclusive (subnote: all fonts except zuish also support 0x0A (Lf), 0x0D (Cr), 0xA0 (nbsp), 0xC7 (C with cedilla), 0xC9 (E with acute), 0xE7 (c with cedilla), and 0xE9 (e with acute), but newlines should not be possible to enter into the name field via the ini file, and nbsp should be drawn as normal spaces)) (note2: players can currently have the same name; to remedy this we must add more security measures)
+- [x] add names (note: fonts do not support the same characters; consider sterilizing names to only chars in the range 0x20 to 0x7E, inclusive (subnote: all fonts except zuish also support 0x0A (Lf), 0x0D (Cr), 0xA0 (nbsp), 0xC7 (C with cedilla), 0xC9 (E with acute), 0xE7 (c with cedilla), and 0xE9 (e with acute), but newlines should not be possible to enter into the name field via the ini file, and nbsp should be drawn as normal spaces)) (note2: players can currently have the same name; to remedy this we must add more security measures)
+
+- [ ] add universal font for names?
 
 - [x] display names above players heads
 
