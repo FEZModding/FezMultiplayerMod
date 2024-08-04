@@ -41,7 +41,7 @@ namespace FezGame.MultiplayerMod
         [Description("The amount of time, in ticks, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.")]
         public long overduetimeout = 30_000_000;
         /// <summary>
-        /// A string representing the name to display for this client. Must contain only printable ASCII characters
+        /// A string representing the name to display for this client. Note: currently only supports alphanumeric ASCII characters.
         /// </summary>
         [Description("A string representing the name to display for this client.")]
         public string myPlayerName = "Player";

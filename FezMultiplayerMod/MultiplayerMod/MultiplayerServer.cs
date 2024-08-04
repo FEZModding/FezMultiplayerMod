@@ -433,6 +433,29 @@ namespace FezGame.MultiplayerMod
             }
         }
 
+        //
+        // For player names and whatnot
+        // should be an inclusive list of all characters supported by all of the languages' game fonts
+        // probably should restrict certain characters for internal use (like punctuation and symbols)
+        // also need to figure out how to handle people using characters that are not in this list
+        //
+        // Complete list of common chars: (?<=")[A-Za-z0-9 !"#$%&'()*+,\-./:;<>=?@\[\]\\^_`{}|~]+(?=")
+        //
+        // Common punctuation characters: [ !"#$%&'()*+,\-./:;<>=?@\[\]^_`{}|~]
+        // Potential reserved characters: [ #$&\\`]
+        //
+        // TODO add a universal font?
+        // Note the hanzi/kanji/hanja (Chinese characters) look slightly different in Chinese vs Japanese vs Korean;
+        //     Might be worth making a system that can write the player name using multiple fonts
+
+        //unused
+        //public static readonly System.Text.RegularExpressions.Regex commonCharRegex = new System.Text.RegularExpressions.Regex(@"[^\x20-\x7E]");
+
+        //more strict so we can potentially add features (such as colors and effects) using special characters later
+        public static readonly System.Text.RegularExpressions.Regex nameInvalidCharRegex = new System.Text.RegularExpressions.Regex(@"[^0-9A-Za-z]");
+
+        private const int maxplayernamelength = 32;
+
         private void ProcessDatagram(byte[] data, IPEndPoint remoteHost)
         {
             if (BlockList.Contains(remoteHost.Address)
@@ -489,6 +512,7 @@ namespace FezGame.MultiplayerMod
                                 return;
                             }
                             string playername = reader.ReadString();
+                            playername = nameInvalidCharRegex.Replace(playername.Length > maxplayernamelength ? playername.Substring(0, maxplayernamelength) : playername, "");
                             string lvl = reader.ReadString();
                             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
                             Viewpoint vp = (Viewpoint)reader.ReadInt32();
