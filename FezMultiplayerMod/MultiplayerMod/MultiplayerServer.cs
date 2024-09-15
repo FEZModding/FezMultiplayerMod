@@ -45,6 +45,9 @@ namespace FezGame.MultiplayerMod
             public Vector3 Position;
             public ActionType Action;
             public int AnimFrame;
+            /// <summary>
+            /// Only used so we only keep the latest data on the client
+            /// </summary>
             public long LastUpdateTimestamp;
             public HorizontalDirection LookingDirection;
             public Viewpoint CameraViewpoint;
