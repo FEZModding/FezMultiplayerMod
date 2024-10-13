@@ -62,7 +62,7 @@ namespace FezGame.MultiplayerMod
 
             PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) =>
             {
-                IPEndPoint Endpoint = (IPEndPoint)LocalEndPoint ?? new IPEndPoint(IPAddress.Loopback, mainEndpoint[0].Port);
+                IPEndPoint Endpoint = (IPEndPoint)LocalEndPoint ?? new IPEndPoint(IPAddress.Loopback, mainEndpoint.Port);
                 IPAddress ip = Endpoint.Address;
                 if (ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
                 {

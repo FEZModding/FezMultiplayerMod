@@ -43,13 +43,23 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DedicatedServerCLI.cs" />
+    <Compile Include="..\Shared\IniTools.cs">
+      <Link>IniTools.cs</Link>
+    </Compile>
+    <Compile Include="..\Shared\Shared.cs">
+      <Link>Shared.cs</Link>
+    </Compile>
+    <Compile Include="FezDedicatedServer.cs" />
+    <Compile Include="IPFilter.cs" />
     <Compile Include="MultiplayerServerSettings.cs" />
     <Compile Include="MultiplayerServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
