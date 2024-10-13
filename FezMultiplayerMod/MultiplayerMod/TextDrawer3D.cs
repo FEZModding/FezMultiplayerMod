@@ -23,7 +23,7 @@ namespace FezGame.MultiplayerMod
         const int padding_sides = 16;
         public TextDrawer3D(Game Game, SpriteFont Font)
         {
-            meshes = new Dictionary<string, Tuple<Mesh, Vector2>>();
+            meshes = new Dictionary<string, MeshData>();
             this.Font = Font;
             //TODO clear meshes when one of the things used to make the mesh textures changes
         }

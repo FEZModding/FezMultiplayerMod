@@ -4,7 +4,7 @@ using System.Timers;
 
 namespace FezMultiplayerDedicatedServer
 {
-    class DedicatedServerCLI
+    class FezDedicatedServer
     {
         private static MultiplayerServer server;
         static void Main(string[] args)
@@ -15,12 +15,12 @@ namespace FezMultiplayerDedicatedServer
 
             const string SettingsFilePath = "FezMultiplayerMod.ini";//TODO: probably should use an actual path instead of just the file name
             Console.WriteLine($"Loading settings from {SettingsFilePath}");
-            MultiplayerClientSettings settings = MultiplayerClientSettings.ReadSettingsFile(SettingsFilePath);
+            MultiplayerServerSettings settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerServerSettings());
 
             Console.WriteLine("Initializing server...");
             server = new MultiplayerServer(settings);
 
-            //MultiplayerClientSettings.WriteSettingsFile(SettingsFilePath, settings);//TODO
+            //MultiplayerServerSettings.WriteSettingsFile(SettingsFilePath, settings);//TODO
 
             while (server.LocalEndPoint == null && server.FatalException == null)
             {

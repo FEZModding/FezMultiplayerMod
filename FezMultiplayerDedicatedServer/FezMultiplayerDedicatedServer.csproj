@@ -43,13 +43,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\FezMultiplayerMod\MultiplayerMod\MultiplayerClientSettings.cs">
-      <Link>MultiplayerClientSettings.cs</Link>
-    </Compile>
-    <Compile Include="..\FezMultiplayerMod\MultiplayerMod\MultiplayerServer.cs">
-      <Link>MultiplayerServer.cs</Link>
-    </Compile>
     <Compile Include="DedicatedServerCLI.cs" />
+    <Compile Include="MultiplayerServerSettings.cs" />
+    <Compile Include="MultiplayerServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

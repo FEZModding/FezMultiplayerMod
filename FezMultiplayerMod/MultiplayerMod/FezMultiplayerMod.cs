@@ -102,9 +102,9 @@ namespace FezGame.MultiplayerMod
             ServiceHelper.AddComponent(debugTextDrawer = new DebugTextDrawer(game, Instance), false);
 
             const string SettingsFilePath = "FezMultiplayerMod.ini";//TODO: probably should use an actual path instead of just the file name
-            MultiplayerClientSettings settings = MultiplayerClientSettings.ReadSettingsFile(SettingsFilePath);
+            MultiplayerClientSettings settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerClientSettings());
             mp = new MultiplayerClient(settings);
-            MultiplayerClientSettings.WriteSettingsFile(SettingsFilePath, settings);
+            IniTools.WriteSettingsFile(SettingsFilePath, settings);
 
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
@@ -273,7 +273,7 @@ namespace FezGame.MultiplayerMod
             SamplerState = SamplerState.PointClamp
         };
         private TimeSpan sinceBackgroundChanged = TimeSpan.Zero;
-        internal void DrawPlayer(MultiplayerClient.PlayerMetadata p, GameTime gameTime, bool doDraw = true)
+        internal void DrawPlayer(PlayerMetadata p, GameTime gameTime, bool doDraw = true)
         {
             #region adapted from GomezHost.Update
             if (GameState.Loading
@@ -382,7 +382,7 @@ namespace FezGame.MultiplayerMod
             #endregion
         }
         //Adapted from GomezHost.GetPositionOffset
-        private Vector3 GetPositionOffset(MultiplayerClient.PlayerMetadata p, ref AnimatedTexture anim)
+        private Vector3 GetPositionOffset(PlayerMetadata p, ref AnimatedTexture anim)
         {
             float playerSizeY = p.Action.IsCarry() ? (Enum.GetName(typeof(ActionType), p.Action).Contains("Heavy") ? 1.75f : 1.9375f) : 0.9375f;//numbers from PlayerManager.SyncCollisionSize
             float num = playerSizeY + ((p.Action.IsCarry() || p.Action == ActionType.ThrowingHeavy) ? (-2) : 0);

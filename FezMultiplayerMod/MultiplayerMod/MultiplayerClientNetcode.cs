@@ -8,24 +8,10 @@ using System.Text;
 using System.Net;
 using System.IO;
 using System.Collections.Concurrent;
-#if FEZCLIENT
-using ActionType = FezGame.Structure.ActionType;
-using HorizontalDirection = FezEngine.HorizontalDirection;
-using Viewpoint = FezEngine.Viewpoint;
-using Vector3 = Microsoft.Xna.Framework.Vector3;
-#else
-using ActionType = System.Int32;
-using HorizontalDirection = System.Int32;
-using Viewpoint = System.Int32;
-public struct Vector3
-{
-    public float X, Y, Z;
-    public Vector3(float x, float y, float z)
-    {
-        X = x; Y = y; Z = z;
-    }
-}
-#endif
+using Microsoft.Xna.Framework;
+using FezEngine;
+using FezGame.Structure;
+
 namespace FezGame.MultiplayerMod
 {
     /// <summary>
@@ -35,51 +21,10 @@ namespace FezGame.MultiplayerMod
     /// </summary>
     public class MultiplayerServer : IDisposable
     {
-        [Serializable]
-        public struct PlayerMetadata
-        {
-            public IPEndPoint Endpoint;
-            public readonly Guid Uuid;
-            public string PlayerName;
-            public string CurrentLevelName;
-            public Vector3 Position;
-            public ActionType Action;
-            public int AnimFrame;
-            /// <summary>
-            /// Only used so we only keep the latest data on the client
-            /// </summary>
-            public long LastUpdateTimestamp;
-            public HorizontalDirection LookingDirection;
-            public Viewpoint CameraViewpoint;
-            /// <summary>
-            /// for auto-disposing, since LastUpdateTimestamp shouldn't be used for that because the system clocks of the two protocols could be different
-            /// </summary>
-            public long LastUpdateLocalTimestamp;
 
-            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string PlayerName, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp, long LastUpdateLocalTimestamp)
-            {
-                this.Endpoint = Endpoint;
-                this.Uuid = Uuid;
-                this.PlayerName = PlayerName;
-                this.CurrentLevelName = CurrentLevelName;
-                this.Position = Position;
-                this.Action = Action;
-                this.AnimFrame = AnimFrame;
-                this.LookingDirection = LookingDirection;
-                this.LastUpdateTimestamp = LastUpdateTimestamp;
-                this.CameraViewpoint = CameraViewpoint;
-                this.LastUpdateLocalTimestamp = LastUpdateLocalTimestamp;
-            }
-        }
-
-        private volatile UdpClient udpListener;
+        private volatile TcpClient tcpClient;
+        private volatile NetworkStream tcpStream;
         private readonly Thread listenerThread;
-        private readonly Thread timeoutthread;
-        protected readonly IPEndPoint[] mainEndpoint;
-        protected readonly long overduetimeout;
-        private readonly bool useAllowList;
-        private readonly IPFilter AllowList;
-        private readonly IPFilter BlockList;
 
         /// <summary>
         /// How long to wait, in ticks, before stopping sending or receiving packets for this player.
@@ -89,10 +34,8 @@ namespace FezGame.MultiplayerMod
         private readonly long preoverduetimeoutoffset = TimeSpan.TicksPerSecond * 5;
 
         public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
-        public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
-        private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.Endpoint).Concat(mainEndpoint);
-        public bool Listening => udpListener?.Client?.IsBound ?? false;
-        public EndPoint LocalEndPoint => udpListener?.Client?.LocalEndPoint;
+        public bool Listening => tcpClient?.Client?.IsBound ?? false;
+        public EndPoint LocalEndPoint => tcpClient?.Client?.LocalEndPoint;
         public readonly Guid MyUuid = Guid.NewGuid();
         public string MyPlayerName = "";
 
@@ -120,17 +63,6 @@ namespace FezGame.MultiplayerMod
         internal MultiplayerServer(MultiplayerClientSettings settings)
         {
             this.MyPlayerName = settings.myPlayerName;
-            this.serverless = settings.serverless;
-            int listenPort = settings.listenPort;
-            this.mainEndpoint = settings.mainEndpoint;
-            this.overduetimeout = settings.overduetimeout;
-            this.useAllowList = settings.useAllowList;
-            this.AllowList = settings.AllowList;
-            this.BlockList = settings.BlockList;
-            if (mainEndpoint == null || mainEndpoint.Length == 0)
-            {
-                mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, listenPort) };
-            }
 
             listenerThread = new Thread(() =>
             {
@@ -140,81 +72,22 @@ namespace FezGame.MultiplayerMod
                     int retries = 0;
                     while (initializing)
                     {
-                        try
-                        {
-                            udpListener = new UdpClient(listenPort, AddressFamily.InterNetwork);
-                            initializing = false;
-                        }
-                        catch (Exception e)
-                        {
-                            if (settings.maxAdjustListenPortOnBindFail > retries++)
-                            {
-                                listenPort++;
-                            }
-                            else
-                            {
-                                //ErrorMessage = e.Message;
-                                ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - retries + 1} to {listenPort} are already in use";
-                                //listenerThread.Abort(e);//does this even work?//calling Abort is a bad idea
-                                return;
-                            }
-                        }
+                        tcpClient = new TcpClient(AddressFamily.InterNetwork);
+                        initializing = false;
                     }
+                    tcpClient.Connect(settings.mainEndpoint);
+                    tcpStream = tcpClient.GetStream();
                     while (!disposing)
                     {
-                        //IPEndPoint object will allow us to read datagrams sent from any source.
-                        IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
-                        ProcessDatagram(udpListener.Receive(ref t), t);//Note: udpListener.Receive blocks until there is a datagram o read
+                        //TODO read from tcpStream
+                        ProcessDatagram(tcpClient.Receive(ref t), t);//Note: udpListener.Receive blocks until there is a datagram o read
+
                     }
-                    udpListener.Close();
+                    tcpClient.Close();
                 }
                 catch (Exception e) { FatalException = e; }
             });
             listenerThread.Start();
-
-            timeoutthread = new Thread(() =>
-            {
-                try
-                {
-                    while (!disposing)
-                    {
-                        try
-                        {
-                            foreach (PlayerMetadata p in Players.Values)
-                            {
-                                if ((DateTime.UtcNow.Ticks - p.LastUpdateLocalTimestamp) > overduetimeout || DisconnectedPlayers.ContainsKey(p.Uuid))
-                                {
-                                    //it'd be bad if we removed ourselves from our own list, so we check for that, even though it shouldn't happen
-                                    if (p.Uuid != MyUuid)
-                                    {
-                                        _ = Players.TryRemove(p.Uuid, out _);
-                                        if (!DisconnectedPlayers.ContainsKey(p.Uuid))
-                                        {
-                                            _ = DisconnectedPlayers.TryAdd(p.Uuid, p.LastUpdateLocalTimestamp);
-                                        }
-                                    }
-                                }
-                            }
-                            foreach (var dp in DisconnectedPlayers)
-                            {
-                                if ((DateTime.UtcNow.Ticks - dp.Value) > overduetimeout*2)
-                                {
-                                    //it'd be bad if we removed ourselves from our own list, so we check for that, even though it shouldn't happen
-                                    if (dp.Key != MyUuid)
-                                    {
-                                        _ = DisconnectedPlayers.TryRemove(dp.Key, out _);
-                                    }
-                                }
-                            }
-                        }
-                        catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
-                        {
-                        }
-                    }
-                }
-                catch (Exception e) { FatalException = e; }
-            });
-            timeoutthread.Start();
         }
 
         // I was told "Your Dispose implementation needs work https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern"
@@ -245,12 +118,8 @@ namespace FezGame.MultiplayerMod
                     {
                         listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
                     }
-                    if (timeoutthread.IsAlive)
-                    {
-                        timeoutthread.Abort();//assume the thread is stuck and forcibly terminate it
-                    }
-                    udpListener.Close();//must be after listenerThread is stopped
-                    OutwardsClient.Close();
+                    //tcpClient.EndConnect();
+                    tcpClient.Close();//must be after listenerThread is stopped
                 }
 
                 // Dispose unmanaged resources here
@@ -280,29 +149,10 @@ namespace FezGame.MultiplayerMod
             try
             {
 
-                //SendPlayerDataToAll
-                if (serverless)
+                foreach (PlayerMetadata m in Players.Values)
                 {
-                    foreach (PlayerMetadata m in Players.Values)
-                    {
-                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout && m.Uuid != MyUuid || DisconnectedPlayers.ContainsKey(m.Uuid))
-                        {
-                            continue;
-                        }
-                        SendToAll(Serialize(m, false));
-                    }
-                }
-                else
-                {
-                    foreach (PlayerMetadata m in Players.Values)
-                    {
-                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout && m.Uuid != MyUuid || DisconnectedPlayers.ContainsKey(m.Uuid))
-                        {
-                            continue;
-                        }
-                        //Note: probably should refactor these methods
-                        SendToAll((targ) => Serialize(m, mainEndpoint.Contains(targ)));
-                    }
+                    //TODO: update to match the UML diagram
+                    SendToAll((targ) => Serialize(m, mainEndpoint.Contains(targ)));
                 }
             }
             catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
@@ -314,55 +164,13 @@ namespace FezGame.MultiplayerMod
         private const string ProtocolSignature = "FezMultiplayer";// Do not change
         public const string ProtocolVersion = "quince";//Update this ever time you change something that affect the packets
 
-        private static readonly UdpClient OutwardsClient = new UdpClient()
+        private void SendTcp(byte[] msg)
         {
-            //Ttl = 36//TODO idk about this
-        };
-        private static void SendUdp(byte[] msg, IPEndPoint targ)
-        {
-            lock (OutwardsClient)
-            {
-                OutwardsClient.Send(msg, msg.Length, targ);//TODO this can throw SocketException for no apparent reason
-            }
+            (tcpStream ?? (tcpStream = tcpClient.GetStream())).Write(msg);//TODO
             return;
         }
 
-        private void SendToAll(Func<IPEndPoint, byte[]> msgGenerator)
-        {
-            IEnumerable<IPEndPoint> targets = serverless || mainEndpoint.Contains(Players[MyUuid].Endpoint) ? Targets : mainEndpoint;
-            // Send the message to all recipients
-            System.Threading.Tasks.Parallel.ForEach(targets,
-                targ =>
-                {
-                    if (targ.Address != IPAddress.None && targ.Port > 0)
-                    {
-                        SendUdp(msgGenerator.Invoke(targ), targ);
-                    }
-                });
-        }
-
-        protected void SendToAll(byte[] msg)
-        {
-            IEnumerable<IPEndPoint> targets = serverless || mainEndpoint.Contains(Players[MyUuid].Endpoint) ? Targets : mainEndpoint;
-            // Send the message to all recipients
-            System.Threading.Tasks.Parallel.ForEach(targets,
-                targ =>
-                {
-                    if (targ.Address != IPAddress.None && targ.Port > 0)
-                    {
-                        SendUdp(msg, targ);
-                    }
-                });
-        }
         //TODO make these packet things more extensible somehow?
-        private enum PacketType
-        {
-            //arbitrary values
-            PlayerInfo = 1,
-            Notice = 3,//currently unused
-            Disconnect = 7,
-            Message = 9,//currently unused
-        }
 
         protected static byte[] SerializeDisconnect(Guid uuid)
         {
@@ -461,11 +269,6 @@ namespace FezGame.MultiplayerMod
 
         private void ProcessDatagram(byte[] data, IPEndPoint remoteHost)
         {
-            if (BlockList.Contains(remoteHost.Address)
-                || (useAllowList && !AllowList.Contains(remoteHost.Address)))
-            {
-                return;
-            }
             using (MemoryStream m = new MemoryStream(data))
             {
                 using (BinaryReader reader = new BinaryReader(m))
@@ -509,11 +312,6 @@ namespace FezGame.MultiplayerMod
                             }
                             IPAddress ip = remoteHost.Address;
                             Guid uuid = reader.ReadGuid();
-                            if (DisconnectedPlayers.ContainsKey(uuid) && !infoFromOwner)
-                            {
-                                //ignore
-                                return;
-                            }
                             string playername = reader.ReadString();
                             playername = nameInvalidCharRegex.Replace(playername.Length > maxplayernamelength ? playername.Substring(0, maxplayernamelength) : playername, "");
                             string lvl = reader.ReadString();
@@ -538,13 +336,6 @@ namespace FezGame.MultiplayerMod
                             }
                             else
                             {
-                                if (Players.ContainsKey(uuid)
-                                        && (DateTime.UtcNow.Ticks - Players[uuid].LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout
-                                        && uuid != MyUuid)
-                                {
-                                    return;//ignore packets for players that should be disconnected; if they want to reconnect they can send another datagram
-                                }
-
                                 PlayerMetadata p = Players.GetOrAdd(uuid, (guid) =>
                                 {
                                     var np = new PlayerMetadata(
@@ -590,7 +381,6 @@ namespace FezGame.MultiplayerMod
                                 Guid puid = reader.ReadGuid();
                                 if (puid != MyUuid && Players.TryGetValue(puid, out var p) && remoteHost.Address.Equals(p.Endpoint.Address))
                                 {
-                                    DisconnectedPlayers.TryAdd(puid, DateTime.UtcNow.Ticks);
                                     _ = Players.TryRemove(puid, out _);
                                 }
                             }
@@ -620,16 +410,5 @@ namespace FezGame.MultiplayerMod
             }
         }
         #endregion
-    }
-    public static class MyExtensions
-    {
-        public static Guid ReadGuid(this BinaryReader reader)
-        {
-            return new Guid(reader.ReadInt32(), reader.ReadInt16(), reader.ReadInt16(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte());
-        }
-        public static void Write(this BinaryWriter writer, Guid guid)
-        {
-            writer.Write(guid.ToByteArray());
-        }
     }
 }
