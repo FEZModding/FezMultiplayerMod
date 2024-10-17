@@ -47,15 +47,6 @@ namespace FezGame.MultiplayerMod
             OnDispose += Disconnect;
         }
 
-        public void Disconnect()
-        {
-            //check to make sure Players[MyUuid] exists, as accessing it directly could throw KeyNotFoundException
-            if (Players.TryGetValue(MyUuid, out PlayerMetadata myplayer))
-            {
-                SendToAll(SerializeDisconnect(myplayer.Uuid));
-            }
-        }
-
         public void UpdateMyPlayer()
         {
             //UpdateMyPlayer

@@ -19,7 +19,7 @@ namespace FezGame.MultiplayerMod
     /// 
     /// Note: This class should only contain System usings
     /// </summary>
-    public class MultiplayerServer : SharedNetcode, IDisposable
+    public class MultiplayerServer : SharedNetcode<PlayerMetadata>, IDisposable
     {
 
         private volatile TcpClient tcpClient;
@@ -33,7 +33,7 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         private readonly long preoverduetimeoutoffset = TimeSpan.TicksPerSecond * 5;
 
-        public new readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
+        public override ConcurrentDictionary<Guid, PlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, PlayerMetadata>();
         public bool Listening => tcpClient?.Client?.IsBound ?? false;
         public EndPoint LocalEndPoint => tcpClient?.Client?.LocalEndPoint;
         public readonly Guid MyUuid = Guid.NewGuid();
@@ -142,6 +142,15 @@ namespace FezGame.MultiplayerMod
             {
             }
         }
+        public void Disconnect()
+        {
+            //check to make sure Players[MyUuid] exists, as accessing it directly could throw KeyNotFoundException
+            if (Players.TryGetValue(MyUuid, out PlayerMetadata myplayer))
+            {
+                SendToAll(SerializeDisconnect(myplayer.Uuid));
+            }
+        }
+
 
         protected override void ProcessDisconnect(Guid puid)
         {

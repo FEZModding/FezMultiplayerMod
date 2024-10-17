@@ -13,6 +13,8 @@ using FezGame.MultiplayerMod;
 using ActionType = System.Int32;
 using HorizontalDirection = System.Int32;
 using Viewpoint = System.Int32;
+using System.Threading.Tasks;
+using static FezMultiplayerDedicatedServer.MultiplayerServer;
 
 namespace FezMultiplayerDedicatedServer
 {
@@ -21,28 +23,28 @@ namespace FezMultiplayerDedicatedServer
     /// 
     /// Note: This class should only contain System usings
     /// </summary>
-    public class MultiplayerServer : SharedNetcode, IDisposable
+    public class MultiplayerServer : SharedNetcode<ServerPlayerMetadata>, IDisposable
     {
         [Serializable]
         public class ServerPlayerMetadata : PlayerMetadata
         {
-            public IPEndPoint Endpoint;
+            public TcpClient tcpClient;
             /// <summary>
             /// for auto-disposing, since LastUpdateTimestamp shouldn't be used for that because the system clocks of the two protocols could be different
             /// </summary>
             public long LastUpdateLocalTimestamp;
 
-            public ServerPlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string PlayerName, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp, long LastUpdateLocalTimestamp)
+            public ServerPlayerMetadata(TcpClient tcpClient, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp, long LastUpdateLocalTimestamp)
             : base(Uuid, CurrentLevelName, Position, CameraViewpoint, Action, AnimFrame, LookingDirection, LastUpdateTimestamp)
             {
-                this.Endpoint = Endpoint;
+                this.tcpClient = tcpClient;
+                this.LastUpdateLocalTimestamp = LastUpdateLocalTimestamp;
             }
         }
 
         private volatile TcpListener tcpListener;
         private readonly Thread listenerThread;
         private readonly Thread timeoutthread;
-        protected readonly IPEndPoint[] mainEndpoint;
         protected readonly long overduetimeout;
         private readonly bool useAllowList;
         private readonly IPFilter AllowList;
@@ -55,9 +57,9 @@ namespace FezMultiplayerDedicatedServer
         /// </summary>
         private readonly long preoverduetimeoutoffset = TimeSpan.TicksPerSecond * 5;
 
-        public new readonly ConcurrentDictionary<Guid, ServerPlayerMetadata> Players = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
+        public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
-        private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.Endpoint).Concat(mainEndpoint);
+        private IEnumerable<TcpClient> connectedClients => Players.Select(p => p.Value.tcpClient);
         public bool Listening => tcpListener?.Active != null;
         public EndPoint LocalEndPoint => tcpListener?.LocalEndpoint;
 
@@ -109,8 +111,26 @@ namespace FezMultiplayerDedicatedServer
                     while (!disposing)
                     {
                         //IPEndPoint object will allow us to read datagrams sent from any source.
-                        tcpListener.AcceptTcpClientAsync().
-                        ProcessDatagram(udpListener.Receive(ref t), t);//Note: udpListener.Receive blocks until there is a datagram o read
+                        tcpListener.AcceptTcpClientAsync().ContinueWith(tcpClientTask => {
+                            if (tcpClientTask.Status == TaskStatus.RanToCompletion) {
+                                OnNewClientConnect(tcpClientTask.Result);
+                            }
+                            else if (tcpClientTask.Status == TaskStatus.Faulted)
+                            {
+                                // Directly accessing Exception since we assume it should not be null
+                                var exception = tcpClientTask.Exception;
+
+                                if (exception != null) // This check is mostly for safety
+                                {
+                                    Console.WriteLine(exception.GetBaseException().Message);
+                                }
+                                else
+                                {
+                                    // It's unlikely this else case will happen, but in case it does
+                                    Console.WriteLine("No exception details available.");
+                                }
+                            }
+                        });
                     }
                     tcpListener.Stop();
                 }
@@ -220,7 +240,7 @@ namespace FezMultiplayerDedicatedServer
                             continue;
                         }
                         //Note: probably should refactor these methods
-                        SendToAll(Serialize(m, mainEndpoint.Contains(targ));
+                        SendToAll(Serialize(m));
                     }
             }
             catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
@@ -231,14 +251,36 @@ namespace FezMultiplayerDedicatedServer
         protected void SendToAll(byte[] msg)
         {
             // Send the message to all recipients
-            System.Threading.Tasks.Parallel.ForEach(playerConnections,
+            System.Threading.Tasks.Parallel.ForEach(connectedClients,
                 targ =>
                 {
-                    if (targ.Address != IPAddress.None && targ.Port > 0)
-                    {
-                        SendTcp(msg, targ);
-                    }
+                    //TODO 
                 });
+        }
+
+        private void OnNewClientConnect(TcpClient tcpClient)
+        {
+            //Get player appearance from client
+            Guid puid;
+            string pname;
+            PlayerAppearance appearance;
+            //TODO
+            ServerPlayerMetadata newPlayer = new ServerPlayerMetadata(tcpClient, puid, null, new Vector3(0,0,0), 0, 0, 0, 0, DateTime.UtcNow.Ticks, DateTime.UtcNow.Ticks);
+            UpdatePlayerAppearance(puid, pname, appearance);
+        }
+
+        protected override void ProcessDisconnect(Guid puid)
+        {
+            try
+            {
+                if (Players.TryGetValue(puid, out var p))
+                {
+                    DisconnectedPlayers.TryAdd(puid, DateTime.UtcNow.Ticks);
+                    _ = Players.TryRemove(puid, out _);
+                }
+            }
+            catch (InvalidOperationException) { }
+            catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
         }
     }
 }

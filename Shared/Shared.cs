@@ -5,7 +5,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Net.Sockets;
 
 #if FEZCLIENT
 using ActionType = FezGame.Structure.ActionType;
@@ -33,12 +32,6 @@ namespace FezGame.MultiplayerMod
     }
 
     [Serializable]
-    public class PlayerAppearance
-    {
-        public string PlayerName;
-        public object CustomCharacterAppearance;
-    }
-    [Serializable]
     public class PlayerMetadata
     {
         public readonly Guid Uuid;
@@ -65,6 +58,18 @@ namespace FezGame.MultiplayerMod
             this.CameraViewpoint = CameraViewpoint;
         }
     }
+    [Serializable]
+    public struct PlayerAppearance
+    {
+        public string PlayerName;
+        public object CustomCharacterAppearance;
+
+        public PlayerAppearance(string playerName, object appearance)
+        {
+            PlayerName = playerName;
+            CustomCharacterAppearance = appearance;
+        }
+    }
     public enum PacketType
     {
         //arbitrary values
@@ -85,7 +90,14 @@ namespace FezGame.MultiplayerMod
         }
     }
 
-    public abstract class SharedNetcode
+    public static class PlayerMetadataExtensions
+    {
+        public static string GetPlayerName(this PlayerMetadata p)
+        {
+            return SharedNetcode<PlayerMetadata>.PlayerAppearances[p.Uuid].PlayerName;
+        }
+    }
+    public abstract class SharedNetcode<P> where P : PlayerMetadata
     {
         #region network packet stuff
         protected const string ProtocolSignature = "FezMultiplayer";// Do not change
@@ -97,8 +109,8 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         public volatile Exception FatalException = null;
 
-        public abstract ConcurrentDictionary<Guid, PlayerMetadata> Players { get; }
-        public ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearance = new ConcurrentDictionary<Guid, PlayerAppearance>();
+        public abstract ConcurrentDictionary<Guid, P> Players { get; }
+        public static ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
 
         //TODO make these packet things more extensible somehow?
 
@@ -185,6 +197,11 @@ namespace FezGame.MultiplayerMod
 
         protected const int maxplayernamelength = 32;
 
+        //TODO
+        //string playername = reader.ReadString();
+        //playername = nameInvalidCharRegex.Replace(playername.Length > maxplayernamelength? playername.Substring(0, maxplayernamelength) : playername, "");
+
+
         protected void ProcessDatagram(byte[] data)
         {
             using (MemoryStream m = new MemoryStream(data))
@@ -224,8 +241,6 @@ namespace FezGame.MultiplayerMod
                                 endpoint = new IPEndPoint(IPAddress.None, 0);
                             }
                             Guid uuid = reader.ReadGuid();
-                            string playername = reader.ReadString();
-                            playername = nameInvalidCharRegex.Replace(playername.Length > maxplayernamelength ? playername.Substring(0, maxplayernamelength) : playername, "");
                             string lvl = reader.ReadString();
                             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
                             Viewpoint vp = (Viewpoint)reader.ReadInt32();
@@ -233,20 +248,7 @@ namespace FezGame.MultiplayerMod
                             int frame = reader.ReadInt32();
                             HorizontalDirection lookdir = (HorizontalDirection)reader.ReadInt32();
 
-                            PlayerMetadata p = Players.GetOrAdd(uuid, (guid) =>
-                            {
-                                var np = new PlayerMetadata(
-                                    Uuid: guid,
-                                    CurrentLevelName: lvl,
-                                    Position: pos,
-                                    CameraViewpoint: vp,
-                                    Action: act,
-                                    AnimFrame: frame,
-                                    LookingDirection: lookdir,
-                                    LastUpdateTimestamp: timestamp
-                                );
-                                return np;
-                            });
+                            P p = Players[uuid];
                             if (timestamp > p.LastUpdateTimestamp)//Ensure we're not saving old data
                             {
                                 //update player
@@ -294,15 +296,10 @@ namespace FezGame.MultiplayerMod
             }
         }
 
-        protected void SendTcp(byte[] msg, NetworkStream stream)
+        protected void UpdatePlayerAppearance(Guid puid, string pname, object appearance)
         {
-            stream.Write(msg);//TODO
-            return;
-        }
-        protected void ReadTcp(byte[] msg, NetworkStream stream)
-        {
-            stream.Read();//TODO
-            return;
+            PlayerAppearance newAp = new PlayerAppearance(pname, appearance);
+            _ = PlayerAppearances.AddOrUpdate(puid, (u) => newAp, (u, a) => newAp);
         }
         protected abstract void ProcessDisconnect(Guid puid);
         #endregion

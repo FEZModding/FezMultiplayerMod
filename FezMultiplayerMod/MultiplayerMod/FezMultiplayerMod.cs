@@ -234,7 +234,7 @@ namespace FezGame.MultiplayerMod
                             {
                                 s += "(you): ";
                             }
-                            s += $"{p.PlayerName}, "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
+                            s += $"{p.GetPlayerName()}, "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
                                 + $"{((p.CurrentLevelName==null || p.CurrentLevelName.Length==0) ? "???" : p.CurrentLevelName)}, "
                                 + $"{p.Action}, {p.CameraViewpoint}, "
                                 + $"{p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
@@ -378,7 +378,7 @@ namespace FezGame.MultiplayerMod
             #region draw player name
             Vector3 namePos = p.Position + Vector3.Up * 1.35f;//center text over player 
             //TODO: sanitize player name because the game's font doesn't have every character; See CommonChars below
-            textDrawer.DrawPlayerName(GraphicsDevice, p.PlayerName, namePos, CameraManager.Rotation, mesh.DepthWrites, FontManager.BigFactor * 2, GraphicsDevice.GetViewScale() / 32f / 1.5f, 0.35f);
+            textDrawer.DrawPlayerName(GraphicsDevice, p.GetPlayerName(), namePos, CameraManager.Rotation, mesh.DepthWrites, FontManager.BigFactor * 2, GraphicsDevice.GetViewScale() / 32f / 1.5f, 0.35f);
             #endregion
         }
         //Adapted from GomezHost.GetPositionOffset
