@@ -21,46 +21,25 @@ namespace FezMultiplayerDedicatedServer
     /// 
     /// Note: This class should only contain System usings
     /// </summary>
-    public class MultiplayerServer : IDisposable
+    public class MultiplayerServer : SharedNetcode, IDisposable
     {
         [Serializable]
-        public struct PlayerMetadata
+        public class ServerPlayerMetadata : PlayerMetadata
         {
             public IPEndPoint Endpoint;
-            public readonly Guid Uuid;
-            public string PlayerName;
-            public string CurrentLevelName;
-            public Vector3 Position;
-            public ActionType Action;
-            public int AnimFrame;
-            /// <summary>
-            /// Only used so we only keep the latest data on the client
-            /// </summary>
-            public long LastUpdateTimestamp;
-            public HorizontalDirection LookingDirection;
-            public Viewpoint CameraViewpoint;
             /// <summary>
             /// for auto-disposing, since LastUpdateTimestamp shouldn't be used for that because the system clocks of the two protocols could be different
             /// </summary>
             public long LastUpdateLocalTimestamp;
 
-            public PlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string PlayerName, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp, long LastUpdateLocalTimestamp)
+            public ServerPlayerMetadata(IPEndPoint Endpoint, Guid Uuid, string PlayerName, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp, long LastUpdateLocalTimestamp)
+            : base(Uuid, CurrentLevelName, Position, CameraViewpoint, Action, AnimFrame, LookingDirection, LastUpdateTimestamp)
             {
                 this.Endpoint = Endpoint;
-                this.Uuid = Uuid;
-                this.PlayerName = PlayerName;
-                this.CurrentLevelName = CurrentLevelName;
-                this.Position = Position;
-                this.Action = Action;
-                this.AnimFrame = AnimFrame;
-                this.LookingDirection = LookingDirection;
-                this.LastUpdateTimestamp = LastUpdateTimestamp;
-                this.CameraViewpoint = CameraViewpoint;
-                this.LastUpdateLocalTimestamp = LastUpdateLocalTimestamp;
             }
         }
 
-        private volatile UdpClient udpListener;
+        private volatile TcpListener tcpListener;
         private readonly Thread listenerThread;
         private readonly Thread timeoutthread;
         protected readonly IPEndPoint[] mainEndpoint;
@@ -76,26 +55,11 @@ namespace FezMultiplayerDedicatedServer
         /// </summary>
         private readonly long preoverduetimeoutoffset = TimeSpan.TicksPerSecond * 5;
 
-        public readonly ConcurrentDictionary<Guid, PlayerMetadata> Players = new ConcurrentDictionary<Guid, PlayerMetadata>();
+        public new readonly ConcurrentDictionary<Guid, ServerPlayerMetadata> Players = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
         private IEnumerable<IPEndPoint> Targets => Players.Select(p => p.Value.Endpoint).Concat(mainEndpoint);
-        public bool Listening => udpListener?.Client?.IsBound ?? false;
-        public EndPoint LocalEndPoint => udpListener?.Client?.LocalEndPoint;
-        public readonly Guid MyUuid = Guid.NewGuid();
-        public string MyPlayerName = "";
-
-        //Note: it has to connect to another player before it propagates the player information
-        /// <summary>
-        /// for true it relays the IP endpoints of all the players to all the other players, otherwise IP addressed will only be sent to the <see cref="MultiplayerServerSettings.mainEndpoint"/>.
-        /// </summary>
-        private readonly bool serverless;
-
-        public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
-        /// <summary>
-        /// If not null, contains a fatal exception that was thrown on a child Thread
-        /// </summary>
-        public volatile Exception FatalException = null;
-
+        public bool Listening => tcpListener?.Active != null;
+        public EndPoint LocalEndPoint => tcpListener?.LocalEndpoint;
 
         public event Action OnUpdate = () => { };
         public event Action OnDispose = () => { };
@@ -107,16 +71,11 @@ namespace FezMultiplayerDedicatedServer
         /// <param name="settings">The <see cref="MultiplayerServerSettings"/> to use to create this instance.</param>
         internal MultiplayerServer(MultiplayerServerSettings settings)
         {
-            this.serverless = settings.serverless;
             int listenPort = settings.listenPort;
             this.overduetimeout = settings.overduetimeout;
             this.useAllowList = settings.useAllowList;
             this.AllowList = settings.AllowList;
             this.BlockList = settings.BlockList;
-            if (mainEndpoint == null || mainEndpoint.Length == 0)
-            {
-                mainEndpoint = new[] { new IPEndPoint(IPAddress.Loopback, listenPort) };
-            }
 
             listenerThread = new Thread(() =>
             {
@@ -128,7 +87,8 @@ namespace FezMultiplayerDedicatedServer
                     {
                         try
                         {
-                            udpListener = new UdpClient(listenPort, AddressFamily.InterNetwork);
+                            tcpListener = new TcpListener(IPAddress.Any, listenPort);
+                            tcpListener.Start();
                             initializing = false;
                         }
                         catch (Exception e)
@@ -149,10 +109,10 @@ namespace FezMultiplayerDedicatedServer
                     while (!disposing)
                     {
                         //IPEndPoint object will allow us to read datagrams sent from any source.
-                        IPEndPoint t = new IPEndPoint(IPAddress.Any, listenPort);
+                        tcpListener.AcceptTcpClientAsync().
                         ProcessDatagram(udpListener.Receive(ref t), t);//Note: udpListener.Receive blocks until there is a datagram o read
                     }
-                    udpListener.Close();
+                    tcpListener.Stop();
                 }
                 catch (Exception e) { FatalException = e; }
             });
@@ -166,18 +126,14 @@ namespace FezMultiplayerDedicatedServer
                     {
                         try
                         {
-                            foreach (PlayerMetadata p in Players.Values)
+                            foreach (ServerPlayerMetadata p in Players.Values)
                             {
                                 if ((DateTime.UtcNow.Ticks - p.LastUpdateLocalTimestamp) > overduetimeout || DisconnectedPlayers.ContainsKey(p.Uuid))
                                 {
-                                    //it'd be bad if we removed ourselves from our own list, so we check for that, even though it shouldn't happen
-                                    if (p.Uuid != MyUuid)
+                                    _ = Players.TryRemove(p.Uuid, out _);
+                                    if (!DisconnectedPlayers.ContainsKey(p.Uuid))
                                     {
-                                        _ = Players.TryRemove(p.Uuid, out _);
-                                        if (!DisconnectedPlayers.ContainsKey(p.Uuid))
-                                        {
-                                            _ = DisconnectedPlayers.TryAdd(p.Uuid, p.LastUpdateLocalTimestamp);
-                                        }
+                                        _ = DisconnectedPlayers.TryAdd(p.Uuid, p.LastUpdateLocalTimestamp);
                                     }
                                 }
                             }
@@ -185,11 +141,7 @@ namespace FezMultiplayerDedicatedServer
                             {
                                 if ((DateTime.UtcNow.Ticks - dp.Value) > overduetimeout*2)
                                 {
-                                    //it'd be bad if we removed ourselves from our own list, so we check for that, even though it shouldn't happen
-                                    if (dp.Key != MyUuid)
-                                    {
-                                        _ = DisconnectedPlayers.TryRemove(dp.Key, out _);
-                                    }
+                                    _ = DisconnectedPlayers.TryRemove(dp.Key, out _);
                                 }
                             }
                         }
@@ -235,8 +187,7 @@ namespace FezMultiplayerDedicatedServer
                     {
                         timeoutthread.Abort();//assume the thread is stuck and forcibly terminate it
                     }
-                    udpListener.Close();//must be after listenerThread is stopped
-                    OutwardsClient.Close();
+                    tcpListener.Stop();//must be after listenerThread is stopped
                 }
 
                 // Dispose unmanaged resources here
@@ -256,355 +207,38 @@ namespace FezMultiplayerDedicatedServer
                 throw FatalException;//This should never happen
             }
 
-            if (!Listening)
-            {
-                return;
-            }
-
             OnUpdate();
 
             try
             {
-
+                
                 //SendPlayerDataToAll
-                if (serverless)
-                {
-                    foreach (PlayerMetadata m in Players.Values)
+                    foreach (var m in Players.Values)
                     {
-                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout && m.Uuid != MyUuid || DisconnectedPlayers.ContainsKey(m.Uuid))
-                        {
-                            continue;
-                        }
-                        SendToAll(Serialize(m, false));
-                    }
-                }
-                else
-                {
-                    foreach (PlayerMetadata m in Players.Values)
-                    {
-                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout && m.Uuid != MyUuid || DisconnectedPlayers.ContainsKey(m.Uuid))
+                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout || DisconnectedPlayers.ContainsKey(m.Uuid))
                         {
                             continue;
                         }
                         //Note: probably should refactor these methods
-                        SendToAll((targ) => Serialize(m, mainEndpoint.Contains(targ)));
+                        SendToAll(Serialize(m, mainEndpoint.Contains(targ));
                     }
-                }
             }
             catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
             {
             }
         }
 
-        #region network packet stuff
-        private const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public const string ProtocolVersion = "quince";//Update this ever time you change something that affect the packets
-
-        private static readonly UdpClient OutwardsClient = new UdpClient()
-        {
-            //Ttl = 36//TODO idk about this
-        };
-        private static void SendUdp(byte[] msg, IPEndPoint targ)
-        {
-            lock (OutwardsClient)
-            {
-                OutwardsClient.Send(msg, msg.Length, targ);//TODO this can throw SocketException for no apparent reason
-            }
-            return;
-        }
-
-        private void SendToAll(Func<IPEndPoint, byte[]> msgGenerator)
-        {
-            IEnumerable<IPEndPoint> targets = serverless || mainEndpoint.Contains(Players[MyUuid].Endpoint) ? Targets : mainEndpoint;
-            // Send the message to all recipients
-            System.Threading.Tasks.Parallel.ForEach(targets,
-                targ =>
-                {
-                    if (targ.Address != IPAddress.None && targ.Port > 0)
-                    {
-                        SendUdp(msgGenerator.Invoke(targ), targ);
-                    }
-                });
-        }
-
         protected void SendToAll(byte[] msg)
         {
-            IEnumerable<IPEndPoint> targets = serverless || mainEndpoint.Contains(Players[MyUuid].Endpoint) ? Targets : mainEndpoint;
             // Send the message to all recipients
-            System.Threading.Tasks.Parallel.ForEach(targets,
+            System.Threading.Tasks.Parallel.ForEach(playerConnections,
                 targ =>
                 {
                     if (targ.Address != IPAddress.None && targ.Port > 0)
                     {
-                        SendUdp(msg, targ);
+                        SendTcp(msg, targ);
                     }
                 });
         }
-        //TODO make these packet things more extensible somehow?
-        private enum PacketType
-        {
-            //arbitrary values
-            PlayerInfo = 1,
-            Notice = 3,//currently unused
-            Disconnect = 7,
-            Message = 9,//currently unused
-        }
-
-        protected static byte[] SerializeDisconnect(Guid uuid)
-        {
-            using (MemoryStream m = new MemoryStream())
-            {
-                using (BinaryWriter writer = new BinaryWriter(m))
-                {
-                    /* 
-                     * Note: these pragma things are here because I feel 
-                     * it's not clear which Read method should be called
-                     * when all the Write methods have the same name.
-                     */
-#pragma warning disable IDE0004
-#pragma warning disable IDE0049
-                    writer.Write((String)ProtocolSignature);
-                    writer.Write((String)ProtocolVersion);
-                    writer.Write((Byte)PacketType.Disconnect);
-                    writer.Write((Int64)DateTime.UtcNow.Ticks);
-                    writer.Write((Guid)uuid);
-#pragma warning restore IDE0004
-#pragma warning restore IDE0049
-                    writer.Flush();
-                    return m.ToArray();
-                }
-            }
-        }
-
-        private byte[] Serialize(PlayerMetadata p, bool mainTarget)
-        {
-            using (MemoryStream m = new MemoryStream())
-            {
-                using (BinaryWriter writer = new BinaryWriter(m))
-                {
-                    /* 
-                     * Note: these pragma things are here because I feel 
-                     * it's not clear which Read method should be called
-                     * when all the Write methods have the same name.
-                     */
-#pragma warning disable IDE0004
-#pragma warning disable IDE0049
-                    writer.Write((String)ProtocolSignature);
-                    writer.Write((String)ProtocolVersion);
-                    writer.Write((Byte)PacketType.PlayerInfo);
-                    writer.Write((Int64)p.LastUpdateTimestamp);
-                    if (serverless || mainTarget)
-                    {
-                        writer.Write((String)((IPAddress)p.Endpoint.Address).ToString());
-                        writer.Write((Int32)p.Endpoint.Port);
-                    }
-                    else
-                    {
-                        writer.Write((String)IPAddress.None.ToString());
-                        writer.Write((Int32)0);
-                    }
-                    writer.Write((bool)p.Uuid.Equals(MyUuid));
-                    writer.Write((Guid)p.Uuid);
-                    writer.Write((String)p.PlayerName ?? "");
-                    writer.Write((String)p.CurrentLevelName ?? "");
-                    writer.Write((Single)p.Position.X);
-                    writer.Write((Single)p.Position.Y);
-                    writer.Write((Single)p.Position.Z);
-                    writer.Write((Int32)p.CameraViewpoint);
-                    writer.Write((Int32)p.Action);
-                    writer.Write((Int32)p.AnimFrame);
-                    writer.Write((Int32)p.LookingDirection);
-#pragma warning restore IDE0004
-#pragma warning restore IDE0049
-                    writer.Flush();
-                    return m.ToArray();
-                }
-            }
-        }
-
-        //
-        // For player names and whatnot
-        // should be an inclusive list of all characters supported by all of the languages' game fonts
-        // probably should restrict certain characters for internal use (like punctuation and symbols)
-        // also need to figure out how to handle people using characters that are not in this list
-        //
-        // Complete list of common chars: (?<=")[A-Za-z0-9 !"#$%&'()*+,\-./:;<>=?@\[\]\\^_`{}|~]+(?=")
-        //
-        // Common punctuation characters: [ !"#$%&'()*+,\-./:;<>=?@\[\]^_`{}|~]
-        // Potential reserved characters: [ #$&\\`]
-        //
-        // TODO add a universal font?
-        // Note the hanzi/kanji/hanja (Chinese characters) look slightly different in Chinese vs Japanese vs Korean;
-        //     Might be worth making a system that can write the player name using multiple fonts
-
-        //unused
-        //public static readonly System.Text.RegularExpressions.Regex commonCharRegex = new System.Text.RegularExpressions.Regex(@"[^\x20-\x7E]");
-
-        //more strict so we can potentially add features (such as colors and effects) using special characters later
-        public static readonly System.Text.RegularExpressions.Regex nameInvalidCharRegex = new System.Text.RegularExpressions.Regex(@"[^0-9A-Za-z]");
-
-        private const int maxplayernamelength = 32;
-
-        private void ProcessDatagram(byte[] data, IPEndPoint remoteHost)
-        {
-            if (BlockList.Contains(remoteHost.Address)
-                || (useAllowList && !AllowList.Contains(remoteHost.Address)))
-            {
-                return;
-            }
-            using (MemoryStream m = new MemoryStream(data))
-            {
-                using (BinaryReader reader = new BinaryReader(m))
-                {
-                    if (!ProtocolSignature.Equals(reader.ReadString()))
-                    {
-                        //Not a FezMultiplayer packet
-                        return;
-                    }
-                    if (!ProtocolVersion.Equals(reader.ReadString()))
-                    {
-                        //Not the right version of the FezMultiplayer protocol
-                        //TODO notify the user?
-                        return;
-                    }
-
-                    PacketType packetType = (PacketType)reader.ReadByte();
-                    long timestamp = reader.ReadInt64();
-
-                    switch (packetType)
-                    {
-                    case PacketType.PlayerInfo:
-                        {
-                            IPEndPoint endpoint;
-                            try
-                            {
-                                string endip = reader.ReadString();
-                                int endport = reader.ReadInt32();
-                                // Note: the above reads from the binary reader are there to ensure they both get called so the reader doesn't skip a value
-                                endpoint = new IPEndPoint(IPAddress.Parse(endip), endport);
-                            }
-                            catch (Exception)//catches exceptions for when the IP endpoint received is invalid
-                                             // probably should be changed so it doesn't catch the exceptions thrown by the reader, but it's probably fine
-                            {
-                                endpoint = new IPEndPoint(IPAddress.None, 0);
-                            }
-                            bool infoFromOwner = reader.ReadBoolean();
-                            if (infoFromOwner)
-                            {
-                                endpoint.Address = remoteHost.Address;
-                            }
-                            IPAddress ip = remoteHost.Address;
-                            Guid uuid = reader.ReadGuid();
-                            if (DisconnectedPlayers.ContainsKey(uuid) && !infoFromOwner)
-                            {
-                                //ignore
-                                return;
-                            }
-                            string playername = reader.ReadString();
-                            playername = nameInvalidCharRegex.Replace(playername.Length > maxplayernamelength ? playername.Substring(0, maxplayernamelength) : playername, "");
-                            string lvl = reader.ReadString();
-                            Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-                            Viewpoint vp = (Viewpoint)reader.ReadInt32();
-                            ActionType act = (ActionType)reader.ReadInt32();
-                            int frame = reader.ReadInt32();
-                            HorizontalDirection lookdir = (HorizontalDirection)reader.ReadInt32();
-
-                            if (uuid == MyUuid)//ignore the other stuff if it's ourself
-                            {
-                                if (serverless)
-                                {
-                                    PlayerMetadata me = Players[MyUuid];
-                                    if (!endpoint.Address.Equals(IPAddress.Loopback))
-                                    {
-                                        me.Endpoint = endpoint;
-                                    }
-                                    Players[uuid] = me;
-                                    return;
-                                }
-                            }
-                            else
-                            {
-                                if (Players.ContainsKey(uuid)
-                                        && (DateTime.UtcNow.Ticks - Players[uuid].LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout
-                                        && uuid != MyUuid)
-                                {
-                                    return;//ignore packets for players that should be disconnected; if they want to reconnect they can send another datagram
-                                }
-
-                                PlayerMetadata p = Players.GetOrAdd(uuid, (guid) =>
-                                {
-                                    var np = new PlayerMetadata(
-                                        Endpoint: endpoint,
-                                        Uuid: guid,
-                                        PlayerName: playername,
-                                        CurrentLevelName: lvl,
-                                        Position: pos,
-                                        CameraViewpoint: vp,
-                                        Action: act,
-                                        AnimFrame: frame,
-                                        LookingDirection: lookdir,
-                                        LastUpdateTimestamp: timestamp,
-                                        LastUpdateLocalTimestamp: DateTime.UtcNow.Ticks
-                                    );
-                                    return np;
-                                });
-                                if (timestamp > p.LastUpdateTimestamp)//Ensure we're not saving old data
-                                {
-                                    //update player
-                                    p.PlayerName = playername;
-                                    p.CurrentLevelName = lvl;
-                                    p.Position = pos;
-                                    p.CameraViewpoint = vp;
-                                    p.Action = act;
-                                    p.AnimFrame = frame;
-                                    p.LookingDirection = lookdir;
-                                    p.LastUpdateTimestamp = timestamp;
-                                    if (!endpoint.Address.Equals(IPAddress.Loopback))
-                                    {
-                                        p.Endpoint = endpoint;
-                                    }
-                                    p.LastUpdateLocalTimestamp = DateTime.UtcNow.Ticks;//for auto-dispose
-                                }
-                                Players[uuid] = p;
-                            }
-                            break;
-                        }
-                    case PacketType.Disconnect:
-                        {
-                            try
-                            {
-                                Guid puid = reader.ReadGuid();
-                                if (puid != MyUuid && Players.TryGetValue(puid, out var p) && remoteHost.Address.Equals(p.Endpoint.Address))
-                                {
-                                    DisconnectedPlayers.TryAdd(puid, DateTime.UtcNow.Ticks);
-                                    _ = Players.TryRemove(puid, out _);
-                                }
-                            }
-                            catch (InvalidOperationException) { }
-                            catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
-
-                            break;
-                        }
-                    case PacketType.Message:
-                        {
-                            //TBD
-                            break;
-                        }
-                    case PacketType.Notice:
-                        {
-                            //TBD
-                            break;
-                        }
-                    default:
-                        {
-                            //Unsupported packet type
-                            ErrorMessage = "Unsupported PacketType: " + packetType;
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-        #endregion
     }
 }

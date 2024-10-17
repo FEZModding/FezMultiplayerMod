@@ -62,14 +62,7 @@ namespace FezGame.MultiplayerMod
 
             PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) =>
             {
-                IPEndPoint Endpoint = (IPEndPoint)LocalEndPoint ?? new IPEndPoint(IPAddress.Loopback, mainEndpoint.Port);
-                IPAddress ip = Endpoint.Address;
-                if (ip.Equals(IPAddress.Any) || ip.Equals(IPAddress.IPv6Any) || ip.Equals(IPAddress.None) || ip.Equals(IPAddress.IPv6None))
-                {
-                    Endpoint.Address = IPAddress.Loopback;
-                }
-
-                return new PlayerMetadata(Endpoint, guid, MyPlayerName, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks, DateTime.UtcNow.Ticks);
+                return new PlayerMetadata(guid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
             });
 
             //update MyPlayer
@@ -86,7 +79,6 @@ namespace FezGame.MultiplayerMod
                 p.CameraViewpoint = CameraManager.Viewpoint;
             }
             p.LastUpdateTimestamp = DateTime.UtcNow.Ticks;
-            p.LastUpdateLocalTimestamp = DateTime.UtcNow.Ticks;
             Players[MyUuid] = p;
         }
     }

@@ -16,7 +16,7 @@ namespace FezGame.MultiplayerMod
     {
         private const int DefaultPort = 7777;
         /// <summary>
-        /// An array representing the main endpoint(s) to talk to. Note: Currently only supports IPv4
+        /// The endpoint to connect to. Note: Currently only supports IPv4
         /// </summary>
         [Description("The endpoint to connect to. Note: Currently only supports IPv4")]
         public IPEndPoint mainEndpoint = new IPEndPoint(IPAddress.Loopback, DefaultPort);

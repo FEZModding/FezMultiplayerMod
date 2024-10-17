@@ -26,11 +26,6 @@ namespace FezMultiplayerDedicatedServer
         [Description("The amount of times to attempt to use the next port as the port to listen to before giving up.")]
         public int maxAdjustListenPortOnBindFail = 1000;
         /// <summary>
-        /// Determines if the IP addresses of the players should be relayed to all the other players.
-        /// </summary>
-        [Description("Determines if the IP addresses of the players should be relayed to all the other players.")]
-        public bool serverless = true;
-        /// <summary>
         /// The amount of time, in <see cref="System.DateTime.Ticks">ticks</see>, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.
         /// </summary>
         [Description("The amount of time, in ticks, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.")]

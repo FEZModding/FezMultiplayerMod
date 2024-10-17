@@ -234,7 +234,7 @@ namespace FezGame.MultiplayerMod
                             {
                                 s += "(you): ";
                             }
-                            s += $"{p.PlayerName}, {p.Endpoint}, "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
+                            s += $"{p.PlayerName}, "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
                                 + $"{((p.CurrentLevelName==null || p.CurrentLevelName.Length==0) ? "???" : p.CurrentLevelName)}, "
                                 + $"{p.Action}, {p.CameraViewpoint}, "
                                 + $"{p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
