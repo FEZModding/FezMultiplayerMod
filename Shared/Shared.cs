@@ -176,7 +176,7 @@ namespace FezSharedTools
             writer.Write((Int64)playerMetadata.LastUpdateTimestamp);
         }
 
-        public static PlayerMetadata ReadPlayerAppearance(this BinaryReader reader)
+        public static PlayerAppearance ReadPlayerAppearance(this BinaryReader reader)
         {
             //TODO
             throw new NotImplementedException();
@@ -187,7 +187,7 @@ namespace FezSharedTools
             throw new NotImplementedException();
         }
 
-        public static PlayerMetadata ReadSaveDataUpdate(this BinaryReader reader)
+        public static SaveDataUpdate ReadSaveDataUpdate(this BinaryReader reader)
         {
             //TODO
             throw new NotImplementedException();
@@ -198,7 +198,7 @@ namespace FezSharedTools
             throw new NotImplementedException();
         }
 
-        public static PlayerMetadata ReadActiveLevelState(this BinaryReader reader)
+        public static ActiveLevelState ReadActiveLevelState(this BinaryReader reader)
         {
             //TODO
             throw new NotImplementedException();
@@ -232,44 +232,121 @@ namespace FezSharedTools
         public abstract ConcurrentDictionary<Guid, P> Players { get; }
         public static ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
 
-        protected void ProcessDatagram(byte[] data)
-        {
-            using (MemoryStream m = new MemoryStream(data))
+        protected void ReadClientGameTickPacket(BinaryReader reader){
+            PlayerMetadata playerMetadata = reader.ReadPlayerMetadata();
+            if(reader.ReadBoolean()){
+                SaveDataUpdate saveDataUpdate = reader.ReadSaveDataUpdate();
+                ProcessSaveDataUpdate(saveDataUpdate);
+            }
+            if (reader.ReadBoolean()){
+                ActiveLevelState levelState = reader.ReadActiveLevelState();
+                //TODO do something with read data
+            }
+            if (reader.ReadBoolean()){
+                PlayerAppearance appearance = reader.ReadPlayerAppearance();
+                UpdatePlayerAppearance(playerMetadata.Uuid, appearance.PlayerName, appearance.CustomCharacterAppearance);
+            }
+        }
+        //TODO use this in MultiplayerClientNetcode.cs
+        protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState, PlayerAppearance? appearance){
+            writer.Write(playerMetadata);
+            writer.Write(saveDataUpdate.HasValue);
+            if (saveDataUpdate.HasValue)
             {
-                using (BinaryReader reader = new BinaryReader(m))
-                {
-                    if (!ProtocolSignature.Equals(reader.ReadString()))
-                    {
-                        //Not a FezMultiplayer packet
-                        return;
-                    }
-                    if (!ProtocolVersion.Equals(reader.ReadString()))
-                    {
-                        //Not the right version of the FezMultiplayer protocol
-                        //TODO notify the user?
-                        return;
-                    }
-
-                    long timestamp = reader.ReadInt64();
-
-                            try
-                            {
-                                Guid puid = reader.ReadGuid();
-                                ProcessDisconnect(puid);
-                            }
-                            catch (InvalidOperationException) { }
-                            catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
-
-                }
+                writer.Write(saveDataUpdate.Value);
+            }
+            writer.Write(levelState.HasValue);
+            if (levelState.HasValue)
+            {
+                writer.Write(levelState.Value);
+            }
+            writer.Write(appearance.HasValue);
+            if (appearance.HasValue)
+            {
+                writer.Write(appearance.Value);
             }
         }
 
+        //TODO use this in MultiplayerClientNetcode.cs
+        protected void ReadServerGameTickPacket(BinaryReader reader){
+            int playerMetadataListLength = reader.ReadInt32();
+            for (int i = 0; i < playerMetadataListLength; ++i)
+            {
+                PlayerMetadata playerMetadata = reader.ReadPlayerMetadata();
+                //TODO update the data in Players
+                if(Players.TryGetValue(playerMetadata.Uuid, out P val)){
+                    if (val.LastUpdateTimestamp < playerMetadata.LastUpdateTimestamp)
+                        Players.AddOrUpdate(playerMetadata.Uuid, (P)playerMetadata, (guid, currentval) => {
+                            foreach(var f in typeof(PlayerMetadata).GetFields()){//TODO probably a better way to do this
+                                f.SetValue(currentval, f.GetValue(playerMetadata));
+                            }
+                            return currentval;
+                        });
+                }
+            }
+            if(reader.ReadBoolean()){
+                SaveDataUpdate saveDataUpdate = reader.ReadSaveDataUpdate();
+                ProcessSaveDataUpdate(saveDataUpdate);
+            }
+            int activeLevelStateListLength = reader.ReadInt32();
+            List<ActiveLevelState> activeLevelStates = new List<ActiveLevelState>(activeLevelStateListLength);
+            for (int i = 0; i < activeLevelStateListLength; ++i)
+            {
+                activeLevelStates.Add(reader.ReadActiveLevelState());
+                //TODO do something with read data
+            }
+            int disconnectedPlayersListLength = reader.ReadInt32();
+            for (int i = 0; i < disconnectedPlayersListLength; ++i)
+            {
+                ProcessDisconnect(reader.ReadGuid());
+            }
+            int playerAppearanceListLength = reader.ReadInt32();
+            for (int i = 0; i < playerAppearanceListLength; ++i)
+            {
+                UpdatePlayerAppearance(reader.ReadGuid(), reader.ReadPlayerAppearance());
+            }
+        }
+        protected void WriteServerGameTickPacket(BinaryWriter writer, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, List<ActiveLevelState> levelStates,
+                                                            List<Guid> disconnectedPlayers, Dictionary<Guid, PlayerAppearance> appearances, object sharedSaveData) {
+            writer.Write((int)playerMetadatas.Count);
+            foreach (PlayerMetadata playerMetadata in playerMetadatas)
+            {
+                writer.Write(playerMetadata);
+            }
+            writer.Write(saveDataUpdate.HasValue);
+            if (saveDataUpdate.HasValue)
+            {
+                writer.Write(saveDataUpdate.Value);
+            }
+            writer.Write((int)levelStates.Count);
+            foreach (ActiveLevelState levelState in levelStates)
+            {
+                writer.Write(levelState);
+            }
+            writer.Write((int)disconnectedPlayers.Count);
+            foreach (Guid disconnectedPlayer in disconnectedPlayers)
+            {
+                writer.Write(disconnectedPlayer);
+            }
+            writer.Write((int)appearances.Count);
+            foreach (KeyValuePair<Guid, PlayerAppearance> appearance in appearances)
+            {
+                writer.Write(appearance.Key);
+                writer.Write(appearance.Value);
+            }
+        }
+
+        protected void UpdatePlayerAppearance(Guid puid, PlayerAppearance newAp)
+        {
+            _ = PlayerAppearances.AddOrUpdate(puid, (u) => newAp, (u, a) => newAp);
+        }
         protected void UpdatePlayerAppearance(Guid puid, string pname, object appearance)
         {
             PlayerAppearance newAp = new PlayerAppearance(pname, appearance);
             _ = PlayerAppearances.AddOrUpdate(puid, (u) => newAp, (u, a) => newAp);
         }
         protected abstract void ProcessDisconnect(Guid puid);
+        protected abstract void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate);
         #endregion
     }
 }

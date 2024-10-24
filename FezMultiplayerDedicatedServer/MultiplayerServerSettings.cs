@@ -21,8 +21,8 @@ namespace FezMultiplayerDedicatedServer
         /// <summary>
         /// The amount of time, in <see cref="System.DateTime.Ticks">ticks</see>, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.
         /// </summary>
-        [Description("The amount of time, in ticks, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.")]
-        public long overduetimeout = 30_000_000;
+        [Description("The amount of time, in milliseconds, to wait before removing a player. For reference, there are 1000 (one thousand) milliseconds in one second.")]
+        public int overduetimeout = 5000;
         /// <summary>
         /// If true, only packets from IP addresses included in the AllowList list will be accepted.
         /// </summary>

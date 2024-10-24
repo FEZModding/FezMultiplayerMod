@@ -24,7 +24,7 @@ namespace FezGame.MultiplayerMod
     /// <summary>
     /// The class that contains all the networking stuff
     /// </summary>
-    public class MultiplayerClient : MultiplayerServer, IDisposable
+    public class MultiplayerClient : MultiplayerClientNetcode, IDisposable
     {
         [ServiceDependency]
         public IPlayerManager PlayerManager { private get; set; }
@@ -45,7 +45,6 @@ namespace FezGame.MultiplayerMod
             _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () => ServiceHelper.InjectServices(this));
 
             OnUpdate += UpdateMyPlayer;
-            OnDispose += Disconnect;
         }
 
         public void UpdateMyPlayer()

@@ -20,11 +20,10 @@ namespace FezGame.MultiplayerMod
     /// 
     /// Note: This class should only contain System usings
     /// </summary>
-    public class MultiplayerServer : SharedNetcode<PlayerMetadata>, IDisposable
+    public class MultiplayerClientNetcode : SharedNetcode<PlayerMetadata>, IDisposable
     {
 
         private volatile TcpClient tcpClient;
-        private volatile NetworkStream tcpStream;
         private readonly Thread listenerThread;
 
         /// <summary>
@@ -49,7 +48,7 @@ namespace FezGame.MultiplayerMod
         /// For any errors that get encountered see <see cref="ErrorMessage"/> an <see cref="FatalException"/>
         /// </summary>
         /// <param name="settings">The <see cref="MultiplayerClientSettings"/> to use to create this instance.</param>
-        internal MultiplayerServer(MultiplayerClientSettings settings)
+        internal MultiplayerClientNetcode(MultiplayerClientSettings settings)
         {
             this.MyPlayerName = settings.myPlayerName;
 
@@ -64,12 +63,14 @@ namespace FezGame.MultiplayerMod
                         initializing = false;
                     }
                     tcpClient.Connect(settings.mainEndpoint);
-                    tcpStream = tcpClient.GetStream();
+                    NetworkStream tcpStream = tcpClient.GetStream();
+                    WriteClientGameTickPacket(writer, Players[MyUuid], saveDataUpdate, levelState, appearance);
+                    ReadServerGameTickPacket(reader);
                     while (!disposing)
                     {
                         //TODO read from tcpStream
-                        ProcessDatagram(tcpStream.Read());//Note: udpListener.Receive blocks until there is a datagram o read
-
+                        WriteClientGameTickPacket(writer, Players[MyUuid], saveDataUpdate, levelState, null);
+                        ReadServerGameTickPacket(reader);
                     }
                     tcpClient.Close();
                 }
@@ -100,14 +101,12 @@ namespace FezGame.MultiplayerMod
                     // Dispose managed resources here
 
                     this.disposing = true;//let child threads know it's disposing time
-                    OnDispose();
+                    Disconnect();
                     Thread.Sleep(1000);//try to wait for child threads to stop on their own
                     if (listenerThread.IsAlive)
                     {
                         listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
                     }
-                    //tcpClient.EndConnect();
-                    tcpClient.Close();//must be after listenerThread is stopped
                 }
 
                 // Dispose unmanaged resources here
@@ -133,23 +132,10 @@ namespace FezGame.MultiplayerMod
             }
 
             OnUpdate();
-
-            try
-            {
-                SendTcp(Serialize(Players[MyUuid]), 
-                        (tcpStream ?? (tcpStream = tcpClient.GetStream())));
-            }
-            catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
-            {
-            }
         }
         public void Disconnect()
         {
-            //check to make sure Players[MyUuid] exists, as accessing it directly could throw KeyNotFoundException
-            if (Players.TryGetValue(MyUuid, out PlayerMetadata myplayer))
-            {
-                SendToAll(SerializeDisconnect(myplayer.Uuid));
-            }
+            tcpClient.Close();
         }
 
 

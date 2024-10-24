@@ -29,23 +29,17 @@ namespace FezMultiplayerDedicatedServer
         public class ServerPlayerMetadata : PlayerMetadata
         {
             public TcpClient tcpClient;
-            /// <summary>
-            /// for auto-disposing, since LastUpdateTimestamp shouldn't be used for that because the system clocks of the two protocols could be different
-            /// </summary>
-            public long LastUpdateLocalTimestamp;
 
-            public ServerPlayerMetadata(TcpClient tcpClient, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp, long LastUpdateLocalTimestamp)
+            public ServerPlayerMetadata(TcpClient tcpClient, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             : base(Uuid, CurrentLevelName, Position, CameraViewpoint, Action, AnimFrame, LookingDirection, LastUpdateTimestamp)
             {
                 this.tcpClient = tcpClient;
-                this.LastUpdateLocalTimestamp = LastUpdateLocalTimestamp;
             }
         }
 
         private volatile TcpListener tcpListener;
         private readonly Thread listenerThread;
-        private readonly Thread timeoutthread;
-        protected readonly long overduetimeout;
+        protected readonly int overduetimeout;
         private readonly bool useAllowList;
         private readonly IPFilter AllowList;
         private readonly IPFilter BlockList;
@@ -136,42 +130,6 @@ namespace FezMultiplayerDedicatedServer
                 catch (Exception e) { FatalException = e; }
             });
             listenerThread.Start();
-
-            timeoutthread = new Thread(() =>
-            {
-                try
-                {
-                    while (!disposing)
-                    {
-                        try
-                        {
-                            foreach (ServerPlayerMetadata p in Players.Values)
-                            {
-                                if ((DateTime.UtcNow.Ticks - p.LastUpdateLocalTimestamp) > overduetimeout || DisconnectedPlayers.ContainsKey(p.Uuid))
-                                {
-                                    _ = Players.TryRemove(p.Uuid, out _);
-                                    if (!DisconnectedPlayers.ContainsKey(p.Uuid))
-                                    {
-                                        _ = DisconnectedPlayers.TryAdd(p.Uuid, p.LastUpdateLocalTimestamp);
-                                    }
-                                }
-                            }
-                            foreach (var dp in DisconnectedPlayers)
-                            {
-                                if ((DateTime.UtcNow.Ticks - dp.Value) > overduetimeout*2)
-                                {
-                                    _ = DisconnectedPlayers.TryRemove(dp.Key, out _);
-                                }
-                            }
-                        }
-                        catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
-                        {
-                        }
-                    }
-                }
-                catch (Exception e) { FatalException = e; }
-            });
-            timeoutthread.Start();
         }
 
         // I was told "Your Dispose implementation needs work https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern"
@@ -202,10 +160,6 @@ namespace FezMultiplayerDedicatedServer
                     {
                         listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
                     }
-                    if (timeoutthread.IsAlive)
-                    {
-                        timeoutthread.Abort();//assume the thread is stuck and forcibly terminate it
-                    }
                     tcpListener.Stop();//must be after listenerThread is stopped
                 }
 
@@ -227,45 +181,27 @@ namespace FezMultiplayerDedicatedServer
             }
 
             OnUpdate();
-
-            try
-            {
-                
-                //SendPlayerDataToAll
-                    foreach (var m in Players.Values)
-                    {
-                        if ((DateTime.UtcNow.Ticks - m.LastUpdateLocalTimestamp) + preoverduetimeoutoffset > overduetimeout || DisconnectedPlayers.ContainsKey(m.Uuid))
-                        {
-                            continue;
-                        }
-                        //Note: probably should refactor these methods
-                        SendToAll(Serialize(m));
-                    }
-            }
-            catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
-            {
-            }
-        }
-
-        protected void SendToAll(byte[] msg)
-        {
-            // Send the message to all recipients
-            System.Threading.Tasks.Parallel.ForEach(connectedClients,
-                targ =>
-                {
-                    //TODO 
-                });
         }
 
         private void OnNewClientConnect(TcpClient tcpClient)
         {
-            //Get player appearance from client
-            Guid puid;
-            string pname;
-            PlayerAppearance appearance;
-            //TODO
-            ServerPlayerMetadata newPlayer = new ServerPlayerMetadata(tcpClient, puid, null, new Vector3(0,0,0), 0, 0, 0, 0, DateTime.UtcNow.Ticks, DateTime.UtcNow.Ticks);
-            UpdatePlayerAppearance(puid, pname, appearance);
+            NetworkStream stream = tcpClient.GetStream();
+            stream.ReadTimeout = overduetimeout;
+            stream.WriteTimeout = overduetimeout;
+            Dictionary<Guid, PlayerAppearance> emplyPlayerAppearDict = new Dictionary<Guid, PlayerAppearance>();
+            //TODO send them our data and get player appearance from client
+            BinaryWriter writer;
+            WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, levelStates, disconnectedPlayers, PlayerAppearances, sharedSaveData);
+            //TODO wait for response
+            BinaryReader reader;
+            ReadClientGameTickPacket(reader);
+            while (tcpClient.Connected)
+            {
+                //TODO repeat until the client disconnects or times out
+                WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), saveDataUpdate, levelStates, disconnectedPlayers, emplyPlayerAppearDict, null);
+                //TODO wait for response
+                ReadClientGameTickPacket(reader);
+            }
         }
 
         protected override void ProcessDisconnect(Guid puid)
