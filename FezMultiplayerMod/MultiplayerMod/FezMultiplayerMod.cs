@@ -21,6 +21,7 @@ using System.Text;
 using System.Net;
 using FezEngine;
 using FezEngine.Effects;
+using FezSharedTools;
 
 namespace FezGame.MultiplayerMod
 {

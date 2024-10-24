@@ -12,7 +12,7 @@ using System.Net;
 using System.Reflection;
 using System.Text.RegularExpressions;
 
-namespace FezGame.MultiplayerMod
+namespace FezSharedTools
 {
     class IniTools
     {

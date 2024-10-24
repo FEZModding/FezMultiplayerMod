@@ -8,7 +8,7 @@ using System.Text;
 using System.Net;
 using System.IO;
 using System.Collections.Concurrent;
-using FezGame.MultiplayerMod;
+using FezSharedTools;
 
 using ActionType = System.Int32;
 using HorizontalDirection = System.Int32;
@@ -60,7 +60,6 @@ namespace FezMultiplayerDedicatedServer
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
         private IEnumerable<TcpClient> connectedClients => Players.Select(p => p.Value.tcpClient);
-        public bool Listening => tcpListener?.Active != null;
         public EndPoint LocalEndPoint => tcpListener?.LocalEndpoint;
 
         public event Action OnUpdate = () => { };

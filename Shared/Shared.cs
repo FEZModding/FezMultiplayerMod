@@ -5,6 +5,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Reflection;
+using System.Text;
 
 #if FEZCLIENT
 using ActionType = FezGame.Structure.ActionType;
@@ -24,7 +26,7 @@ public struct Vector3
     }
 }
 #endif
-namespace FezGame.MultiplayerMod
+namespace FezSharedTools
 {
     class SharedConstants
     {
@@ -70,16 +72,75 @@ namespace FezGame.MultiplayerMod
             CustomCharacterAppearance = appearance;
         }
     }
-    public enum PacketType
+    [Serializable]
+    public struct SaveDataUpdate
     {
-        //arbitrary values
-        PlayerInfo = 1,
-        Notice = 3,//currently unused
-        Disconnect = 7,
-        Message = 9,//currently unused
+        public int TODO;
+        //TODO
+
+        public SaveDataUpdate(int TODO)
+        {
+            this.TODO = TODO;
+        }
     }
-    public static class MyExtensions
+    [Serializable]
+    public struct ActiveLevelState
     {
+        public int TODO;
+        //TODO
+
+        public ActiveLevelState(int TODO)
+        {
+            this.TODO = TODO;
+        }
+    }
+    public static class FezMultiplayerBinaryIOExtensions
+    {
+        private static readonly MethodInfo read7BitEncodedIntMethod;
+        static FezMultiplayerBinaryIOExtensions(){
+            //Read7BitEncodedInt is marked as protected internal on Framework 4.0
+            read7BitEncodedIntMethod = typeof(BinaryReader).GetMethod(
+                    "Read7BitEncodedInt",
+                    BindingFlags.Instance | BindingFlags.NonPublic); // Get the protected internal method
+
+        }
+        //
+        // For player names and whatnot
+        // should be an inclusive list of all characters supported by all of the languages' game fonts
+        // probably should restrict certain characters for internal use (like punctuation and symbols)
+        // also need to figure out how to handle people using characters that are not in this list
+        //
+        // Complete list of common chars: (?<=")[A-Za-z0-9 !"#$%&'()*+,\-./:;<>=?@\[\]\\^_`{}|~]+(?=")
+        //
+        // Common punctuation characters: [ !"#$%&'()*+,\-./:;<>=?@\[\]^_`{}|~]
+        // Potential reserved characters: [ #$&\\`]
+        //
+        // TODO add a universal font?
+        // Note the hanzi/kanji/hanja (Chinese characters) look slightly different in Chinese vs Japanese vs Korean;
+        //     Might be worth making a system that can write the player name using multiple fonts
+
+        //unused
+        //public static readonly System.Text.RegularExpressions.Regex commonCharRegex = new System.Text.RegularExpressions.Regex(@"[^\x20-\x7E]");
+
+        //more strict so we can potentially add features (such as colors and effects) using special characters later
+        public static readonly System.Text.RegularExpressions.Regex nameInvalidCharRegex = new System.Text.RegularExpressions.Regex(@"[^0-9A-Za-z]");
+
+        public static readonly int maxplayernamelength = 32;
+
+        public static string ReadStringWithLengthLimit(this BinaryReader reader, int maxLength)
+        {
+            const int minLength = 0;
+            int length = (int)read7BitEncodedIntMethod.Invoke(reader, null);//note Read7BitEncodedInt is marked as protected internal on Framework 4.0
+            if (length > maxLength || length < 0)
+            {
+                throw new ArgumentOutOfRangeException($"The length {length} is outside the allowed range of {minLength} to {maxLength}.");
+            }
+            else
+            {
+                return new String(reader.ReadChars(length));
+            }
+        }
+
         public static Guid ReadGuid(this BinaryReader reader)
         {
             return new Guid(reader.ReadInt32(), reader.ReadInt16(), reader.ReadInt16(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte());
@@ -87,6 +148,65 @@ namespace FezGame.MultiplayerMod
         public static void Write(this BinaryWriter writer, Guid guid)
         {
             writer.Write(guid.ToByteArray());
+        }
+
+        public static PlayerMetadata ReadPlayerMetadata(this BinaryReader reader)
+        {
+            Guid uuid = reader.ReadGuid();
+            string lvl = reader.ReadString();
+            Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+            Viewpoint vp = (Viewpoint)reader.ReadInt32();
+            ActionType act = (ActionType)reader.ReadInt32();
+            int frame = reader.ReadInt32();
+            HorizontalDirection lookdir = (HorizontalDirection)reader.ReadInt32();
+            long timestamp = reader.ReadInt64();
+            return new PlayerMetadata(uuid, lvl, pos, vp, act, frame, lookdir, timestamp);
+        }
+        public static void Write(this BinaryWriter writer, PlayerMetadata playerMetadata)
+        {
+            writer.Write((Guid)playerMetadata.Uuid);
+            writer.Write((String)playerMetadata.CurrentLevelName ?? "");
+            writer.Write((Single)playerMetadata.Position.X);
+            writer.Write((Single)playerMetadata.Position.Y);
+            writer.Write((Single)playerMetadata.Position.Z);
+            writer.Write((Int32)playerMetadata.CameraViewpoint);
+            writer.Write((Int32)playerMetadata.Action);
+            writer.Write((Int32)playerMetadata.AnimFrame);
+            writer.Write((Int32)playerMetadata.LookingDirection);
+            writer.Write((Int64)playerMetadata.LastUpdateTimestamp);
+        }
+
+        public static PlayerMetadata ReadPlayerAppearance(this BinaryReader reader)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+        public static void Write(this BinaryWriter writer, PlayerAppearance playerAppearance)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+
+        public static PlayerMetadata ReadSaveDataUpdate(this BinaryReader reader)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+        public static void Write(this BinaryWriter writer, SaveDataUpdate saveDataUpdate)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+
+        public static PlayerMetadata ReadActiveLevelState(this BinaryReader reader)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+        public static void Write(this BinaryWriter writer, ActiveLevelState activeLevelState)
+        {
+            //TODO
+            throw new NotImplementedException();
         }
     }
 
@@ -112,96 +232,6 @@ namespace FezGame.MultiplayerMod
         public abstract ConcurrentDictionary<Guid, P> Players { get; }
         public static ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
 
-        //TODO make these packet things more extensible somehow?
-
-        protected static byte[] SerializeDisconnect(Guid uuid)
-        {
-            using (MemoryStream m = new MemoryStream())
-            {
-                using (BinaryWriter writer = new BinaryWriter(m))
-                {
-                    /* 
-                     * Note: these pragma things are here because I feel 
-                     * it's not clear which Read method should be called
-                     * when all the Write methods have the same name.
-                     */
-#pragma warning disable IDE0004
-#pragma warning disable IDE0049
-                    writer.Write((String)ProtocolSignature);
-                    writer.Write((String)ProtocolVersion);
-                    writer.Write((Byte)PacketType.Disconnect);
-                    writer.Write((Int64)DateTime.UtcNow.Ticks);
-                    writer.Write((Guid)uuid);
-#pragma warning restore IDE0004
-#pragma warning restore IDE0049
-                    writer.Flush();
-                    return m.ToArray();
-                }
-            }
-        }
-
-        protected static byte[] Serialize(PlayerMetadata p)
-        {
-            using (MemoryStream m = new MemoryStream())
-            {
-                using (BinaryWriter writer = new BinaryWriter(m))
-                {
-                    /* 
-                     * Note: these pragma things are here because I feel 
-                     * it's not clear which Read method should be called
-                     * when all the Write methods have the same name.
-                     */
-#pragma warning disable IDE0004
-#pragma warning disable IDE0049
-                    writer.Write((String)ProtocolSignature);
-                    writer.Write((String)ProtocolVersion);
-                    writer.Write((Byte)PacketType.PlayerInfo);
-                    writer.Write((Int64)p.LastUpdateTimestamp);
-                    writer.Write((Guid)p.Uuid);
-                    writer.Write((String)p.CurrentLevelName ?? "");
-                    writer.Write((Single)p.Position.X);
-                    writer.Write((Single)p.Position.Y);
-                    writer.Write((Single)p.Position.Z);
-                    writer.Write((Int32)p.CameraViewpoint);
-                    writer.Write((Int32)p.Action);
-                    writer.Write((Int32)p.AnimFrame);
-                    writer.Write((Int32)p.LookingDirection);
-#pragma warning restore IDE0004
-#pragma warning restore IDE0049
-                    writer.Flush();
-                    return m.ToArray();
-                }
-            }
-        }
-
-        //
-        // For player names and whatnot
-        // should be an inclusive list of all characters supported by all of the languages' game fonts
-        // probably should restrict certain characters for internal use (like punctuation and symbols)
-        // also need to figure out how to handle people using characters that are not in this list
-        //
-        // Complete list of common chars: (?<=")[A-Za-z0-9 !"#$%&'()*+,\-./:;<>=?@\[\]\\^_`{}|~]+(?=")
-        //
-        // Common punctuation characters: [ !"#$%&'()*+,\-./:;<>=?@\[\]^_`{}|~]
-        // Potential reserved characters: [ #$&\\`]
-        //
-        // TODO add a universal font?
-        // Note the hanzi/kanji/hanja (Chinese characters) look slightly different in Chinese vs Japanese vs Korean;
-        //     Might be worth making a system that can write the player name using multiple fonts
-
-        //unused
-        //public static readonly System.Text.RegularExpressions.Regex commonCharRegex = new System.Text.RegularExpressions.Regex(@"[^\x20-\x7E]");
-
-        //more strict so we can potentially add features (such as colors and effects) using special characters later
-        public static readonly System.Text.RegularExpressions.Regex nameInvalidCharRegex = new System.Text.RegularExpressions.Regex(@"[^0-9A-Za-z]");
-
-        protected const int maxplayernamelength = 32;
-
-        //TODO
-        //string playername = reader.ReadString();
-        //playername = nameInvalidCharRegex.Replace(playername.Length > maxplayernamelength? playername.Substring(0, maxplayernamelength) : playername, "");
-
-
         protected void ProcessDatagram(byte[] data)
         {
             using (MemoryStream m = new MemoryStream(data))
@@ -220,51 +250,8 @@ namespace FezGame.MultiplayerMod
                         return;
                     }
 
-                    PacketType packetType = (PacketType)reader.ReadByte();
                     long timestamp = reader.ReadInt64();
 
-                    switch (packetType)
-                    {
-                    case PacketType.PlayerInfo:
-                        {
-                            IPEndPoint endpoint;
-                            try
-                            {
-                                string endip = reader.ReadString();
-                                int endport = reader.ReadInt32();
-                                // Note: the above reads from the binary reader are there to ensure they both get called so the reader doesn't skip a value
-                                endpoint = new IPEndPoint(IPAddress.Parse(endip), endport);
-                            }
-                            catch (Exception)//catches exceptions for when the IP endpoint received is invalid
-                                             // probably should be changed so it doesn't catch the exceptions thrown by the reader, but it's probably fine
-                            {
-                                endpoint = new IPEndPoint(IPAddress.None, 0);
-                            }
-                            Guid uuid = reader.ReadGuid();
-                            string lvl = reader.ReadString();
-                            Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-                            Viewpoint vp = (Viewpoint)reader.ReadInt32();
-                            ActionType act = (ActionType)reader.ReadInt32();
-                            int frame = reader.ReadInt32();
-                            HorizontalDirection lookdir = (HorizontalDirection)reader.ReadInt32();
-
-                            P p = Players[uuid];
-                            if (timestamp > p.LastUpdateTimestamp)//Ensure we're not saving old data
-                            {
-                                //update player
-                                p.CurrentLevelName = lvl;
-                                p.Position = pos;
-                                p.CameraViewpoint = vp;
-                                p.Action = act;
-                                p.AnimFrame = frame;
-                                p.LookingDirection = lookdir;
-                                p.LastUpdateTimestamp = timestamp;
-                            }
-                            Players[uuid] = p;
-                            break;
-                        }
-                    case PacketType.Disconnect:
-                        {
                             try
                             {
                                 Guid puid = reader.ReadGuid();
@@ -273,25 +260,6 @@ namespace FezGame.MultiplayerMod
                             catch (InvalidOperationException) { }
                             catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
 
-                            break;
-                        }
-                    case PacketType.Message:
-                        {
-                            //TBD
-                            break;
-                        }
-                    case PacketType.Notice:
-                        {
-                            //TBD
-                            break;
-                        }
-                    default:
-                        {
-                            //Unsupported packet type
-                            ErrorMessage = "Unsupported PacketType: " + packetType;
-                            return;
-                        }
-                    }
                 }
             }
         }

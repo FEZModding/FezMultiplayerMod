@@ -17,6 +17,7 @@ using System.Net;
 using System.IO;
 using System.Collections.Concurrent;
 using FezEngine;
+using FezSharedTools;
 
 namespace FezGame.MultiplayerMod
 {
