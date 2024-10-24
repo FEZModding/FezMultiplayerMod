@@ -17,6 +17,16 @@ namespace FezSharedTools
     class IniTools
     {
         private const char IniKeyValDelimiter = '=';
+        /// <summary>
+        /// Reads the values from a file in INI format and assigns the values to the public fields of the same names in object <c>settings</c>.
+        /// </summary>
+        /// <typeparam name="T">The type of the settings object</typeparam>
+        /// <param name="filepath">The file to read from.</param>
+        /// <param name="settings">The object to put the values into.</param>
+        /// <returns><c>settings</c>, with updated values</returns>
+        /// <remarks>
+        /// See also <seealso cref="IniTools.WriteSettingsFile{T}(string, T)"/>
+        /// </remarks>
         public static T ReadSettingsFile <T>(string filepath, T settings)
         {
             if (!File.Exists(filepath))
@@ -53,6 +63,15 @@ namespace FezSharedTools
 
             return settings;
         }
+        /// <summary>
+        /// Writes the names and <c>DescriptionAttributes</c> of all public fields in class <c>T</c> to a file at location filepath in INI format.
+        /// </summary>
+        /// <typeparam name="T">The type of the settings object</typeparam>
+        /// <param name="filepath">The file to write to.</param>
+        /// <param name="settings">The object to write to the file.</param>
+        /// <remarks>
+        /// See also <seealso cref="IniTools.ReadSettingsFile{T}(string, T)"/>
+        /// </remarks>
         public static void WriteSettingsFile<T>(string filepath, T settings)
         {
             Type TClass = typeof(T);
