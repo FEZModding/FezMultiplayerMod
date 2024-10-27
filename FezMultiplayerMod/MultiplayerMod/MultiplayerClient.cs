@@ -51,10 +51,7 @@ namespace FezGame.MultiplayerMod
         {
             //UpdateMyPlayer
 
-            PlayerMetadata p = Players.GetOrAdd(MyUuid, (guid) =>
-            {
-                return new PlayerMetadata(guid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
-            });
+            PlayerMetadata p = MyPlayerMetadata ?? new PlayerMetadata(MyUuid, null, Vector3.Zero, Viewpoint.None, ActionType.None, 0, HorizontalDirection.None, DateTime.UtcNow.Ticks);
 
             //update MyPlayer
             p.CurrentLevelName = LevelManager?.Name;
@@ -70,7 +67,7 @@ namespace FezGame.MultiplayerMod
                 p.CameraViewpoint = CameraManager.Viewpoint;
             }
             p.LastUpdateTimestamp = DateTime.UtcNow.Ticks;
-            Players[MyUuid] = p;
+            MyPlayerMetadata = p;
         }
     }
 }

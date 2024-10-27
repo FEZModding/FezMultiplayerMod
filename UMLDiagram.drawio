@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
   <diagram id="0-7Qm0cGNNnwY8iMT89a" name="Data Layout">
-    <mxGraphModel dx="1500" dy="1046" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+    <mxGraphModel dx="1034" dy="721" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -196,33 +196,33 @@
         <mxCell id="4qymHgG-RHxKKIISKwvI-16" value="The updates for WorldState. Send this data when save data is updated" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
           <mxGeometry x="460" y="40" width="230" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-7" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.595;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=0.001;entryY=0.134;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="tJqg2NbDP2f-t8pP_g2x-10" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-7" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.637;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=0.001;entryY=0.134;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="tJqg2NbDP2f-t8pP_g2x-10" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="540" y="700" as="sourcePoint" />
             <mxPoint x="700" y="700" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="320" y="721" />
+              <mxPoint x="320" y="731" />
               <mxPoint x="320" y="460" />
               <mxPoint x="340" y="460" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-9" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.483;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.004;entryY=0.1;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="4qymHgG-RHxKKIISKwvI-13" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-9" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.434;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.004;entryY=0.1;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="4qymHgG-RHxKKIISKwvI-13" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="260" y="740" as="sourcePoint" />
             <mxPoint x="420" y="740" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="310" y="702" />
+              <mxPoint x="310" y="693" />
               <mxPoint x="310" y="292" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-10" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.382;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.069;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="4qymHgG-RHxKKIISKwvI-15" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-10" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0.004;exitY=0.331;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.069;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="4qymHgG-RHxKKIISKwvI-15" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="270" y="750" as="sourcePoint" />
             <mxPoint x="330" y="80" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="300" y="685" />
+              <mxPoint x="300" y="673" />
               <mxPoint x="300" y="230" />
               <mxPoint x="440" y="230" />
               <mxPoint x="440" y="81" />
@@ -234,12 +234,6 @@
         </mxCell>
         <mxCell id="tJqg2NbDP2f-t8pP_g2x-10" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;PlayerAppearance&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;uuid&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;PlayerName&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;FK1&lt;/td&gt;&lt;td&gt;CustomCharacterAppearance&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
           <mxGeometry x="340" y="450" width="200" height="80" as="geometry" />
-        </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-1" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;ServerGameTickPacket&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;TBD&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;List&amp;lt;PlayerMetadata&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SaveDataUpdate&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;List&amp;lt;ActiveLevelState&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;DisconnectedPlayers=List&amp;lt;Guid&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Dictionary&amp;lt;Guid,PlayerAppearance&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SharedSaveData&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
-          <mxGeometry x="340" y="620" width="200" height="170" as="geometry" />
-        </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-2" value="Server sends this data to all clients on game tick" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
-          <mxGeometry x="340" y="590" width="200" height="30" as="geometry" />
         </mxCell>
         <mxCell id="7Khi5_YAd-gwPFn8Hj0F-11" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=1.001;exitY=0.588;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=-0.001;entryY=0.122;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-3" target="tJqg2NbDP2f-t8pP_g2x-10" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
@@ -283,14 +277,13 @@
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-15" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.274;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.068;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="KzBRDtOJgjtY7-ivDXEG-1" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-15" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;entryX=1;entryY=0.068;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" target="KzBRDtOJgjtY7-ivDXEG-1" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
-            <mxPoint x="260" y="676" as="sourcePoint" />
+            <mxPoint x="340" y="658" as="sourcePoint" />
             <mxPoint x="260" y="342" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="270" y="667" />
+              <mxPoint x="270" y="658" />
               <mxPoint x="270" y="372" />
-              <mxPoint x="250" y="372" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -319,11 +312,17 @@
         <mxCell id="7Khi5_YAd-gwPFn8Hj0F-5" value="Main Network Structures" style="swimlane;whiteSpace=wrap;html=1;dashed=1;dashPattern=1 1;strokeWidth=3;strokeColor=#666600;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
           <mxGeometry x="20" y="550" width="550" height="260" as="geometry" />
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-3" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;ClientGameTickPacket&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;TBD&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;PlayerMetadata&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SaveDataUpdate&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;ActiveLevelState&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;PlayerAppearance&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-3" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;ClientGameTickPacket&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;TBD&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;PlayerMetadata&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SaveDataUpdate&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;ActiveLevelState&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;PlayerAppearance&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;bool Disconnecting&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
           <mxGeometry x="30" y="70" width="200" height="170" as="geometry" />
         </mxCell>
         <mxCell id="7Khi5_YAd-gwPFn8Hj0F-4" value="Clients send this data to the server on game tick" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
           <mxGeometry x="30" y="40" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-1" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;ServerGameTickPacket&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;TBD&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;List&amp;lt;PlayerMetadata&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SaveDataUpdate&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;List&amp;lt;ActiveLevelState&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;DisconnectedPlayers=List&amp;lt;Guid&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Dictionary&amp;lt;Guid,PlayerAppearance&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;Guid&amp;gt; ClientNewGuid&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SharedSaveData&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
+          <mxGeometry x="320" y="60" width="220" height="190" as="geometry" />
+        </mxCell>
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-2" value="Server sends this data to all clients on game tick" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
+          <mxGeometry x="320" y="30" width="200" height="30" as="geometry" />
         </mxCell>
         <mxCell id="THr8TfoCkKgoIExO813C-2" value="See GameLevelManager" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#fff2cc;strokeColor=#d6b656;rotation=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
           <mxGeometry x="450" y="320" width="130" height="40" as="geometry" />

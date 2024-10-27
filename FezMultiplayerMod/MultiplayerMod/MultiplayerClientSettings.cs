@@ -4,7 +4,7 @@ using System.ComponentModel;
 namespace FezGame.MultiplayerMod
 {
     /// <summary>
-    /// The class that contains the settings for <see cref="MultiplayerClient"/>
+    /// The class that contains the settings for <see cref="MultiplayerClientNetcode"/>
     /// </summary>
     public class MultiplayerClientSettings
     {
@@ -19,6 +19,16 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         [Description("A string representing the name to display for this client.")]
         public string myPlayerName = "Player";
+        /// <summary>
+        /// TBD
+        /// </summary>
+        [Description("TBD")]
+        public string appearance = "";
+        /// <summary>
+        /// TBD
+        /// </summary>
+        [Description("TBD")]
+        public bool syncWorldState = false;
     }
 
 }

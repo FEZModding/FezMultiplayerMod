@@ -20,25 +20,21 @@ namespace FezGame.MultiplayerMod
     /// 
     /// Note: This class should only contain System usings
     /// </summary>
-    public class MultiplayerClientNetcode : SharedNetcode<PlayerMetadata>, IDisposable
+    public abstract class MultiplayerClientNetcode : SharedNetcode<PlayerMetadata>, IDisposable
     {
 
-        private volatile TcpClient tcpClient;
         private readonly Thread listenerThread;
 
-        /// <summary>
-        /// How long to wait, in ticks, before stopping sending or receiving packets for this player.
-        /// This is required otherwise race conditions can occur.
-        /// <br /><br />Note: could make this customizable
-        /// </summary>
-        private readonly long preoverduetimeoutoffset = TimeSpan.TicksPerSecond * 5;
-
+        public Guid MyUuid { get; private set; }
+        public volatile PlayerMetadata MyPlayerMetadata = null;
         public override ConcurrentDictionary<Guid, PlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, PlayerMetadata>();
-        public bool Listening => tcpClient?.Client?.IsBound ?? false;
-        public EndPoint LocalEndPoint => tcpClient?.Client?.LocalEndPoint;
-        public readonly Guid MyUuid = Guid.NewGuid();
-        public string MyPlayerName = "";
-
+        public volatile bool Listening = false;
+        public PlayerAppearance MyAppearance;
+        public string MyPlayerName
+        {
+            get => MyAppearance.PlayerName;
+            set => MyAppearance.PlayerName = value;
+        }
 
         public event Action OnUpdate = () => { };
         public event Action OnDispose = () => { };
@@ -50,34 +46,57 @@ namespace FezGame.MultiplayerMod
         /// <param name="settings">The <see cref="MultiplayerClientSettings"/> to use to create this instance.</param>
         internal MultiplayerClientNetcode(MultiplayerClientSettings settings)
         {
-            this.MyPlayerName = settings.myPlayerName;
+            MyAppearance = new PlayerAppearance(settings.myPlayerName, settings.appearance);
 
             listenerThread = new Thread(() =>
             {
                 try
                 {
-                    bool initializing = true;
-                    while (initializing)
-                    {
-                        tcpClient = new TcpClient(AddressFamily.InterNetwork);
-                        initializing = false;
-                    }
+                    TcpClient tcpClient = new TcpClient(AddressFamily.InterNetwork);
                     tcpClient.Connect(settings.mainEndpoint);
-                    NetworkStream tcpStream = tcpClient.GetStream();
-                    WriteClientGameTickPacket(writer, Players[MyUuid], saveDataUpdate, levelState, appearance);
-                    ReadServerGameTickPacket(reader);
-                    while (!disposing)
+                    Listening = true;
+                    while (MyPlayerMetadata == null)
                     {
-                        //TODO read from tcpStream
-                        WriteClientGameTickPacket(writer, Players[MyUuid], saveDataUpdate, levelState, null);
-                        ReadServerGameTickPacket(reader);
+                        Thread.Sleep(100);
                     }
-                    tcpClient.Close();
+                    using (NetworkStream tcpStream = tcpClient.GetStream())
+                    using (BinaryReader reader = new BinaryReader(tcpStream))
+                    using (BinaryWriter writer = new BinaryWriter(tcpStream))
+                    {
+                        WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, false);
+                        ReadServerGameTickPacket(reader);
+                        while (!disposing)
+                        {
+                            ActiveLevelState? activeLevelState = null;
+                            if (settings.syncWorldState)
+                            {
+                                activeLevelState = GetCurrentLevelState();
+                            }
+
+                            SaveDataUpdate? saveDataUpdate = null;
+                            if (settings.syncWorldState)
+                            {
+                                saveDataUpdate = GetSaveDataUpdate();
+                            }
+
+                            WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, null, disposing);
+                            ReadServerGameTickPacket(reader);
+                        }
+                        WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, true);
+                        reader.Close();
+                        writer.Close();
+                        tcpStream.Close();
+                        tcpClient.Close();
+                    }
                 }
                 catch (Exception e) { FatalException = e; }
+                Listening = false;
             });
             listenerThread.Start();
         }
+
+        protected abstract SaveDataUpdate GetSaveDataUpdate();
+        protected abstract ActiveLevelState GetCurrentLevelState();
 
         // I was told "Your Dispose implementation needs work https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern"
         // and stuff like "It technically works but is dangerous" and "always use an internal protected Dispose method" and "always call GC.SuppressFinalize(this) in the public Dispose method"
@@ -101,7 +120,6 @@ namespace FezGame.MultiplayerMod
                     // Dispose managed resources here
 
                     this.disposing = true;//let child threads know it's disposing time
-                    Disconnect();
                     Thread.Sleep(1000);//try to wait for child threads to stop on their own
                     if (listenerThread.IsAlive)
                     {
@@ -114,7 +132,7 @@ namespace FezGame.MultiplayerMod
                 disposed = true;
             }
         }
-        ~MultiplayerServer()
+        ~MultiplayerClientNetcode()
         {
             Dispose(false);
         }
@@ -133,11 +151,6 @@ namespace FezGame.MultiplayerMod
 
             OnUpdate();
         }
-        public void Disconnect()
-        {
-            tcpClient.Close();
-        }
-
 
         protected override void ProcessDisconnect(Guid puid)
         {
@@ -151,6 +164,11 @@ namespace FezGame.MultiplayerMod
             }
             catch (InvalidOperationException) { }
             catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
+        }
+
+        protected override void ProcessNewClientGuid(Guid puid)
+        {
+            MyUuid = puid;
         }
     }
 }

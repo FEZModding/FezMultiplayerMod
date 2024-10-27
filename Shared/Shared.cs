@@ -59,6 +59,16 @@ namespace FezSharedTools
             this.LastUpdateTimestamp = LastUpdateTimestamp;
             this.CameraViewpoint = CameraViewpoint;
         }
+        public void CopyValuesFrom(PlayerMetadata m)
+        {
+            this.CurrentLevelName = m.CurrentLevelName;
+            this.Position = m.Position;
+            this.Action = m.Action;
+            this.AnimFrame = m.AnimFrame;
+            this.LookingDirection = m.LookingDirection;
+            this.LastUpdateTimestamp = m.LastUpdateTimestamp;
+            this.CameraViewpoint = m.CameraViewpoint;
+        }
     }
     [Serializable]
     public struct PlayerAppearance
@@ -178,13 +188,14 @@ namespace FezSharedTools
 
         public static PlayerAppearance ReadPlayerAppearance(this BinaryReader reader)
         {
-            //TODO
-            throw new NotImplementedException();
+            string name = reader.ReadStringWithLengthLimit(maxplayernamelength);
+            object appearance = null;//TODO
+            return new PlayerAppearance(name, appearance);
         }
         public static void Write(this BinaryWriter writer, PlayerAppearance playerAppearance)
         {
-            //TODO
-            throw new NotImplementedException();
+            writer.Write(playerAppearance.PlayerName);
+            //writer.Write(playerAppearance.CustomCharacterAppearance);//TODO
         }
 
         public static SaveDataUpdate ReadSaveDataUpdate(this BinaryReader reader)
@@ -232,23 +243,32 @@ namespace FezSharedTools
         public abstract ConcurrentDictionary<Guid, P> Players { get; }
         public static ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
 
-        protected void ReadClientGameTickPacket(BinaryReader reader){
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="reader">The BinaryReader to read data from</param>
+        /// <returns>true if the client is going to disconnect</returns>
+        protected bool ReadClientGameTickPacket(BinaryReader reader){
             PlayerMetadata playerMetadata = reader.ReadPlayerMetadata();
-            if(reader.ReadBoolean()){
+            if (reader.ReadBoolean())
+            {
                 SaveDataUpdate saveDataUpdate = reader.ReadSaveDataUpdate();
                 ProcessSaveDataUpdate(saveDataUpdate);
             }
-            if (reader.ReadBoolean()){
+            if (reader.ReadBoolean())
+            {
                 ActiveLevelState levelState = reader.ReadActiveLevelState();
                 //TODO do something with read data
             }
-            if (reader.ReadBoolean()){
+            if (reader.ReadBoolean())
+            {
                 PlayerAppearance appearance = reader.ReadPlayerAppearance();
                 UpdatePlayerAppearance(playerMetadata.Uuid, appearance.PlayerName, appearance.CustomCharacterAppearance);
             }
+            bool Disconnecting = reader.ReadBoolean();
+            return Disconnecting;
         }
-        //TODO use this in MultiplayerClientNetcode.cs
-        protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState, PlayerAppearance? appearance){
+        protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState, PlayerAppearance? appearance, bool Disconnecting){
             writer.Write(playerMetadata);
             writer.Write(saveDataUpdate.HasValue);
             if (saveDataUpdate.HasValue)
@@ -265,24 +285,23 @@ namespace FezSharedTools
             {
                 writer.Write(appearance.Value);
             }
+            writer.Write(Disconnecting);
+            writer.Flush();
         }
-
-        //TODO use this in MultiplayerClientNetcode.cs
         protected void ReadServerGameTickPacket(BinaryReader reader){
             int playerMetadataListLength = reader.ReadInt32();
             for (int i = 0; i < playerMetadataListLength; ++i)
             {
                 PlayerMetadata playerMetadata = reader.ReadPlayerMetadata();
-                //TODO update the data in Players
-                if(Players.TryGetValue(playerMetadata.Uuid, out P val)){
-                    if (val.LastUpdateTimestamp < playerMetadata.LastUpdateTimestamp)
-                        Players.AddOrUpdate(playerMetadata.Uuid, (P)playerMetadata, (guid, currentval) => {
-                            foreach(var f in typeof(PlayerMetadata).GetFields()){//TODO probably a better way to do this
-                                f.SetValue(currentval, f.GetValue(playerMetadata));
-                            }
-                            return currentval;
-                        });
-                }
+                //update the data in Players
+                Players.AddOrUpdate(playerMetadata.Uuid, (P)playerMetadata, (guid, currentval) => {
+                    if (currentval.LastUpdateTimestamp < playerMetadata.LastUpdateTimestamp)
+                    {
+                        currentval.CopyValuesFrom(playerMetadata);
+                    }
+
+                    return currentval;
+                });
             }
             if(reader.ReadBoolean()){
                 SaveDataUpdate saveDataUpdate = reader.ReadSaveDataUpdate();
@@ -305,9 +324,15 @@ namespace FezSharedTools
             {
                 UpdatePlayerAppearance(reader.ReadGuid(), reader.ReadPlayerAppearance());
             }
+            if (reader.ReadBoolean())
+            {
+                Guid NewClientGuid = reader.ReadGuid();
+                ProcessNewClientGuid(NewClientGuid);
+            }
         }
         protected void WriteServerGameTickPacket(BinaryWriter writer, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, List<ActiveLevelState> levelStates,
-                                                            List<Guid> disconnectedPlayers, Dictionary<Guid, PlayerAppearance> appearances, object sharedSaveData) {
+                                                            List<Guid> disconnectedPlayers, Dictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
+                                                            object sharedSaveData) {
             writer.Write((int)playerMetadatas.Count);
             foreach (PlayerMetadata playerMetadata in playerMetadatas)
             {
@@ -334,8 +359,13 @@ namespace FezSharedTools
                 writer.Write(appearance.Key);
                 writer.Write(appearance.Value);
             }
+            writer.Write(NewClientGuid.HasValue);
+            if (NewClientGuid.HasValue)
+            {
+                writer.Write(NewClientGuid.Value);
+            }
+            writer.Flush();
         }
-
         protected void UpdatePlayerAppearance(Guid puid, PlayerAppearance newAp)
         {
             _ = PlayerAppearances.AddOrUpdate(puid, (u) => newAp, (u, a) => newAp);
@@ -347,6 +377,7 @@ namespace FezSharedTools
         }
         protected abstract void ProcessDisconnect(Guid puid);
         protected abstract void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate);
-        #endregion
+        protected virtual void ProcessNewClientGuid(Guid puid) { }
+#endregion
     }
 }

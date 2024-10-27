@@ -104,7 +104,8 @@ namespace FezMultiplayerDedicatedServer
                     while (!disposing)
                     {
                         //IPEndPoint object will allow us to read datagrams sent from any source.
-                        tcpListener.AcceptTcpClientAsync().ContinueWith(tcpClientTask => {
+                        tcpListener.AcceptTcpClientAsync().ContinueWith(tcpClientTask =>
+                        {
                             if (tcpClientTask.Status == TaskStatus.RanToCompletion) {
                                 OnNewClientConnect(tcpClientTask.Result);
                             }
@@ -185,22 +186,46 @@ namespace FezMultiplayerDedicatedServer
 
         private void OnNewClientConnect(TcpClient tcpClient)
         {
-            NetworkStream stream = tcpClient.GetStream();
-            stream.ReadTimeout = overduetimeout;
-            stream.WriteTimeout = overduetimeout;
-            Dictionary<Guid, PlayerAppearance> emplyPlayerAppearDict = new Dictionary<Guid, PlayerAppearance>();
-            //TODO send them our data and get player appearance from client
-            BinaryWriter writer;
-            WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, levelStates, disconnectedPlayers, PlayerAppearances, sharedSaveData);
-            //TODO wait for response
-            BinaryReader reader;
-            ReadClientGameTickPacket(reader);
-            while (tcpClient.Connected)
+            using (NetworkStream stream = tcpClient.GetStream())
             {
-                //TODO repeat until the client disconnects or times out
-                WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), saveDataUpdate, levelStates, disconnectedPlayers, emplyPlayerAppearDict, null);
-                //TODO wait for response
-                ReadClientGameTickPacket(reader);
+                stream.ReadTimeout = overduetimeout;
+                stream.WriteTimeout = overduetimeout;
+                Dictionary<Guid, PlayerAppearance> emplyPlayerAppearDict = new Dictionary<Guid, PlayerAppearance>();
+                using (NetworkStream tcpStream = tcpClient.GetStream())
+                using (BinaryReader reader = new BinaryReader(tcpStream))
+                using (BinaryWriter writer = new BinaryWriter(tcpStream))
+                {
+                    Guid uuid = Guid.NewGuid();
+                    try
+                    {
+                        //TODO send them our data and get player appearance from client
+                        WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, levelStates, DisconnectedPlayers, PlayerAppearances, uuid, sharedSaveData);
+                        bool Disconnecting = ReadClientGameTickPacket(reader);
+                        while (tcpClient.Connected)
+                        {
+                            if (Disconnecting)
+                            {
+                                break;
+                            }
+                            //repeat until the client disconnects or times out
+                            WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), saveDataUpdate, levelStates, DisconnectedPlayers, emplyPlayerAppearDict, null, null);
+                            Disconnecting = ReadClientGameTickPacket(reader);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        //TODO
+                        Console.WriteLine(e);
+                    }
+                    long disconnectTime = DateTime.UtcNow.Ticks;
+                    DisconnectedPlayers.AddOrUpdate(uuid, disconnectTime, (puid, oldTime) => disconnectTime);
+                    ProcessDisconnect(uuid);
+                    reader.Close();
+                    writer.Close();
+                    tcpStream.Close();
+                    tcpClient.Close();
+                    tcpClient.Dispose();
+                }
             }
         }
 
@@ -208,9 +233,10 @@ namespace FezMultiplayerDedicatedServer
         {
             try
             {
-                if (Players.TryGetValue(puid, out var p))
+                if (Players.TryGetValue(puid, out var p) && !DisconnectedPlayers.ContainsKey(puid))
                 {
-                    DisconnectedPlayers.TryAdd(puid, DateTime.UtcNow.Ticks);
+                    long disconnectTime = DateTime.UtcNow.Ticks;
+                    DisconnectedPlayers.AddOrUpdate(puid, disconnectTime, (lpuid, oldTime) => disconnectTime);
                     _ = Players.TryRemove(puid, out _);
                 }
             }

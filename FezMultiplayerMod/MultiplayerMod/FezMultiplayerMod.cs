@@ -218,7 +218,7 @@ namespace FezGame.MultiplayerMod
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 try
                 {
-                    var players = mp.Players.Values.OrderByDescending(p => Vector3.Distance(mp.Players[mp.MyUuid].Position, p.Position));
+                    var players = mp.Players.Values.OrderByDescending(p => Vector3.Distance(mp.MyPlayerMetadata.Position, p.Position));
                     foreach (var p in players)
                     {
                         if (ShowDebugInfo)
@@ -370,7 +370,7 @@ namespace FezGame.MultiplayerMod
 
             #region draw player name
             Vector3 namePos = p.Position + Vector3.Up * 1.35f;//center text over player 
-            //TODO: sanitize player name because the game's font doesn't have every character; See CommonChars below
+            //TODO: sanitize player name because the game's font doesn't have every character
             textDrawer.DrawPlayerName(GraphicsDevice, p.GetPlayerName(), namePos, CameraManager.Rotation, mesh.DepthWrites, FontManager.BigFactor * 2, GraphicsDevice.GetViewScale() / 32f / 1.5f, 0.35f);
             #endregion
         }
