@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
@@ -203,7 +203,7 @@ namespace FezMultiplayerDedicatedServer
                         WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, sharedSaveData);
                         Console.WriteLine($"Player connected from {tcpClient.Client.RemoteEndPoint}. Assigning uuid {uuid}.");
                         bool Disconnecting = ReadClientGameTickPacket(reader);
-                        while (tcpClient.Connected)
+                        while (tcpClient.Connected && !disposing)
                         {
                             if (Disconnecting)
                             {
