@@ -80,7 +80,7 @@ namespace FezSharedTools
                 "; "+TClass.Name+" settings",
                 "",
                 "; Note:",
-                "; Everything has default values; if a setting is not in the settings file, the mod will use the default value and will add the setting with the default value to the settings file.",
+                "; Everything has default values; if a setting is not in the settings file, the code will use the default value and will add the setting with the default value to the settings file.",
                 "; Also any modifications apart from the values for the settings will be erased.",
                 "",
                 "[Settings]",

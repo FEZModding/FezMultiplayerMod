@@ -35,7 +35,7 @@ namespace FezGame.MultiplayerMod
         [ServiceDependency]
         public IGameCameraManager CameraManager { private get; set; }
 
-        private readonly bool syncWorldState;
+        public bool SyncWorldState;
 
         /// <summary>
         /// Creates a new instance of this class with the provided parameters.
@@ -48,7 +48,7 @@ namespace FezGame.MultiplayerMod
 
             OnUpdate += UpdateMyPlayer;
 
-            syncWorldState = settings.syncWorldState;
+            SyncWorldState = settings.SyncWorldState;
         }
 
         public void UpdateMyPlayer()
@@ -76,7 +76,7 @@ namespace FezGame.MultiplayerMod
 
         protected override SaveDataUpdate? GetSaveDataUpdate()
         {
-            if (!syncWorldState)
+            if (!SyncWorldState)
             {
                 return null;
             }
@@ -86,7 +86,7 @@ namespace FezGame.MultiplayerMod
 
         protected override ActiveLevelState? GetCurrentLevelState()
         {
-            if (!syncWorldState)
+            if (!SyncWorldState)
             {
                 return null;
             }
@@ -96,7 +96,7 @@ namespace FezGame.MultiplayerMod
 
         protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
         {
-            if (!syncWorldState)
+            if (!SyncWorldState)
             {
                 return;
             }
@@ -106,7 +106,7 @@ namespace FezGame.MultiplayerMod
 
         protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
         {
-            if (!syncWorldState)
+            if (!SyncWorldState)
             {
                 return;
             }

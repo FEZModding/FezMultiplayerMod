@@ -43,7 +43,7 @@ namespace FezMultiplayerDedicatedServer
         private readonly bool useAllowList;
         private readonly IPFilter AllowList;
         private readonly IPFilter BlockList;
-        private bool syncWorldState;
+        public bool SyncWorldState;
 
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
@@ -62,14 +62,14 @@ namespace FezMultiplayerDedicatedServer
         /// <param name="settings">The <see cref="MultiplayerServerSettings"/> to use to create this instance.</param>
         internal MultiplayerServer(MultiplayerServerSettings settings)
         {
-            int listenPort = settings.listenPort;
-            this.overduetimeout = settings.overduetimeout;
-            this.useAllowList = settings.useAllowList;
+            int listenPort = settings.ListenPort;
+            this.overduetimeout = settings.OverdueTimeout;
+            this.useAllowList = settings.UseAllowList;
             this.AllowList = settings.AllowList;
             this.BlockList = settings.BlockList;
-            this.syncWorldState = settings.SyncWorldState;
+            this.SyncWorldState = settings.SyncWorldState;
 
-            listenerThread = new Thread(() =>
+            listenerThread = new Thread(async () =>
             {
                 try
                 {
@@ -85,7 +85,7 @@ namespace FezMultiplayerDedicatedServer
                         }
                         catch (Exception e)
                         {
-                            if (settings.maxAdjustListenPortOnBindFail > retries++)
+                            if (settings.MaxAdjustListenPortOnBindFail > retries++)
                             {
                                 listenPort++;
                             }
@@ -101,7 +101,9 @@ namespace FezMultiplayerDedicatedServer
                     while (!disposing)
                     {
                         //Note: AcceptTcpClient blocks until a connection is made
-                        TcpClient client = tcpListener.AcceptTcpClient();
+                        //Note: apparently tcpListener.AcceptTcpClient(); is so blocking, if it's in a Thread, it even blocks calls to that thread's .Abort() method 
+                        //TcpClient client = tcpListener.AcceptTcpClient();
+                        TcpClient client = await tcpListener.AcceptTcpClientAsync();
                         new Thread(() => {
                             try
                             {
@@ -121,14 +123,10 @@ namespace FezMultiplayerDedicatedServer
                             {
                                 //TODO
                                 Console.WriteLine(e);
+                                client.Close();
                             }
                         }).Start();
                     }
-                    foreach(TcpClient client in connectedClients)
-                    {
-                        client.Close();
-                    }
-                    tcpListener.Stop();
                 }
                 catch (Exception e) { FatalException = e; }
             });
@@ -163,6 +161,12 @@ namespace FezMultiplayerDedicatedServer
                     {
                         listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
                     }
+                    foreach (TcpClient client in connectedClients)
+                    {
+                        client.Close();
+                    }
+                    tcpListener.Stop();
+
                     tcpListener.Stop();//must be after listenerThread is stopped
                 }
 
@@ -250,14 +254,14 @@ namespace FezMultiplayerDedicatedServer
         private static readonly List<ActiveLevelState> empty = new List<ActiveLevelState>();
         private List<ActiveLevelState> GetActiveLevelStates()
         {
-            return syncWorldState ? activeLevelStates : empty;
+            return SyncWorldState ? activeLevelStates : empty;
         }
 
         private readonly SharedSaveData sharedSaveData = new SharedSaveData();
 
         protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
         {
-            if (!syncWorldState)
+            if (!SyncWorldState)
             {
                 return;
             }
@@ -266,7 +270,7 @@ namespace FezMultiplayerDedicatedServer
         }
         private SaveDataUpdate? GetSaveDataUpdate()
         {
-            if (!syncWorldState)
+            if (!SyncWorldState)
             {
                 return null;
             }
@@ -276,7 +280,7 @@ namespace FezMultiplayerDedicatedServer
 
         protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
         {
-            if (!syncWorldState)
+            if (!SyncWorldState)
             {
                 return;
             }

@@ -13,7 +13,7 @@ namespace FezMultiplayerDedicatedServer
 
             Console.WriteLine($"FezMultiplayerMod server starting... (protocol ver: {MultiplayerServer.ProtocolVersion})");
 
-            const string SettingsFilePath = "FezMultiplayerMod.ini";//TODO: probably should use an actual path instead of just the file name
+            const string SettingsFilePath = "FezMultiplayerServer.ini";//TODO: probably should use an actual path instead of just the file name
             Console.WriteLine($"Loading settings from {SettingsFilePath}");
             MultiplayerServerSettings settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerServerSettings());
             IniTools.WriteSettingsFile(SettingsFilePath, settings);

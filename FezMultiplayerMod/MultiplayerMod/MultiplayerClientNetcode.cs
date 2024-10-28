@@ -46,14 +46,14 @@ namespace FezGame.MultiplayerMod
         /// <param name="settings">The <see cref="MultiplayerClientSettings"/> to use to create this instance.</param>
         internal MultiplayerClientNetcode(MultiplayerClientSettings settings)
         {
-            MyAppearance = new PlayerAppearance(settings.myPlayerName, settings.appearance);
+            MyAppearance = new PlayerAppearance(settings.MyPlayerName, settings.Appearance);
 
             listenerThread = new Thread(() =>
             {
                 try
                 {
                     TcpClient tcpClient = new TcpClient(AddressFamily.InterNetwork);
-                    tcpClient.Connect(settings.mainEndpoint);
+                    tcpClient.Connect(settings.MainEndpoint);
                     Listening = true;
                     while (MyPlayerMetadata == null)
                     {
@@ -68,13 +68,13 @@ namespace FezGame.MultiplayerMod
                         while (!disposing)
                         {
                             ActiveLevelState? activeLevelState = null;
-                            if (settings.syncWorldState)
+                            if (settings.SyncWorldState)
                             {
                                 activeLevelState = GetCurrentLevelState();
                             }
 
                             SaveDataUpdate? saveDataUpdate = null;
-                            if (settings.syncWorldState)
+                            if (settings.SyncWorldState)
                             {
                                 saveDataUpdate = GetSaveDataUpdate();
                             }
