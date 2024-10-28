@@ -25,10 +25,10 @@ namespace FezMultiplayerDedicatedServer
         private void ReloadFilterString()
         {
             ranges.Clear();
-            var entries = filterString.Split(',');
+            string[] entries = filterString.Split(',');
             foreach (string entry in entries)
             {
-                var str = entry.Trim();
+                string str = entry.Trim();
                 if (str.Contains(":"))
                 {
                     throw new NotImplementedException("IPv6 is currently not supported");
@@ -42,7 +42,7 @@ namespace FezMultiplayerDedicatedServer
                 else if (Regex.IsMatch(str, @"\A\d+\.\d+\.\d+\.\d+/\d+\Z"))
                 {
                     //CIDR format
-                    var parts = str.Split('/');
+                    string[] parts = str.Split('/');
 
                     //Important Note: all four of these UInt32 are in network order, not host order, so don't do comparisons with them
                     //convert IP string to UInt32
@@ -58,17 +58,17 @@ namespace FezMultiplayerDedicatedServer
                 else if (str.Contains("-"))
                 {
                     //range or implied range ( could be "10.5.3.3-10.5.3.40" or "10.5.3.3-40" )
-                    var parts = str.Split('-');
+                    string[] parts = str.Split('-');
                     string lowstr = parts[0], highstr;
-                    var highstr__end = parts[1];
-                    var endpartcount = highstr__end.Count(c => c == '.') + 1;
+                    string highstr__end = parts[1];
+                    int endpartcount = highstr__end.Count(c => c == '.') + 1;
                     if (endpartcount == 4)
                     {
                         highstr = highstr__end;
                     }
                     else
                     {
-                        var rg = @"\." + String.Join(@"\.", Enumerable.Repeat(@"\d+", endpartcount)) + @"\Z";
+                        string rg = @"\." + String.Join(@"\.", Enumerable.Repeat(@"\d+", endpartcount)) + @"\Z";
                         highstr = Regex.Replace(lowstr, rg, "." + highstr__end);
                     }
                     low = IPAddress.Parse(lowstr);
@@ -77,13 +77,13 @@ namespace FezMultiplayerDedicatedServer
                 else if (Regex.IsMatch(str, @"\A(\d+\.){1,3}\Z"))
                 {
                     //Implied IP address (e.g., 10. )
-                    var lowstr = str;
+                    string lowstr = str;
                     while (lowstr.Count(c => c == '.') < 3)
                     {
                         lowstr += "0.";
                     }
                     lowstr += "0";
-                    var highstr = str;
+                    string highstr = str;
                     while (highstr.Count(c => c == '.') < 3)
                     {
                         highstr += "255.";
@@ -126,7 +126,7 @@ namespace FezMultiplayerDedicatedServer
             }
             public bool Contains(IPAddress address)
             {
-                var val = IPAddressToHostUInt32(address);
+                uint val = IPAddressToHostUInt32(address);
                 return val >= low && val <= high;
             }
         }

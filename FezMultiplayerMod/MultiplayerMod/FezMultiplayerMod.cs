@@ -171,7 +171,7 @@ namespace FezGame.MultiplayerMod
                 }
                 try
                 {
-                    foreach (var p in mp.Players.Values)
+                    foreach (PlayerMetadata p in mp.Players.Values)
                     {
                         DrawPlayer(p, gameTime, false);
                         mesh.Draw();
@@ -218,8 +218,8 @@ namespace FezGame.MultiplayerMod
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 try
                 {
-                    var players = mp.Players.Values.OrderByDescending(p => Vector3.Distance(mp.MyPlayerMetadata.Position, p.Position));
-                    foreach (var p in players)
+                    IOrderedEnumerable<PlayerMetadata> players = mp.Players.Values.OrderByDescending(p => Vector3.Distance(mp.MyPlayerMetadata.Position, p.Position));
+                    foreach (PlayerMetadata p in players)
                     {
                         if (ShowDebugInfo)
                         {

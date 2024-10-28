@@ -34,25 +34,25 @@ namespace FezSharedTools
                 return settings;
             }
 
-            var fields = typeof(T).GetFields().ToDictionary(a => a.Name, StringComparer.InvariantCultureIgnoreCase);
+            Dictionary<string, FieldInfo> fields = typeof(T).GetFields().ToDictionary(a => a.Name, StringComparer.InvariantCultureIgnoreCase);
 
             string[] lines = File.ReadAllLines(filepath, System.Text.Encoding.UTF8);
-            foreach (var line in lines)
+            foreach (string line in lines)
             {
-                var trimmed = line.TrimStart();
+                string trimmed = line.TrimStart();
                 if (trimmed.StartsWith(";") || trimmed.Length <= 0)
                     continue;
                 if (trimmed.StartsWith("["))
                 {
                     continue;
                 }
-                var kvmatch = Regex.Match(trimmed, $@"(.*?)(?:{IniKeyValDelimiter}(.*))?$");
+                Match kvmatch = Regex.Match(trimmed, $@"(.*?)(?:{IniKeyValDelimiter}(.*))?$");
                 string key = kvmatch.Groups[1].Value.Trim();
                 string value = kvmatch.Groups[2].Success ? kvmatch.Groups[2].Value : "";
 
                 if (fields.ContainsKey(key))
                 {
-                    var f = fields[key];
+                    FieldInfo f = fields[key];
                     object v = ParseObject(f.FieldType, value.Trim());
                     if (v != null)
                     {
@@ -87,9 +87,9 @@ namespace FezSharedTools
             };
 
             FieldInfo[] fields = typeof(T).GetFields();
-            foreach (var field in fields)
+            foreach (FieldInfo field in fields)
             {
-                var desc = "; " + (field.GetCustomAttributes(typeof(DescriptionAttribute), true).FirstOrDefault() as DescriptionAttribute)?.Description;
+                string desc = "; " + (field.GetCustomAttributes(typeof(DescriptionAttribute), true).FirstOrDefault() as DescriptionAttribute)?.Description;
                 // desc = Regex.Replace(desc, @"(?<=[a-z]\. )", "\n; ");
                 lines.Add(desc);
                 lines.Add(field.Name + IniKeyValDelimiter + FormatObject(field.GetValue(settings)));

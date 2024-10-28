@@ -184,6 +184,7 @@ namespace FezMultiplayerDedicatedServer
                     {
                         //TODO send them our data and get player appearance from client
                         WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, sharedSaveData);
+                        Console.WriteLine($"Player connected from {tcpClient.Client.RemoteEndPoint}. Assigning uuid {uuid}.");
                         bool Disconnecting = ReadClientGameTickPacket(reader);
                         while (tcpClient.Connected)
                         {
@@ -215,9 +216,10 @@ namespace FezMultiplayerDedicatedServer
 
         protected override void ProcessDisconnect(Guid puid)
         {
+            Console.WriteLine($"Disconnecting player {puid}.");
             try
             {
-                if (Players.TryGetValue(puid, out var p) && !DisconnectedPlayers.ContainsKey(puid))
+                if (Players.TryGetValue(puid, out ServerPlayerMetadata p) && !DisconnectedPlayers.ContainsKey(puid))
                 {
                     long disconnectTime = DateTime.UtcNow.Ticks;
                     DisconnectedPlayers.AddOrUpdate(puid, disconnectTime, (lpuid, oldTime) => disconnectTime);

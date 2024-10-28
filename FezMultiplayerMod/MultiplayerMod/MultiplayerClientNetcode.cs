@@ -145,6 +145,7 @@ namespace FezGame.MultiplayerMod
                 {
                     System.Diagnostics.Debugger.Launch();
                 }
+                System.Diagnostics.Debugger.Break();
                 throw FatalException;//This should never happen
             }
 
@@ -160,7 +161,7 @@ namespace FezGame.MultiplayerMod
         {
             try
             {
-                if (puid != MyUuid && Players.TryGetValue(puid, out var p))
+                if (puid != MyUuid && Players.TryGetValue(puid, out PlayerMetadata p))
                 {
                     //DisconnectedPlayers.TryAdd(puid, DateTime.UtcNow.Ticks);
                     _ = Players.TryRemove(puid, out _);

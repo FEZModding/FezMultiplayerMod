@@ -141,20 +141,42 @@ namespace FezSharedTools
         //more strict so we can potentially add features (such as colors and effects) using special characters later
         public static readonly System.Text.RegularExpressions.Regex nameInvalidCharRegex = new System.Text.RegularExpressions.Regex(@"[^0-9A-Za-z]");
 
-        public static readonly int maxplayernamelength = 32;
+        public static readonly int MaxPlayerNameLength = 32;
+        public static readonly int MaxLevelNameLength = 256;
 
-        public static string ReadStringWithLengthLimit(this BinaryReader reader, int maxLength)
+        /// <summary>
+        /// Note: do NOT use BinaryReader.ReadString() for network data, as the string length could be maliciously manipulated to hog network traffic.
+        /// <br /> See <a href="https://cwe.mitre.org/data/definitions/130.html">CWE-130</a> and <a href="https://cwe.mitre.org/data/definitions/400.html">CWE-400</a>
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <param name="maxLength"></param>
+        /// <returns></returns>
+        public static string ReadStringAsByteArrayWithLength(this BinaryReader reader, int maxLength)
         {
             const int minLength = 0;
-            int length = (int)read7BitEncodedIntMethod.Invoke(reader, null);//note Read7BitEncodedInt is marked as protected internal on Framework 4.0
+            int length = reader.ReadInt32();
             if (length > maxLength || length < 0)
             {
                 throw new ArgumentOutOfRangeException($"The length {length} is outside the allowed range of {minLength} to {maxLength}.");
             }
             else
             {
-                return new String(reader.ReadChars(length));
+                return Encoding.UTF8.GetString(reader.ReadBytes(length));
             }
+        }
+        /// <summary>
+        /// Writes the string to the writer as a byte array, preceded by the array length.
+        /// </summary>
+        /// <param name="writer">The writer to write to</param>
+        /// <param name="str">The string to send as a byte array</param>
+        /// <remarks>
+        /// See also: <seealso cref="ReadStringAsByteArrayWithLength"/>
+        /// </remarks>
+        public static void WriteStringAsByteArrayWithLength(this BinaryWriter writer, string str)
+        {
+            byte[] bytes = Encoding.UTF8.GetBytes(str);
+            writer.Write((Int32)bytes.Length);
+            writer.Write(bytes);
         }
 
         public static Guid ReadGuid(this BinaryReader reader)
@@ -169,7 +191,7 @@ namespace FezSharedTools
         public static PlayerMetadata ReadPlayerMetadata(this BinaryReader reader)
         {
             Guid uuid = reader.ReadGuid();
-            string lvl = reader.ReadString();
+            string lvl = reader.ReadStringAsByteArrayWithLength(MaxLevelNameLength);
             Vector3 pos = new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
             Viewpoint vp = (Viewpoint)reader.ReadInt32();
             ActionType act = (ActionType)reader.ReadInt32();
@@ -181,7 +203,7 @@ namespace FezSharedTools
         public static void Write(this BinaryWriter writer, PlayerMetadata playerMetadata)
         {
             writer.Write((Guid)playerMetadata.Uuid);
-            writer.Write((String)playerMetadata.CurrentLevelName ?? "");
+            writer.WriteStringAsByteArrayWithLength((String)playerMetadata.CurrentLevelName ?? "");
             writer.Write((Single)playerMetadata.Position.X);
             writer.Write((Single)playerMetadata.Position.Y);
             writer.Write((Single)playerMetadata.Position.Z);
@@ -194,13 +216,13 @@ namespace FezSharedTools
 
         public static PlayerAppearance ReadPlayerAppearance(this BinaryReader reader)
         {
-            string name = reader.ReadStringWithLengthLimit(maxplayernamelength);
+            string name = reader.ReadStringAsByteArrayWithLength(MaxPlayerNameLength);
             object appearance = null;//TODO
             return new PlayerAppearance(name, appearance);
         }
         public static void Write(this BinaryWriter writer, PlayerAppearance playerAppearance)
         {
-            writer.Write(playerAppearance.PlayerName);
+            writer.WriteStringAsByteArrayWithLength(playerAppearance.PlayerName);
             //writer.Write(playerAppearance.CustomCharacterAppearance);//TODO
         }
 
