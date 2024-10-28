@@ -104,10 +104,16 @@ namespace FezSharedTools
             this.TODO = TODO;
         }
     }
+    public class SharedSaveData
+    {
+        //TODO
+    }
+
     public static class FezMultiplayerBinaryIOExtensions
     {
         private static readonly MethodInfo read7BitEncodedIntMethod;
-        static FezMultiplayerBinaryIOExtensions(){
+        static FezMultiplayerBinaryIOExtensions()
+        {
             //Read7BitEncodedInt is marked as protected internal on Framework 4.0
             read7BitEncodedIntMethod = typeof(BinaryReader).GetMethod(
                     "Read7BitEncodedInt",
@@ -248,7 +254,8 @@ namespace FezSharedTools
         /// </summary>
         /// <param name="reader">The BinaryReader to read data from</param>
         /// <returns>true if the client is going to disconnect</returns>
-        protected bool ReadClientGameTickPacket(BinaryReader reader){
+        protected bool ReadClientGameTickPacket(BinaryReader reader)
+        {
             PlayerMetadata playerMetadata = reader.ReadPlayerMetadata();
             if (reader.ReadBoolean())
             {
@@ -258,7 +265,7 @@ namespace FezSharedTools
             if (reader.ReadBoolean())
             {
                 ActiveLevelState levelState = reader.ReadActiveLevelState();
-                //TODO do something with read data
+                ProcessActiveLevelState(levelState);
             }
             if (reader.ReadBoolean())
             {
@@ -268,7 +275,8 @@ namespace FezSharedTools
             bool Disconnecting = reader.ReadBoolean();
             return Disconnecting;
         }
-        protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState, PlayerAppearance? appearance, bool Disconnecting){
+        protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState, PlayerAppearance? appearance, bool Disconnecting)
+        {
             writer.Write(playerMetadata);
             writer.Write(saveDataUpdate.HasValue);
             if (saveDataUpdate.HasValue)
@@ -288,13 +296,15 @@ namespace FezSharedTools
             writer.Write(Disconnecting);
             writer.Flush();
         }
-        protected void ReadServerGameTickPacket(BinaryReader reader){
+        protected void ReadServerGameTickPacket(BinaryReader reader)
+        {
             int playerMetadataListLength = reader.ReadInt32();
             for (int i = 0; i < playerMetadataListLength; ++i)
             {
                 PlayerMetadata playerMetadata = reader.ReadPlayerMetadata();
                 //update the data in Players
-                Players.AddOrUpdate(playerMetadata.Uuid, (P)playerMetadata, (guid, currentval) => {
+                Players.AddOrUpdate(playerMetadata.Uuid, (P)playerMetadata, (guid, currentval) =>
+                {
                     if (currentval.LastUpdateTimestamp < playerMetadata.LastUpdateTimestamp)
                     {
                         currentval.CopyValuesFrom(playerMetadata);
@@ -303,16 +313,15 @@ namespace FezSharedTools
                     return currentval;
                 });
             }
-            if(reader.ReadBoolean()){
+            if (reader.ReadBoolean())
+            {
                 SaveDataUpdate saveDataUpdate = reader.ReadSaveDataUpdate();
                 ProcessSaveDataUpdate(saveDataUpdate);
             }
             int activeLevelStateListLength = reader.ReadInt32();
-            List<ActiveLevelState> activeLevelStates = new List<ActiveLevelState>(activeLevelStateListLength);
             for (int i = 0; i < activeLevelStateListLength; ++i)
             {
-                activeLevelStates.Add(reader.ReadActiveLevelState());
-                //TODO do something with read data
+                ProcessActiveLevelState(reader.ReadActiveLevelState());
             }
             int disconnectedPlayersListLength = reader.ReadInt32();
             for (int i = 0; i < disconnectedPlayersListLength; ++i)
@@ -330,9 +339,10 @@ namespace FezSharedTools
                 ProcessNewClientGuid(NewClientGuid);
             }
         }
-        protected void WriteServerGameTickPacket(BinaryWriter writer, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, List<ActiveLevelState> levelStates,
-                                                            List<Guid> disconnectedPlayers, Dictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
-                                                            object sharedSaveData) {
+        protected void WriteServerGameTickPacket(BinaryWriter writer, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
+                                                            ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
+                                                            SharedSaveData sharedSaveData)
+        {
             writer.Write((int)playerMetadatas.Count);
             foreach (PlayerMetadata playerMetadata in playerMetadatas)
             {
@@ -378,6 +388,7 @@ namespace FezSharedTools
         protected abstract void ProcessDisconnect(Guid puid);
         protected abstract void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate);
         protected virtual void ProcessNewClientGuid(Guid puid) { }
-#endregion
+        protected abstract void ProcessActiveLevelState(ActiveLevelState activeLevelState);
+        #endregion
     }
 }

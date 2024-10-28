@@ -27,7 +27,7 @@ namespace FezSharedTools
         /// <remarks>
         /// See also <seealso cref="IniTools.WriteSettingsFile{T}(string, T)"/>
         /// </remarks>
-        public static T ReadSettingsFile <T>(string filepath, T settings)
+        public static T ReadSettingsFile<T>(string filepath, T settings)
         {
             if (!File.Exists(filepath))
             {
@@ -139,23 +139,23 @@ namespace FezSharedTools
                                 a = a.Trim();
                                 int portsepindex = a.LastIndexOf(':');
                                 string addr;//Note: the replaces are for IPv6
-                            string port;
+                                int port;
                                 if (portsepindex < 0)
                                 {
                                     portsepindex = a.Length;
-                                    port = "" + SharedConstants.DefaultPort;
+                                    port = SharedConstants.DefaultPort;
                                     string msg = $"port for endpoint \"{a}\" not found. Using default port ({SharedConstants.DefaultPort})";
 #if FEZCLIENT
                                     Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, msg);
 #endif
-                                   Console.WriteLine("Warning: " + msg);
+                                    Console.WriteLine("Warning: " + msg);
                                 }
                                 else
                                 {
-                                    port = a.Substring(portsepindex + 1);
+                                    port = int.Parse(a.Substring(portsepindex + 1));
                                 }
                                 addr = a.Substring(0, portsepindex).Replace("[", "").Replace("]", "");//Note: the replaces are for IPv6
-                            return new IPEndPoint(IPAddress.Parse(addr), int.Parse(port));
+                                return new IPEndPoint(IPAddress.Parse(addr), port);
                             }
                             catch (Exception e)
                             {

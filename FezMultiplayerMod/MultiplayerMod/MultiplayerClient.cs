@@ -69,5 +69,29 @@ namespace FezGame.MultiplayerMod
             p.LastUpdateTimestamp = DateTime.UtcNow.Ticks;
             MyPlayerMetadata = p;
         }
+
+        protected override SaveDataUpdate GetSaveDataUpdate()
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+
+        protected override ActiveLevelState GetCurrentLevelState()
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+
+        protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+
+        protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
     }
 }

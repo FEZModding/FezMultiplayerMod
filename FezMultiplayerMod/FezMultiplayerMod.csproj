@@ -41,8 +41,6 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="System.Drawing" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.XML" />
     <Reference Include="XnaWordWrapCore">
       <HintPath>..\libs\XnaWordWrapCore.dll</HintPath>
       <Private>False</Private>

@@ -42,6 +42,7 @@ namespace FezMultiplayerDedicatedServer
 
             //Note: gotta keep the program busy otherwise it'll close
 
+            //TODO make the CLI better
 
             string line;
             while (true)

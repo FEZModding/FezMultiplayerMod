@@ -20,15 +20,14 @@ namespace FezGame.MultiplayerMod
         [Description("A string representing the name to display for this client.")]
         public string myPlayerName = "Player";
         /// <summary>
-        /// TBD
+        /// Format currently TBD. The custom player skin/appearance to use
         /// </summary>
-        [Description("TBD")]
+        [Description("Format currently TBD. The custom player skin/appearance to use")]
         public string appearance = "";
         /// <summary>
-        /// TBD
+        /// If true, attempts to sync world save data, level states, and player inventories across players. Note that this setting must also be enabled on the server for it to work.
         /// </summary>
-        [Description("TBD")]
+        [Description("If true, attempts to sync world save data, level states, and player inventories across players. Note that this setting must also be enabled on the server for it to work.")]
         public bool syncWorldState = false;
     }
-
 }

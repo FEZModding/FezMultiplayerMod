@@ -43,6 +43,7 @@ namespace FezMultiplayerDedicatedServer
         private readonly bool useAllowList;
         private readonly IPFilter AllowList;
         private readonly IPFilter BlockList;
+        private bool syncWorldState;
 
         /// <summary>
         /// How long to wait, in ticks, before stopping sending or receiving packets for this player.
@@ -59,6 +60,8 @@ namespace FezMultiplayerDedicatedServer
         public event Action OnUpdate = () => { };
         public event Action OnDispose = () => { };
 
+        private readonly List<ActiveLevelState> activeLevelStates = new List<ActiveLevelState>();
+
         /// <summary>
         /// Creates a new instance of this class with the provided parameters.
         /// For any errors that get encountered see <see cref="ErrorMessage"/> an <see cref="FatalException"/>
@@ -71,6 +74,7 @@ namespace FezMultiplayerDedicatedServer
             this.useAllowList = settings.useAllowList;
             this.AllowList = settings.AllowList;
             this.BlockList = settings.BlockList;
+            this.syncWorldState = settings.SyncWorldState;
 
             listenerThread = new Thread(() =>
             {
@@ -103,28 +107,9 @@ namespace FezMultiplayerDedicatedServer
                     }
                     while (!disposing)
                     {
-                        //IPEndPoint object will allow us to read datagrams sent from any source.
-                        tcpListener.AcceptTcpClientAsync().ContinueWith(tcpClientTask =>
-                        {
-                            if (tcpClientTask.Status == TaskStatus.RanToCompletion) {
-                                OnNewClientConnect(tcpClientTask.Result);
-                            }
-                            else if (tcpClientTask.Status == TaskStatus.Faulted)
-                            {
-                                // Directly accessing Exception since we assume it should not be null
-                                var exception = tcpClientTask.Exception;
-
-                                if (exception != null) // This check is mostly for safety
-                                {
-                                    Console.WriteLine(exception.GetBaseException().Message);
-                                }
-                                else
-                                {
-                                    // It's unlikely this else case will happen, but in case it does
-                                    Console.WriteLine("No exception details available.");
-                                }
-                            }
-                        });
+                        //Note: AcceptTcpClient blocks until a connection is made
+                        TcpClient client = tcpListener.AcceptTcpClient();
+                        new Thread(() => OnNewClientConnect(client)).Start();
                     }
                     tcpListener.Stop();
                 }
@@ -190,7 +175,6 @@ namespace FezMultiplayerDedicatedServer
             {
                 stream.ReadTimeout = overduetimeout;
                 stream.WriteTimeout = overduetimeout;
-                Dictionary<Guid, PlayerAppearance> emplyPlayerAppearDict = new Dictionary<Guid, PlayerAppearance>();
                 using (NetworkStream tcpStream = tcpClient.GetStream())
                 using (BinaryReader reader = new BinaryReader(tcpStream))
                 using (BinaryWriter writer = new BinaryWriter(tcpStream))
@@ -199,7 +183,7 @@ namespace FezMultiplayerDedicatedServer
                     try
                     {
                         //TODO send them our data and get player appearance from client
-                        WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, levelStates, DisconnectedPlayers, PlayerAppearances, uuid, sharedSaveData);
+                        WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, sharedSaveData);
                         bool Disconnecting = ReadClientGameTickPacket(reader);
                         while (tcpClient.Connected)
                         {
@@ -208,7 +192,7 @@ namespace FezMultiplayerDedicatedServer
                                 break;
                             }
                             //repeat until the client disconnects or times out
-                            WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), saveDataUpdate, levelStates, DisconnectedPlayers, emplyPlayerAppearDict, null, null);
+                            WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys, GetNewPlayerAppearances(), null, null);
                             Disconnecting = ReadClientGameTickPacket(reader);
                         }
                     }
@@ -242,6 +226,40 @@ namespace FezMultiplayerDedicatedServer
             }
             catch (InvalidOperationException) { }
             catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
+        }
+
+        private static readonly List<ActiveLevelState> empty = new List<ActiveLevelState>();
+        private List<ActiveLevelState> GetActiveLevelStates()
+        {
+            return syncWorldState ? activeLevelStates : empty;
+        }
+
+        private readonly SharedSaveData sharedSaveData = new SharedSaveData();
+
+        protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+        private SaveDataUpdate? GetSaveDataUpdate()
+        {
+            if (!syncWorldState)
+            {
+                return null;
+            }
+            //TODO
+            throw new NotImplementedException();
+        }
+
+        protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
+        {
+            //TODO
+            throw new NotImplementedException();
+        }
+        private Dictionary<Guid, PlayerAppearance> GetNewPlayerAppearances()
+        {
+            return null;
+            throw new NotImplementedException();
         }
     }
 }

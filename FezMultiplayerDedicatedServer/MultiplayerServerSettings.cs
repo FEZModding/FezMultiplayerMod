@@ -19,7 +19,7 @@ namespace FezMultiplayerDedicatedServer
         [Description("The amount of times to attempt to use the next port as the port to listen to before giving up.")]
         public int maxAdjustListenPortOnBindFail = 1000;
         /// <summary>
-        /// The amount of time, in <see cref="System.DateTime.Ticks">ticks</see>, to wait before removing a player. For reference, there are 10000000 (ten million) ticks in one second.
+        /// The amount of time, in milliseconds, to wait before removing a player. For reference, there are 1000 (one thousand) milliseconds in one second.
         /// </summary>
         [Description("The amount of time, in milliseconds, to wait before removing a player. For reference, there are 1000 (one thousand) milliseconds in one second.")]
         public int overduetimeout = 5000;
@@ -45,7 +45,13 @@ namespace FezMultiplayerDedicatedServer
         /// Packets from IP addresses included in this list will be ignored.
         /// <inheritdoc cref='IPFilter.IPFilter(string)' path="//para[@name='desc']"/>
         /// </summary>
-        [Description("Packets from IP addresses included in this list will be ignored. "+ IPFilterDesc)]
+        [Description("Packets from IP addresses included in this list will be ignored. " + IPFilterDesc)]
         public readonly IPFilter BlockList = new IPFilter("");
+
+        /// <summary>
+        /// If true, attempts to sync world save data, level states, and player inventories across players. Note that this setting must also be enabled on the clients for it to work.
+        /// </summary>
+        [Description("If true, attempts to sync world save data, level states, and player inventories across players. Note that this setting must also be enabled on the clients for it to work.")]
+        public bool SyncWorldState = false;
     }
 }
