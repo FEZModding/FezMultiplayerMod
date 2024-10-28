@@ -37,8 +37,9 @@ namespace FezMultiplayerDedicatedServer
             }
         }
 
-        private volatile TcpListener tcpListener;
-        private readonly Thread listenerThread;
+        private readonly TcpListener tcpListener;
+        private readonly Task listenerTask;
+        private int listenPort;
         protected readonly int overduetimeout;
         private readonly bool useAllowList;
         private readonly IPFilter AllowList;
@@ -62,76 +63,78 @@ namespace FezMultiplayerDedicatedServer
         /// <param name="settings">The <see cref="MultiplayerServerSettings"/> to use to create this instance.</param>
         internal MultiplayerServer(MultiplayerServerSettings settings)
         {
-            int listenPort = settings.ListenPort;
+            this.listenPort = settings.ListenPort;
             this.overduetimeout = settings.OverdueTimeout;
             this.useAllowList = settings.UseAllowList;
             this.AllowList = settings.AllowList;
             this.BlockList = settings.BlockList;
             this.SyncWorldState = settings.SyncWorldState;
 
-            listenerThread = new Thread(async () =>
+            bool initializing = true;
+            int retries = 0;
+            while (initializing)
             {
                 try
                 {
-                    bool initializing = true;
-                    int retries = 0;
-                    while (initializing)
+                    tcpListener = new TcpListener(IPAddress.Any, listenPort);
+                    tcpListener.Start();
+                    initializing = false;
+                }
+                catch (Exception e)
+                {
+                    if (settings.MaxAdjustListenPortOnBindFail > retries++)
                     {
+                        listenPort++;
+                    }
+                    else
+                    {
+                        //ErrorMessage = e.Message;
+                        ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - retries + 1} to {listenPort} are already in use";
+                        //listenerThread.Abort(e);//does this even work?//calling Abort is a bad idea
+                        return;
+                    }
+                }
+            }
+            listenerTask = StartAcceptTcpClients();
+        }
+
+        private async Task StartAcceptTcpClients()
+        {
+            try
+            {
+                while (!disposing)
+                {
+                    //Note: AcceptTcpClient blocks until a connection is made
+                    //Note: apparently tcpListener.AcceptTcpClient(); is so blocking, if it's in a Thread, it even blocks calls to that thread's .Abort() method 
+                    //TcpClient client = tcpListener.AcceptTcpClient();
+                    TcpClient client = await tcpListener.AcceptTcpClientAsync();
+                    new Thread(() => {
                         try
                         {
-                            tcpListener = new TcpListener(IPAddress.Any, listenPort);
-                            tcpListener.Start();
-                            initializing = false;
+                            IPEndPoint remoteEndpoint = (IPEndPoint)client.Client.RemoteEndPoint;
+                            if (BlockList.Contains(remoteEndpoint.Address)
+                                || (useAllowList && !AllowList.Contains(remoteEndpoint.Address))
+                                    )
+                            {
+                                client.Client.Shutdown(SocketShutdown.Both);
+                                //client.Client.Close();
+                                client.Close();
+                                return;
+                            }
+                            OnNewClientConnect(client);
                         }
                         catch (Exception e)
                         {
-                            if (settings.MaxAdjustListenPortOnBindFail > retries++)
-                            {
-                                listenPort++;
-                            }
-                            else
-                            {
-                                //ErrorMessage = e.Message;
-                                ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - retries + 1} to {listenPort} are already in use";
-                                //listenerThread.Abort(e);//does this even work?//calling Abort is a bad idea
-                                return;
-                            }
+                            //TODO
+                            Console.WriteLine(e);
+                            client.Close();
                         }
-                    }
-                    while (!disposing)
-                    {
-                        //Note: AcceptTcpClient blocks until a connection is made
-                        //Note: apparently tcpListener.AcceptTcpClient(); is so blocking, if it's in a Thread, it even blocks calls to that thread's .Abort() method 
-                        //TcpClient client = tcpListener.AcceptTcpClient();
-                        TcpClient client = await tcpListener.AcceptTcpClientAsync();
-                        new Thread(() => {
-                            try
-                            {
-                                IPEndPoint remoteEndpoint = (IPEndPoint)client.Client.RemoteEndPoint;
-                                if (BlockList.Contains(remoteEndpoint.Address)
-                                    || (useAllowList && !AllowList.Contains(remoteEndpoint.Address))
-                                        )
-                                {
-                                    client.Client.Shutdown(SocketShutdown.Both);
-                                    //client.Client.Close();
-                                    client.Close();
-                                    return;
-                                }
-                                OnNewClientConnect(client);
-                            }
-                            catch (Exception e)
-                            {
-                                //TODO
-                                Console.WriteLine(e);
-                                client.Close();
-                            }
-                        }).Start();
-                    }
+                    }).Start();
                 }
-                catch (Exception e) { FatalException = e; }
-            });
-            listenerThread.Start();
+            }
+            catch (Exception e) { FatalException = e; }
         }
+
 
         // I was told "Your Dispose implementation needs work https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern"
         // and stuff like "It technically works but is dangerous" and "always use an internal protected Dispose method" and "always call GC.SuppressFinalize(this) in the public Dispose method"
@@ -157,17 +160,11 @@ namespace FezMultiplayerDedicatedServer
                     this.disposing = true;//let child threads know it's disposing time
                     OnDispose();
                     Thread.Sleep(1000);//try to wait for child threads to stop on their own
-                    if (listenerThread.IsAlive)
-                    {
-                        listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
-                    }
                     foreach (TcpClient client in connectedClients)
                     {
                         client.Close();
                     }
                     tcpListener.Stop();
-
-                    tcpListener.Stop();//must be after listenerThread is stopped
                 }
 
                 // Dispose unmanaged resources here
