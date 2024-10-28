@@ -45,13 +45,6 @@ namespace FezMultiplayerDedicatedServer
         private readonly IPFilter BlockList;
         private bool syncWorldState;
 
-        /// <summary>
-        /// How long to wait, in ticks, before stopping sending or receiving packets for this player.
-        /// This is required otherwise race conditions can occur.
-        /// <br /><br />Note: could make this customizable
-        /// </summary>
-        private readonly long preoverduetimeoutoffset = TimeSpan.TicksPerSecond * 5;
-
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
         private IEnumerable<TcpClient> connectedClients => Players.Select(p => p.Value.tcpClient);
@@ -109,7 +102,31 @@ namespace FezMultiplayerDedicatedServer
                     {
                         //Note: AcceptTcpClient blocks until a connection is made
                         TcpClient client = tcpListener.AcceptTcpClient();
-                        new Thread(() => OnNewClientConnect(client)).Start();
+                        new Thread(() => {
+                            try
+                            {
+                                IPEndPoint remoteEndpoint = (IPEndPoint)client.Client.RemoteEndPoint;
+                                if (BlockList.Contains(remoteEndpoint.Address)
+                                    || (useAllowList && !AllowList.Contains(remoteEndpoint.Address))
+                                        )
+                                {
+                                    client.Client.Shutdown(SocketShutdown.Both);
+                                    //client.Client.Close();
+                                    client.Close();
+                                    return;
+                                }
+                                OnNewClientConnect(client);
+                            }
+                            catch (Exception e)
+                            {
+                                //TODO
+                                Console.WriteLine(e);
+                            }
+                        }).Start();
+                    }
+                    foreach(TcpClient client in connectedClients)
+                    {
+                        client.Close();
                     }
                     tcpListener.Stop();
                 }
@@ -171,6 +188,7 @@ namespace FezMultiplayerDedicatedServer
 
         private void OnNewClientConnect(TcpClient tcpClient)
         {
+            Guid uuid = Guid.NewGuid();
             using (NetworkStream stream = tcpClient.GetStream())
             {
                 stream.ReadTimeout = overduetimeout;
@@ -179,7 +197,6 @@ namespace FezMultiplayerDedicatedServer
                 using (BinaryReader reader = new BinaryReader(tcpStream))
                 using (BinaryWriter writer = new BinaryWriter(tcpStream))
                 {
-                    Guid uuid = Guid.NewGuid();
                     try
                     {
                         //TODO send them our data and get player appearance from client
@@ -202,16 +219,16 @@ namespace FezMultiplayerDedicatedServer
                         //TODO
                         Console.WriteLine(e);
                     }
-                    long disconnectTime = DateTime.UtcNow.Ticks;
-                    DisconnectedPlayers.AddOrUpdate(uuid, disconnectTime, (puid, oldTime) => disconnectTime);
-                    ProcessDisconnect(uuid);
                     reader.Close();
                     writer.Close();
                     tcpStream.Close();
-                    tcpClient.Close();
-                    tcpClient.Dispose();
                 }
             }
+            long disconnectTime = DateTime.UtcNow.Ticks;
+            DisconnectedPlayers.AddOrUpdate(uuid, disconnectTime, (puid, oldTime) => disconnectTime);
+            ProcessDisconnect(uuid);
+            tcpClient.Close();
+            tcpClient.Dispose();
         }
 
         protected override void ProcessDisconnect(Guid puid)
@@ -240,6 +257,10 @@ namespace FezMultiplayerDedicatedServer
 
         protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
         {
+            if (!syncWorldState)
+            {
+                return;
+            }
             //TODO
             throw new NotImplementedException();
         }
@@ -255,6 +276,10 @@ namespace FezMultiplayerDedicatedServer
 
         protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
         {
+            if (!syncWorldState)
+            {
+                return;
+            }
             //TODO
             throw new NotImplementedException();
         }

@@ -35,6 +35,8 @@ namespace FezGame.MultiplayerMod
         [ServiceDependency]
         public IGameCameraManager CameraManager { private get; set; }
 
+        private readonly bool syncWorldState;
+
         /// <summary>
         /// Creates a new instance of this class with the provided parameters.
         /// For any errors that get encountered see <see cref="ErrorMessage"/> an <see cref="FatalException"/>
@@ -45,6 +47,8 @@ namespace FezGame.MultiplayerMod
             _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () => ServiceHelper.InjectServices(this));
 
             OnUpdate += UpdateMyPlayer;
+
+            syncWorldState = settings.syncWorldState;
         }
 
         public void UpdateMyPlayer()
@@ -70,26 +74,42 @@ namespace FezGame.MultiplayerMod
             MyPlayerMetadata = p;
         }
 
-        protected override SaveDataUpdate GetSaveDataUpdate()
+        protected override SaveDataUpdate? GetSaveDataUpdate()
         {
+            if (!syncWorldState)
+            {
+                return null;
+            }
             //TODO
             throw new NotImplementedException();
         }
 
-        protected override ActiveLevelState GetCurrentLevelState()
+        protected override ActiveLevelState? GetCurrentLevelState()
         {
+            if (!syncWorldState)
+            {
+                return null;
+            }
             //TODO
             throw new NotImplementedException();
         }
 
         protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
         {
+            if (!syncWorldState)
+            {
+                return;
+            }
             //TODO
             throw new NotImplementedException();
         }
 
         protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
         {
+            if (!syncWorldState)
+            {
+                return;
+            }
             //TODO
             throw new NotImplementedException();
         }

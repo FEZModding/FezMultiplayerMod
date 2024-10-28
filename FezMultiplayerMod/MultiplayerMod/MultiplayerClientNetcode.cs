@@ -95,8 +95,8 @@ namespace FezGame.MultiplayerMod
             listenerThread.Start();
         }
 
-        protected abstract SaveDataUpdate GetSaveDataUpdate();
-        protected abstract ActiveLevelState GetCurrentLevelState();
+        protected abstract SaveDataUpdate? GetSaveDataUpdate();
+        protected abstract ActiveLevelState? GetCurrentLevelState();
 
         // I was told "Your Dispose implementation needs work https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern"
         // and stuff like "It technically works but is dangerous" and "always use an internal protected Dispose method" and "always call GC.SuppressFinalize(this) in the public Dispose method"
