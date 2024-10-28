@@ -90,6 +90,7 @@ namespace FezGame.MultiplayerMod
         public FezMultiplayerMod(Game game)
             : base(game)
         {
+            System.Diagnostics.Debugger.Launch();
             //Fez.SkipIntro = true;
             Instance = this;
             ServiceHelper.AddComponent(debugTextDrawer = new DebugTextDrawer(game, Instance), false);
@@ -101,7 +102,6 @@ namespace FezGame.MultiplayerMod
 
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
-
         }
 
         private bool disposing = false;

@@ -141,6 +141,10 @@ namespace FezGame.MultiplayerMod
         {
             if (FatalException != null)
             {
+                if (!System.Diagnostics.Debugger.IsAttached)
+                {
+                    System.Diagnostics.Debugger.Launch();
+                }
                 throw FatalException;//This should never happen
             }
 

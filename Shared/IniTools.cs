@@ -127,42 +127,43 @@ namespace FezSharedTools
                 {
                     return str != null && str.Equals("true", StringComparison.InvariantCultureIgnoreCase);//bool.Parse(str);
                 }
+                if (typeof(IPEndPoint).Equals(t))
+                {
+                    try
+                    {
+                        str = str.Trim();
+                        int portsepindex = str.LastIndexOf(':');
+                        string addr;//Note: the replaces are for IPv6
+                        int port;
+                        if (portsepindex < 0)
+                        {
+                            portsepindex = str.Length;
+                            port = SharedConstants.DefaultPort;
+                            string msg = $"port for endpoint \"{str}\" not found. Using default port ({SharedConstants.DefaultPort})";
+#if FEZCLIENT
+                            Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, msg);
+#endif
+                            Console.WriteLine("Warning: " + msg);
+                        }
+                        else
+                        {
+                            port = int.Parse(str.Substring(portsepindex + 1));
+                        }
+                        addr = str.Substring(0, portsepindex).Replace("[", "").Replace("]", "");//Note: the replaces are for IPv6
+                        return new IPEndPoint(IPAddress.Parse(addr), port);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new ArgumentException($"String \"{str}\" is not a valid IPEndPoint.", "str", e);
+                    }
+                }
                 if (t.IsArray)
                 {
                     Type elementType = t.GetElementType();
-                    if (typeof(IPEndPoint).Equals(elementType))
+                    return str.Split(',').Select(a =>
                     {
-                        return str.Split(',').Select(a =>
-                        {
-                            try
-                            {
-                                a = a.Trim();
-                                int portsepindex = a.LastIndexOf(':');
-                                string addr;//Note: the replaces are for IPv6
-                                int port;
-                                if (portsepindex < 0)
-                                {
-                                    portsepindex = a.Length;
-                                    port = SharedConstants.DefaultPort;
-                                    string msg = $"port for endpoint \"{a}\" not found. Using default port ({SharedConstants.DefaultPort})";
-#if FEZCLIENT
-                                    Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, msg);
-#endif
-                                    Console.WriteLine("Warning: " + msg);
-                                }
-                                else
-                                {
-                                    port = int.Parse(a.Substring(portsepindex + 1));
-                                }
-                                addr = a.Substring(0, portsepindex).Replace("[", "").Replace("]", "");//Note: the replaces are for IPv6
-                                return new IPEndPoint(IPAddress.Parse(addr), port);
-                            }
-                            catch (Exception e)
-                            {
-                                throw new ArgumentException($"String \"{a}\" is not a valid IPEndPoint.", "str", e);
-                            }
-                        }).ToArray();
-                    }
+                        return ParseObject(elementType, a);
+                    }).ToArray();
                 }
                 if (typeof(string).Equals(t))
                 {
