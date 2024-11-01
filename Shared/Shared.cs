@@ -145,12 +145,19 @@ namespace FezSharedTools
         public static readonly int MaxLevelNameLength = 256;
 
         /// <summary>
-        /// Note: do NOT use BinaryReader.ReadString() for network data, as the string length could be maliciously manipulated to hog network traffic.
+        /// Reads a string from the given <see cref="BinaryReader"/> as a byte array with an explicit length,
+        /// throwing an <see cref="ArgumentOutOfRangeException"/> if the string length is larger than <paramref name="maxLength"/>.
+        /// <br /> 
+        /// Note: do NOT use <see cref="BinaryReader.ReadString()"/> for network data, as the string length can be maliciously manipulated to hog network traffic.
         /// <br /> See <a href="https://cwe.mitre.org/data/definitions/130.html">CWE-130</a> and <a href="https://cwe.mitre.org/data/definitions/400.html">CWE-400</a>
         /// </summary>
-        /// <param name="reader"></param>
-        /// <param name="maxLength"></param>
-        /// <returns></returns>
+        /// <param name="reader">The <see cref="BinaryReader"/> from which to read the string.</param>
+        /// <param name="maxLength">The maximum allowable length for the string. Any length greater than this will result in an exception.</param>
+        /// <returns>A string read from the binary stream, decoded using UTF-8.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when the length of the string read (specified by the first 4 bytes) is outside the allowed range of 0 to <paramref name="maxLength"/>.
+        /// This exception is raised to prevent the application from processing excessively long data, which could lead to denial of service or allocate undue resources.
+        /// </exception>
         public static string ReadStringAsByteArrayWithLength(this BinaryReader reader, int maxLength)
         {
             const int minLength = 0;
@@ -256,9 +263,22 @@ namespace FezSharedTools
             return SharedNetcode<PlayerMetadata>.PlayerAppearances[p.Uuid].PlayerName;
         }
     }
+    public class VersionMismatchException : Exception
+    {
+        public string ExpectedVersion { get; }
+        public string ReceivedVersion { get; }
+
+        public VersionMismatchException(string expectedVersion, string receivedVersion)
+            : base($"Protocol version mismatch: Expected '{expectedVersion}', but received '{receivedVersion}'.")
+        {
+            ExpectedVersion = expectedVersion;
+            ReceivedVersion = receivedVersion;
+        }
+    }
     public abstract class SharedNetcode<P> where P : PlayerMetadata
     {
         #region network packet stuff
+        private const int MaxProtocolVersionLength = 32;
         protected const string ProtocolSignature = "FezMultiplayer";// Do not change
         public const string ProtocolVersion = "quince";//Update this ever time you change something that affect the packets
 
@@ -271,6 +291,18 @@ namespace FezSharedTools
         public abstract ConcurrentDictionary<Guid, P> Players { get; }
         public static ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
 
+        protected static void ValidateProcotolAndVersion(string protocolSignature, string protocolVersion)
+        {
+            if (!ProtocolSignature.Equals(protocolSignature))
+            {
+                throw new InvalidDataException($"Invalid Protocol Signature: Expected '{ProtocolSignature}', but received '{protocolSignature}'.");
+            }
+            if (!ProtocolVersion.Equals(protocolVersion))
+            {
+                throw new VersionMismatchException(ProtocolVersion ,protocolVersion);
+            }
+        }
+
         /// <summary>
         /// 
         /// </summary>
@@ -278,6 +310,10 @@ namespace FezSharedTools
         /// <returns>true if the client is going to disconnect</returns>
         protected bool ReadClientGameTickPacket(BinaryReader reader)
         {
+            string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
+            string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
+            ValidateProcotolAndVersion(sig, ver);
+
             PlayerMetadata playerMetadata = reader.ReadPlayerMetadata();
             if (reader.ReadBoolean())
             {
@@ -299,6 +335,9 @@ namespace FezSharedTools
         }
         protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState, PlayerAppearance? appearance, bool Disconnecting)
         {
+            writer.WriteStringAsByteArrayWithLength(ProtocolSignature);
+            writer.WriteStringAsByteArrayWithLength(ProtocolVersion);
+
             writer.Write(playerMetadata);
             writer.Write(saveDataUpdate.HasValue);
             if (saveDataUpdate.HasValue)
@@ -320,6 +359,10 @@ namespace FezSharedTools
         }
         protected void ReadServerGameTickPacket(BinaryReader reader)
         {
+            string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
+            string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
+            ValidateProcotolAndVersion(sig, ver);
+
             int playerMetadataListLength = reader.ReadInt32();
             for (int i = 0; i < playerMetadataListLength; ++i)
             {
@@ -365,6 +408,9 @@ namespace FezSharedTools
                                                             ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
                                                             SharedSaveData sharedSaveData)
         {
+            writer.WriteStringAsByteArrayWithLength(ProtocolSignature);
+            writer.WriteStringAsByteArrayWithLength(ProtocolVersion);
+
             writer.Write((int)playerMetadatas.Count);
             foreach (PlayerMetadata playerMetadata in playerMetadatas)
             {

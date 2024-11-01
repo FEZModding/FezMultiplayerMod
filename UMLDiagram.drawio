@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.17 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.17">
   <diagram id="0-7Qm0cGNNnwY8iMT89a" name="Data Layout">
-    <mxGraphModel dx="1034" dy="721" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+    <mxGraphModel dx="501" dy="349" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -9,9 +9,9 @@
             <mxPoint x="604" y="464" as="sourcePoint" />
             <mxPoint x="780" y="400" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="1050" y="754" />
-              <mxPoint x="1050" y="550" />
-              <mxPoint x="670" y="550" />
+              <mxPoint x="1110" y="754" />
+              <mxPoint x="1110" y="540" />
+              <mxPoint x="670" y="540" />
               <mxPoint x="670" y="381" />
             </Array>
           </mxGeometry>
@@ -168,8 +168,8 @@
             <mxPoint x="820" y="680" as="sourcePoint" />
             <mxPoint x="659" y="510" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="1030" y="790" />
-              <mxPoint x="1030" y="470" />
+              <mxPoint x="1090" y="790" />
+              <mxPoint x="1090" y="460" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -185,10 +185,10 @@
           <mxGeometry x="40" y="340" width="200" height="20" as="geometry" />
         </mxCell>
         <mxCell id="4qymHgG-RHxKKIISKwvI-13" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;ActiveLevelState&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;CurrentLevelName&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;PickupGroups&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;WaterHeight&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;TimeOfDay&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;(Use SharedSaveData to get LevelState)&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
-          <mxGeometry x="330" y="280" width="260" height="120" as="geometry" />
+          <mxGeometry x="330" y="270" width="260" height="120" as="geometry" />
         </mxCell>
         <mxCell id="4qymHgG-RHxKKIISKwvI-14" value="if&amp;nbsp;&lt;span style=&quot;text-align: left;&quot;&gt;SyncWorldState&amp;nbsp;&lt;/span&gt;is true, Sync this data with clients that are in the same room" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
-          <mxGeometry x="330" y="240" width="260" height="40" as="geometry" />
+          <mxGeometry x="330" y="230" width="260" height="40" as="geometry" />
         </mxCell>
         <mxCell id="4qymHgG-RHxKKIISKwvI-15" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;SaveDataUpdate&lt;/div&gt;&lt;table cellspacing=&quot;0&quot; cellpadding=&quot;2&quot; style=&quot;width:100%;font-size:1em;&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;TBD&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;List&amp;lt;NewUnlockedWarpDestinations&amp;gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;New Unique collectables&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;NewGlobalWaterLevelModifier&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;AchievementCheatCodeDone&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;MapCheatCodeDone&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;WorldUpdates (Dictionary&amp;lt;string, LevelSaveDataUpdate&amp;gt;) (TBD)&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
           <mxGeometry x="460" y="70" width="230" height="160" as="geometry" />
@@ -196,93 +196,92 @@
         <mxCell id="4qymHgG-RHxKKIISKwvI-16" value="The updates for WorldState. Send this data when save data is updated" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
           <mxGeometry x="460" y="40" width="230" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-7" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.637;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=0.001;entryY=0.134;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="tJqg2NbDP2f-t8pP_g2x-10" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-7" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.74;exitDx=0;exitDy=0;edgeStyle=orthogonalEdgeStyle;entryX=0.001;entryY=0.134;entryDx=0;entryDy=0;entryPerimeter=0;exitPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="tJqg2NbDP2f-t8pP_g2x-10" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="540" y="700" as="sourcePoint" />
             <mxPoint x="700" y="700" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="320" y="731" />
-              <mxPoint x="320" y="460" />
-              <mxPoint x="340" y="460" />
+              <mxPoint x="320" y="755" />
+              <mxPoint x="320" y="451" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-9" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.434;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.004;entryY=0.1;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="4qymHgG-RHxKKIISKwvI-13" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-9" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0.001;exitY=0.565;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.004;entryY=0.1;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="4qymHgG-RHxKKIISKwvI-13" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="260" y="740" as="sourcePoint" />
             <mxPoint x="420" y="740" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="310" y="693" />
-              <mxPoint x="310" y="292" />
+              <mxPoint x="310" y="719" />
+              <mxPoint x="310" y="282" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-10" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0.004;exitY=0.331;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.069;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="4qymHgG-RHxKKIISKwvI-15" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-10" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.475;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=0;entryY=0.069;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="4qymHgG-RHxKKIISKwvI-15" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="270" y="750" as="sourcePoint" />
             <mxPoint x="330" y="80" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="300" y="673" />
-              <mxPoint x="300" y="230" />
-              <mxPoint x="440" y="230" />
+              <mxPoint x="300" y="700" />
+              <mxPoint x="300" y="220" />
+              <mxPoint x="440" y="220" />
               <mxPoint x="440" y="81" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="tJqg2NbDP2f-t8pP_g2x-3" value="Send this data to other clients when a client connects" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
-          <mxGeometry x="340" y="420" width="200" height="30" as="geometry" />
+          <mxGeometry x="340" y="410" width="200" height="30" as="geometry" />
         </mxCell>
         <mxCell id="tJqg2NbDP2f-t8pP_g2x-10" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;PlayerAppearance&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;uuid&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;PlayerName&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;FK1&lt;/td&gt;&lt;td&gt;CustomCharacterAppearance&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
-          <mxGeometry x="340" y="450" width="200" height="80" as="geometry" />
+          <mxGeometry x="340" y="440" width="200" height="80" as="geometry" />
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-11" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=1.001;exitY=0.588;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=-0.001;entryY=0.122;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-3" target="tJqg2NbDP2f-t8pP_g2x-10" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-11" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=1.001;exitY=0.781;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=-0.001;entryY=0.122;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-3" target="tJqg2NbDP2f-t8pP_g2x-10" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="320" y="749.97" as="sourcePoint" />
             <mxPoint x="320" y="410.97" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="320" y="720" />
-              <mxPoint x="320" y="460" />
+              <mxPoint x="320" y="751" />
+              <mxPoint x="320" y="450" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-12" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=1.001;exitY=0.488;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.001;entryY=0.1;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-3" target="4qymHgG-RHxKKIISKwvI-13" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-12" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=1.001;exitY=0.664;exitDx=0;exitDy=0;exitPerimeter=0;entryX=-0.001;entryY=0.1;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-3" target="4qymHgG-RHxKKIISKwvI-13" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="350" y="711" as="sourcePoint" />
             <mxPoint x="349" y="250" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="310" y="703" />
-              <mxPoint x="310" y="292" />
+              <mxPoint x="310" y="730" />
+              <mxPoint x="310" y="282" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-13" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=1.001;exitY=0.384;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=-0.001;entryY=0.066;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-3" target="4qymHgG-RHxKKIISKwvI-15" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-13" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=1.002;exitY=0.559;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;entryX=-0.001;entryY=0.066;entryDx=0;entryDy=0;entryPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-3" target="4qymHgG-RHxKKIISKwvI-15" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="350" y="694" as="sourcePoint" />
             <mxPoint x="330" y="80" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="300" y="685" />
-              <mxPoint x="300" y="230" />
-              <mxPoint x="440" y="230" />
+              <mxPoint x="300" y="711" />
+              <mxPoint x="300" y="220" />
+              <mxPoint x="440" y="220" />
               <mxPoint x="440" y="81" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-14" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=1;exitY=0.271;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.07;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-3" target="KzBRDtOJgjtY7-ivDXEG-1" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-14" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=1.001;exitY=0.465;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.07;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-3" target="KzBRDtOJgjtY7-ivDXEG-1" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="270" y="660" as="sourcePoint" />
             <mxPoint x="430" y="660" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="270" y="666" />
+              <mxPoint x="270" y="694" />
               <mxPoint x="270" y="372" />
             </Array>
           </mxGeometry>
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-15" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;entryX=1;entryY=0.068;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" target="KzBRDtOJgjtY7-ivDXEG-1" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-15" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;entryX=1;entryY=0.068;entryDx=0;entryDy=0;entryPerimeter=0;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.392;exitDx=0;exitDy=0;exitPerimeter=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" target="KzBRDtOJgjtY7-ivDXEG-1" edge="1" source="7Khi5_YAd-gwPFn8Hj0F-1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="340" y="658" as="sourcePoint" />
             <mxPoint x="260" y="342" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="270" y="658" />
+              <mxPoint x="270" y="682" />
               <mxPoint x="270" y="372" />
             </Array>
           </mxGeometry>
@@ -298,34 +297,33 @@
         <mxCell id="7Khi5_YAd-gwPFn8Hj0F-18" value="To Do: Add some way of setting this initially" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#f8cecc;strokeColor=#b85450;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
           <mxGeometry x="40" y="40" width="200" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-19" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0.002;exitY=0.794;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="7Khi5_YAd-gwPFn8Hj0F-16" edge="1">
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-19" value="" style="endArrow=open;endFill=1;endSize=12;html=1;rounded=0;exitX=0;exitY=0.905;exitDx=0;exitDy=0;exitPerimeter=0;edgeStyle=orthogonalEdgeStyle;" parent="tJqg2NbDP2f-t8pP_g2x-19" source="7Khi5_YAd-gwPFn8Hj0F-1" target="7Khi5_YAd-gwPFn8Hj0F-16" edge="1">
           <mxGeometry width="160" relative="1" as="geometry">
             <mxPoint x="350" y="731" as="sourcePoint" />
             <mxPoint x="350" y="431" as="targetPoint" />
             <Array as="points">
-              <mxPoint x="340" y="780" />
-              <mxPoint x="290" y="780" />
-              <mxPoint x="290" y="110" />
+              <mxPoint x="290" y="790" />
+              <mxPoint x="290" y="215" />
             </Array>
           </mxGeometry>
         </mxCell>
         <mxCell id="7Khi5_YAd-gwPFn8Hj0F-5" value="Main Network Structures" style="swimlane;whiteSpace=wrap;html=1;dashed=1;dashPattern=1 1;strokeWidth=3;strokeColor=#666600;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
-          <mxGeometry x="20" y="550" width="550" height="260" as="geometry" />
+          <mxGeometry x="20" y="540" width="650" height="290" as="geometry" />
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-3" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;ClientGameTickPacket&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;TBD&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;PlayerMetadata&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SaveDataUpdate&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;ActiveLevelState&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;PlayerAppearance&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;bool Disconnecting&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
-          <mxGeometry x="30" y="70" width="200" height="170" as="geometry" />
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-3" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;ClientGameTickPacket&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;TBD&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;ProtocolSignature&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;ProtocolVersion&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;PlayerMetadata&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SaveDataUpdate&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;ActiveLevelState&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;PlayerAppearance&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;bool Disconnecting&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
+          <mxGeometry x="30" y="70" width="200" height="180" as="geometry" />
         </mxCell>
         <mxCell id="7Khi5_YAd-gwPFn8Hj0F-4" value="Clients send this data to the server on game tick" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
           <mxGeometry x="30" y="40" width="200" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-1" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;ServerGameTickPacket&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;TBD&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;List&amp;lt;PlayerMetadata&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SaveDataUpdate&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;List&amp;lt;ActiveLevelState&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;DisconnectedPlayers=List&amp;lt;Guid&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Dictionary&amp;lt;Guid,PlayerAppearance&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;Guid&amp;gt; ClientNewGuid&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SharedSaveData&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
-          <mxGeometry x="320" y="60" width="220" height="190" as="geometry" />
+        <mxCell id="7Khi5_YAd-gwPFn8Hj0F-1" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;ServerGameTickPacket&lt;/div&gt;&lt;table style=&quot;width:100%;font-size:1em;&quot; cellpadding=&quot;2&quot; cellspacing=&quot;0&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;TBD&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;ProtocolSignature&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;ProtocolVersion&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;List&amp;lt;PlayerMetadata&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SaveDataUpdate&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;List&amp;lt;ActiveLevelState&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;DisconnectedPlayers=List&amp;lt;Guid&amp;gt;&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Dictionary&amp;lt;Guid,PlayerAppearance&amp;gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;Guid&amp;gt; ClientNewGuid&lt;br&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;&lt;br&gt;&lt;/td&gt;&lt;td&gt;Nullable&amp;lt;SharedSaveData&amp;gt; (only include in first packet)&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
+          <mxGeometry x="320" y="60" width="330" height="210" as="geometry" />
         </mxCell>
         <mxCell id="7Khi5_YAd-gwPFn8Hj0F-2" value="Server sends this data to all clients on game tick" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;" parent="7Khi5_YAd-gwPFn8Hj0F-5" vertex="1">
           <mxGeometry x="320" y="30" width="200" height="30" as="geometry" />
         </mxCell>
         <mxCell id="THr8TfoCkKgoIExO813C-2" value="See GameLevelManager" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fillColor=#fff2cc;strokeColor=#d6b656;rotation=0;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
-          <mxGeometry x="450" y="320" width="130" height="40" as="geometry" />
+          <mxGeometry x="450" y="310" width="130" height="40" as="geometry" />
         </mxCell>
         <mxCell id="THr8TfoCkKgoIExO813C-5" value="&lt;div style=&quot;box-sizing:border-box;width:100%;background:#e4e4e4;padding:2px;&quot;&gt;Unique collectables&lt;/div&gt;&lt;table cellspacing=&quot;0&quot; cellpadding=&quot;2&quot; style=&quot;width:100%;font-size:1em;&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;Id&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;PK&lt;/td&gt;&lt;td&gt;ActorType&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;FK1&lt;/td&gt;&lt;td&gt;LevelName&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;FK2&lt;/td&gt;&lt;td&gt;Location&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;FK3&lt;/td&gt;&lt;td&gt;TBD&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;" style="verticalAlign=top;align=left;overflow=fill;html=1;whiteSpace=wrap;" parent="tJqg2NbDP2f-t8pP_g2x-19" vertex="1">
           <mxGeometry x="300" y="90" width="110" height="110" as="geometry" />
@@ -353,9 +351,10 @@
             <mxPoint x="750" y="775" as="sourcePoint" />
             <mxPoint x="660" y="230" as="targetPoint" />
             <Array as="points">
+              <mxPoint x="1170" y="361" />
               <mxPoint x="1060" y="361" />
-              <mxPoint x="1060" y="420" />
-              <mxPoint x="690" y="420" />
+              <mxPoint x="1060" y="410" />
+              <mxPoint x="690" y="410" />
               <mxPoint x="690" y="120" />
             </Array>
           </mxGeometry>

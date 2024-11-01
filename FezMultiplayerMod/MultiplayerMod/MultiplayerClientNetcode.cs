@@ -28,7 +28,7 @@ namespace FezGame.MultiplayerMod
         public Guid MyUuid { get; private set; }
         public volatile PlayerMetadata MyPlayerMetadata = null;
         public override ConcurrentDictionary<Guid, PlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, PlayerMetadata>();
-        public volatile bool Listening = false;
+        public volatile bool Listening;
         public PlayerAppearance MyAppearance;
         public string MyPlayerName
         {
@@ -46,10 +46,12 @@ namespace FezGame.MultiplayerMod
         /// <param name="settings">The <see cref="MultiplayerClientSettings"/> to use to create this instance.</param>
         internal MultiplayerClientNetcode(MultiplayerClientSettings settings)
         {
+            Listening = false;
             MyAppearance = new PlayerAppearance(settings.MyPlayerName, settings.Appearance);
 
             listenerThread = new Thread(() =>
             {
+                bool WasSucessfullyConnected = false;
                 try
                 {
                     TcpClient tcpClient = new TcpClient(AddressFamily.InterNetwork);
@@ -63,10 +65,12 @@ namespace FezGame.MultiplayerMod
                     using (BinaryReader reader = new BinaryReader(tcpStream))
                     using (BinaryWriter writer = new BinaryWriter(tcpStream))
                     {
-                        WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, false);
                         ReadServerGameTickPacket(reader);
+                        WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, false);
+                        WasSucessfullyConnected = true;
                         while (!disposing)
                         {
+                            ReadServerGameTickPacket(reader);
                             ActiveLevelState? activeLevelState = null;
                             if (settings.SyncWorldState)
                             {
@@ -80,7 +84,6 @@ namespace FezGame.MultiplayerMod
                             }
 
                             WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, null, disposing);
-                            ReadServerGameTickPacket(reader);
                         }
                         WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, true);
                         reader.Close();
@@ -89,8 +92,37 @@ namespace FezGame.MultiplayerMod
                         tcpClient.Close();
                     }
                 }
-                catch (Exception e) { FatalException = e; }
-                Listening = false;
+                catch (VersionMismatchException e)
+                {
+                    FatalException = e;
+                }
+                catch (InvalidDataException e)
+                {
+                    FatalException = e;
+                }
+                //catch (EndOfStreamException e)
+                //{
+                //    FatalException = e;
+                //}
+                catch (IOException e)
+                {
+                    if(WasSucessfullyConnected){
+                        //TODO retry connection?
+                        FatalException = e;
+                    }
+                    else
+                    {
+                        FatalException = e;
+                    }
+                }
+                catch (Exception e)
+                {
+                    FatalException = e;
+                }
+                finally
+                {
+                    Listening = false;
+                }
             });
             listenerThread.Start();
         }

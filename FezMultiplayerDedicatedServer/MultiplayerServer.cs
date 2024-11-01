@@ -190,46 +190,60 @@ namespace FezMultiplayerDedicatedServer
         private void OnNewClientConnect(TcpClient tcpClient)
         {
             Guid uuid = Guid.NewGuid();
-            using (NetworkStream stream = tcpClient.GetStream())
+            try
             {
-                stream.ReadTimeout = overduetimeout;
-                stream.WriteTimeout = overduetimeout;
-                using (NetworkStream tcpStream = tcpClient.GetStream())
-                using (BinaryReader reader = new BinaryReader(tcpStream))
-                using (BinaryWriter writer = new BinaryWriter(tcpStream))
+                using (NetworkStream stream = tcpClient.GetStream())
                 {
-                    try
+                    stream.ReadTimeout = overduetimeout;
+                    stream.WriteTimeout = overduetimeout;
+                    using (NetworkStream tcpStream = tcpClient.GetStream())
+                    using (BinaryReader reader = new BinaryReader(tcpStream))
+                    using (BinaryWriter writer = new BinaryWriter(tcpStream))
                     {
-                        //TODO send them our data and get player appearance from client
-                        WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, sharedSaveData);
-                        Console.WriteLine($"Player connected from {tcpClient.Client.RemoteEndPoint}. Assigning uuid {uuid}.");
-                        bool Disconnecting = ReadClientGameTickPacket(reader);
-                        while (tcpClient.Connected && !disposing)
+                        try
                         {
-                            if (Disconnecting)
+                            //send them our data and get player appearance from client
+                            WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, sharedSaveData);
+                            Console.WriteLine($"Player connected from {tcpClient.Client.RemoteEndPoint}. Assigning uuid {uuid}.");
+                            bool Disconnecting = ReadClientGameTickPacket(reader);
+                            while (tcpClient.Connected && !disposing)
                             {
-                                break;
+                                if (Disconnecting)
+                                {
+                                    break;
+                                }
+                                //repeat until the client disconnects or times out
+                                WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys, GetNewPlayerAppearances(), null, null);
+                                Disconnecting = ReadClientGameTickPacket(reader);
                             }
-                            //repeat until the client disconnects or times out
-                            WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys, GetNewPlayerAppearances(), null, null);
-                            Disconnecting = ReadClientGameTickPacket(reader);
+                        }
+                        catch (Exception e)
+                        {
+                            //TODO
+                            Console.WriteLine(e);
+                        }
+                        finally
+                        {
+                            reader.Close();
+                            writer.Close();
+                            tcpStream.Close();
                         }
                     }
-                    catch (Exception e)
-                    {
-                        //TODO
-                        Console.WriteLine(e);
-                    }
-                    reader.Close();
-                    writer.Close();
-                    tcpStream.Close();
                 }
             }
-            long disconnectTime = DateTime.UtcNow.Ticks;
-            DisconnectedPlayers.AddOrUpdate(uuid, disconnectTime, (puid, oldTime) => disconnectTime);
-            ProcessDisconnect(uuid);
-            tcpClient.Close();
-            tcpClient.Dispose();
+            catch (Exception e)
+            {
+                //TODO
+                Console.WriteLine(e);
+            }
+            finally
+            {
+                long disconnectTime = DateTime.UtcNow.Ticks;
+                DisconnectedPlayers.AddOrUpdate(uuid, disconnectTime, (puid, oldTime) => disconnectTime);
+                ProcessDisconnect(uuid);
+                tcpClient.Close();
+                tcpClient.Dispose();
+            }
         }
 
         protected override void ProcessDisconnect(Guid puid)
@@ -287,6 +301,7 @@ namespace FezMultiplayerDedicatedServer
         private Dictionary<Guid, PlayerAppearance> GetNewPlayerAppearances()
         {
             return null;
+            //TODO
             throw new NotImplementedException();
         }
     }
