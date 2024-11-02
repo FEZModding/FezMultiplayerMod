@@ -90,7 +90,7 @@ namespace FezGame.MultiplayerMod
         public FezMultiplayerMod(Game game)
             : base(game)
         {
-            System.Diagnostics.Debugger.Launch();
+            //System.Diagnostics.Debugger.Launch();
             //Fez.SkipIntro = true;
             Instance = this;
             ServiceHelper.AddComponent(debugTextDrawer = new DebugTextDrawer(game, Instance), false);
@@ -206,6 +206,15 @@ namespace FezGame.MultiplayerMod
                 //s += "Keys pressed: " + String.Join(", ", kbd.GetPressedKeys()/*.Select(k => k.ToString())*/) + "\n";
                 //var mouse = Microsoft.Xna.Framework.Input.Mouse.GetState();
                 //s += $"Mouse state: X:{mouse.X}, Y:{mouse.Y}, Scroll:{mouse.ScrollWheelValue}, buttons:{String.Join(", ", new[] { mouse.LeftButton, mouse.RightButton, mouse.MiddleButton }.Select((mb,i) => new Object[] { mb == Microsoft.Xna.Framework.Input.ButtonState.Pressed, i }).Where(a=>(bool)a[0]).Select(a=>"M"+(1+(int)a[1])))}\n";
+                var p = mp.MyPlayerMetadata;
+                if (p != null)
+                {
+                    s += "(you): ";
+                    s += $"{mp.MyAppearance.PlayerName}, {p.Uuid}, "
+                        + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
+                        + $"{p.Action}, {p.CameraViewpoint}, "
+                        + $"{p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
+                }
             }
             if (mp.ErrorMessage != null)
             {

@@ -192,6 +192,7 @@ namespace FezMultiplayerDedicatedServer
             Guid uuid = Guid.NewGuid();
             try
             {
+                Console.WriteLine($"Incoming connection from {tcpClient.Client.RemoteEndPoint}...");
                 using (NetworkStream stream = tcpClient.GetStream())
                 {
                     stream.ReadTimeout = overduetimeout;
@@ -204,8 +205,28 @@ namespace FezMultiplayerDedicatedServer
                         {
                             //send them our data and get player appearance from client
                             WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, sharedSaveData);
-                            Console.WriteLine($"Player connected from {tcpClient.Client.RemoteEndPoint}. Assigning uuid {uuid}.");
-                            bool Disconnecting = ReadClientGameTickPacket(reader);
+                            Tuple<PlayerMetadata, bool> clientData = ReadClientGameTickPacket(reader);
+                            bool Disconnecting = clientData.Item2;
+                            PlayerMetadata playerMetadata = clientData.Item1;
+
+                            ServerPlayerMetadata addValueFactory(Guid guid)
+                            {
+                                return new ServerPlayerMetadata(tcpClient, uuid, playerMetadata.CurrentLevelName, playerMetadata.Position, playerMetadata.CameraViewpoint,
+                                            playerMetadata.Action, playerMetadata.AnimFrame, playerMetadata.LookingDirection, playerMetadata.LastUpdateTimestamp);
+                            }
+                            ServerPlayerMetadata updateValueFactory(Guid guid, ServerPlayerMetadata currentval)
+                            {
+                                currentval.tcpClient = tcpClient;
+                                currentval.Uuid = guid;
+                                if (currentval.LastUpdateTimestamp < playerMetadata.LastUpdateTimestamp)
+                                {
+                                    currentval.CopyValuesFrom(playerMetadata);
+                                }
+                                return currentval;
+                            }
+
+                            Players.AddOrUpdate(playerMetadata.Uuid, addValueFactory, updateValueFactory);
+                            Console.WriteLine($"Player connected from {tcpClient.Client.RemoteEndPoint}. Assigned uuid {uuid}.");
                             while (tcpClient.Connected && !disposing)
                             {
                                 if (Disconnecting)
@@ -214,7 +235,10 @@ namespace FezMultiplayerDedicatedServer
                                 }
                                 //repeat until the client disconnects or times out
                                 WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys, GetNewPlayerAppearances(), null, null);
-                                Disconnecting = ReadClientGameTickPacket(reader);
+                                clientData = ReadClientGameTickPacket(reader);
+                                Disconnecting = clientData.Item2;
+                                playerMetadata = clientData.Item1;
+                                Players.AddOrUpdate(playerMetadata.Uuid, addValueFactory, updateValueFactory);
                             }
                         }
                         catch (Exception e)
@@ -298,9 +322,13 @@ namespace FezMultiplayerDedicatedServer
             //TODO
             throw new NotImplementedException();
         }
+        /// <summary>
+        /// Returns a collection of PlayerAppearances for players that have just joined
+        /// </summary>
+        /// <returns></returns>
         private Dictionary<Guid, PlayerAppearance> GetNewPlayerAppearances()
         {
-            return null;
+            return new Dictionary<Guid, PlayerAppearance>(0);
             //TODO
             throw new NotImplementedException();
         }

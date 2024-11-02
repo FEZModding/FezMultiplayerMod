@@ -68,24 +68,31 @@ namespace FezGame.MultiplayerMod
                         ReadServerGameTickPacket(reader);
                         WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, false);
                         WasSucessfullyConnected = true;
-                        while (!disposing)
+                        while (true)
                         {
                             ReadServerGameTickPacket(reader);
-                            ActiveLevelState? activeLevelState = null;
-                            if (settings.SyncWorldState)
+                            if (!disposing)
                             {
-                                activeLevelState = GetCurrentLevelState();
-                            }
+                                ActiveLevelState? activeLevelState = null;
+                                if (settings.SyncWorldState)
+                                {
+                                    activeLevelState = GetCurrentLevelState();
+                                }
 
-                            SaveDataUpdate? saveDataUpdate = null;
-                            if (settings.SyncWorldState)
+                                SaveDataUpdate? saveDataUpdate = null;
+                                if (settings.SyncWorldState)
+                                {
+                                    saveDataUpdate = GetSaveDataUpdate();
+                                }
+
+                                WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, null, false);
+                            }
+                            else
                             {
-                                saveDataUpdate = GetSaveDataUpdate();
+                                WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, true);
+                                break;
                             }
-
-                            WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, null, disposing);
                         }
-                        WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, true);
                         reader.Close();
                         writer.Close();
                         tcpStream.Close();
@@ -173,11 +180,13 @@ namespace FezGame.MultiplayerMod
         {
             if (FatalException != null)
             {
+#if DEBUG
                 if (!System.Diagnostics.Debugger.IsAttached)
                 {
                     System.Diagnostics.Debugger.Launch();
                 }
                 System.Diagnostics.Debugger.Break();
+#endif
                 throw FatalException;//This should never happen
             }
 

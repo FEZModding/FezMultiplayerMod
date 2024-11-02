@@ -36,7 +36,7 @@ namespace FezSharedTools
     [Serializable]
     public class PlayerMetadata
     {
-        public readonly Guid Uuid;
+        public Guid Uuid;
         public string CurrentLevelName;
         public Vector3 Position;
         public ActionType Action;
@@ -280,7 +280,7 @@ namespace FezSharedTools
         #region network packet stuff
         private const int MaxProtocolVersionLength = 32;
         protected const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public const string ProtocolVersion = "quince";//Update this ever time you change something that affect the packets
+        public const string ProtocolVersion = "sixteen";//Update this ever time you change something that affect the packets
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
         /// <summary>
@@ -307,8 +307,8 @@ namespace FezSharedTools
         /// 
         /// </summary>
         /// <param name="reader">The BinaryReader to read data from</param>
-        /// <returns>true if the client is going to disconnect</returns>
-        protected bool ReadClientGameTickPacket(BinaryReader reader)
+        /// <returns>PlayerMetadata, true if the client is going to disconnect</returns>
+        protected Tuple<PlayerMetadata, bool> ReadClientGameTickPacket(BinaryReader reader)
         {
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
             string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
@@ -331,7 +331,7 @@ namespace FezSharedTools
                 UpdatePlayerAppearance(playerMetadata.Uuid, appearance.PlayerName, appearance.CustomCharacterAppearance);
             }
             bool Disconnecting = reader.ReadBoolean();
-            return Disconnecting;
+            return Tuple.Create(playerMetadata, Disconnecting);
         }
         protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState, PlayerAppearance? appearance, bool Disconnecting)
         {
