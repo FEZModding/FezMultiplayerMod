@@ -299,16 +299,26 @@ namespace FezSharedTools
             }
             if (!ProtocolVersion.Equals(protocolVersion))
             {
-                throw new VersionMismatchException(ProtocolVersion ,protocolVersion);
+                throw new VersionMismatchException(ProtocolVersion, protocolVersion);
             }
         }
 
+        public struct MiscClientData {
+            public PlayerMetadata Metadata;
+            public bool Disconnecting;
+            public MiscClientData(PlayerMetadata Metadata, bool Disconnecting)
+            {
+                this.Metadata = Metadata;
+                this.Disconnecting = Disconnecting;
+            }
+        }
         /// <summary>
         /// 
         /// </summary>
         /// <param name="reader">The BinaryReader to read data from</param>
+        /// <param name="retval">The value to store the return values in</param>
         /// <returns>PlayerMetadata, true if the client is going to disconnect</returns>
-        protected Tuple<PlayerMetadata, bool> ReadClientGameTickPacket(BinaryReader reader)
+        protected MiscClientData ReadClientGameTickPacket(BinaryReader reader, MiscClientData retval)
         {
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
             string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
@@ -331,10 +341,15 @@ namespace FezSharedTools
                 UpdatePlayerAppearance(playerMetadata.Uuid, appearance.PlayerName, appearance.CustomCharacterAppearance);
             }
             bool Disconnecting = reader.ReadBoolean();
-            return Tuple.Create(playerMetadata, Disconnecting);
+
+            retval.Metadata = playerMetadata;
+            retval.Disconnecting = Disconnecting;
+
+            return retval;
         }
         protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState, PlayerAppearance? appearance, bool Disconnecting)
         {
+            //TODO optimize network writing so it doesn't send a bazillion packets for a single tick; should be able to write to a MemoryStream using a BinaryWriter, then get the result and write that to the network writer
             writer.WriteStringAsByteArrayWithLength(ProtocolSignature);
             writer.WriteStringAsByteArrayWithLength(ProtocolVersion);
 
@@ -408,6 +423,7 @@ namespace FezSharedTools
                                                             ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
                                                             SharedSaveData sharedSaveData)
         {
+            //TODO optimize network writing so it doesn't send a bazillion packets for a single tick; should be able to write to a MemoryStream using a BinaryWriter, then get the result and write that to the network writer
             writer.WriteStringAsByteArrayWithLength(ProtocolSignature);
             writer.WriteStringAsByteArrayWithLength(ProtocolVersion);
 

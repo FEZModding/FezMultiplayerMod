@@ -39,6 +39,7 @@ namespace FezMultiplayerDedicatedServer
 
         private readonly TcpListener tcpListener;
         private readonly Task listenerTask;
+        private readonly Task timeoutTask;
         private int listenPort;
         protected readonly int overduetimeout;
         private readonly bool useAllowList;
@@ -84,20 +85,54 @@ namespace FezMultiplayerDedicatedServer
                 {
                     if (settings.MaxAdjustListenPortOnBindFail > retries++)
                     {
+                        Console.WriteLine($"Port {listenPort} is already in use. Trying {listenPort + 1} instead.");
                         listenPort++;
                     }
                     else
                     {
                         //ErrorMessage = e.Message;
-                        ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - retries + 1} to {listenPort} are already in use";
-                        //listenerThread.Abort(e);//does this even work?//calling Abort is a bad idea
+                        ErrorMessage = $"Failed to bind a port after {retries} tr{(retries == 1 ? "y" : "ies")}. Ports number {listenPort - retries + 1} to {listenPort} are already in use. Exiting.";
                         return;
                     }
                 }
             }
             listenerTask = StartAcceptTcpClients();
+            timeoutTask = Task.Factory.StartNew(RemoveOldClients, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
-
+        private void RemoveOldClients()
+        {
+            while (!disposing)
+            {
+                Thread.Sleep(500);
+                try
+                {
+                    foreach (var p in Players)
+                    {
+                        if (disposing)
+                        {
+                            break;
+                        }
+                        Thread.Sleep(10);
+                        if (p.Key.Equals(Guid.Empty))
+                        {
+                            Thread.Sleep(1000);
+                            if (p.Key.Equals(Guid.Empty))
+                            {
+                                p.Value.tcpClient.Close();
+                                ProcessDisconnectInternal(p.Key);
+                            }
+                        }
+                        if (!p.Value.tcpClient.Connected)
+                        {
+                            ProcessDisconnectInternal(p.Key);
+                        }
+                    }
+                }
+                catch
+                {
+                }
+            }
+        }
         private async Task StartAcceptTcpClients()
         {
             try
@@ -127,6 +162,9 @@ namespace FezMultiplayerDedicatedServer
                         {
                             //TODO
                             Console.WriteLine(e);
+                        }
+                        finally
+                        {
                             client.Close();
                         }
                     }).Start();
@@ -205,9 +243,10 @@ namespace FezMultiplayerDedicatedServer
                         {
                             //send them our data and get player appearance from client
                             WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, sharedSaveData);
-                            Tuple<PlayerMetadata, bool> clientData = ReadClientGameTickPacket(reader);
-                            bool Disconnecting = clientData.Item2;
-                            PlayerMetadata playerMetadata = clientData.Item1;
+                            MiscClientData clientData = new MiscClientData(null, false);
+                            clientData = ReadClientGameTickPacket(reader, clientData);
+                            bool Disconnecting = clientData.Disconnecting;
+                            PlayerMetadata playerMetadata = clientData.Metadata;
 
                             ServerPlayerMetadata addValueFactory(Guid guid)
                             {
@@ -235,10 +274,11 @@ namespace FezMultiplayerDedicatedServer
                                 }
                                 //repeat until the client disconnects or times out
                                 WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys, GetNewPlayerAppearances(), null, null);
-                                clientData = ReadClientGameTickPacket(reader);
-                                Disconnecting = clientData.Item2;
-                                playerMetadata = clientData.Item1;
+                                clientData = ReadClientGameTickPacket(reader, clientData);
+                                Disconnecting = clientData.Disconnecting;
+                                playerMetadata = clientData.Metadata;
                                 Players.AddOrUpdate(playerMetadata.Uuid, addValueFactory, updateValueFactory);
+                                Thread.Sleep(10);
                             }
                         }
                         catch (Exception e)
@@ -273,9 +313,13 @@ namespace FezMultiplayerDedicatedServer
         protected override void ProcessDisconnect(Guid puid)
         {
             Console.WriteLine($"Disconnecting player {puid}.");
+            ProcessDisconnectInternal(puid);
+        }
+        private void ProcessDisconnectInternal(Guid puid)
+        {
             try
             {
-                if (Players.TryGetValue(puid, out ServerPlayerMetadata p) && !DisconnectedPlayers.ContainsKey(puid))
+                if (Players.TryGetValue(puid, out ServerPlayerMetadata p))// && !DisconnectedPlayers.ContainsKey(puid))
                 {
                     long disconnectTime = DateTime.UtcNow.Ticks;
                     DisconnectedPlayers.AddOrUpdate(puid, disconnectTime, (lpuid, oldTime) => disconnectTime);

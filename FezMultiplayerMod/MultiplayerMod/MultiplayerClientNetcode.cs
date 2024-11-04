@@ -215,6 +215,7 @@ namespace FezGame.MultiplayerMod
         protected override void ProcessNewClientGuid(Guid puid)
         {
             MyUuid = puid;
+            MyPlayerMetadata.Uuid = puid;
         }
     }
 }
