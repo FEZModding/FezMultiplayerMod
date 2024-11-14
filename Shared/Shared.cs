@@ -256,13 +256,6 @@ namespace FezSharedTools
         }
     }
 
-    public static class PlayerMetadataExtensions
-    {
-        public static string GetPlayerName(this PlayerMetadata p)
-        {
-            return SharedNetcode<PlayerMetadata>.PlayerAppearances[p.Uuid].PlayerName;
-        }
-    }
     public class VersionMismatchException : Exception
     {
         public string ExpectedVersion { get; }
@@ -289,7 +282,19 @@ namespace FezSharedTools
         public volatile Exception FatalException = null;
 
         public abstract ConcurrentDictionary<Guid, P> Players { get; }
-        public static ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
+        public ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
+
+        public string GetPlayerName(Guid playerUuid)
+        {
+            if (PlayerAppearances.TryGetValue(playerUuid, out PlayerAppearance appearance))
+            {
+                return appearance.PlayerName;
+            }
+            else
+            {
+                return "Unknown";
+            }
+        }
 
         protected static void ValidateProcotolAndVersion(string protocolSignature, string protocolVersion)
         {
@@ -306,6 +311,7 @@ namespace FezSharedTools
         public struct MiscClientData {
             public PlayerMetadata Metadata;
             public bool Disconnecting;
+
             public MiscClientData(PlayerMetadata Metadata, bool Disconnecting)
             {
                 this.Metadata = Metadata;
@@ -318,7 +324,7 @@ namespace FezSharedTools
         /// <param name="reader">The BinaryReader to read data from</param>
         /// <param name="retval">The value to store the return values in</param>
         /// <returns>PlayerMetadata, true if the client is going to disconnect</returns>
-        protected MiscClientData ReadClientGameTickPacket(BinaryReader reader, MiscClientData retval)
+        protected MiscClientData ReadClientGameTickPacket(BinaryReader reader, MiscClientData retval, Guid playerUuid)
         {
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
             string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
@@ -338,7 +344,7 @@ namespace FezSharedTools
             if (reader.ReadBoolean())
             {
                 PlayerAppearance appearance = reader.ReadPlayerAppearance();
-                UpdatePlayerAppearance(playerMetadata.Uuid, appearance.PlayerName, appearance.CustomCharacterAppearance);
+                UpdatePlayerAppearance(playerUuid, appearance);
             }
             bool Disconnecting = reader.ReadBoolean();
 

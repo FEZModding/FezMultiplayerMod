@@ -244,7 +244,7 @@ namespace FezMultiplayerDedicatedServer
                             //send them our data and get player appearance from client
                             WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, sharedSaveData);
                             MiscClientData clientData = new MiscClientData(null, false);
-                            clientData = ReadClientGameTickPacket(reader, clientData);
+                            clientData = ReadClientGameTickPacket(reader, clientData, uuid);
                             bool Disconnecting = clientData.Disconnecting;
                             PlayerMetadata playerMetadata = clientData.Metadata;
 
@@ -264,7 +264,7 @@ namespace FezMultiplayerDedicatedServer
                                 return currentval;
                             }
 
-                            Players.AddOrUpdate(playerMetadata.Uuid, addValueFactory, updateValueFactory);
+                            Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
                             Console.WriteLine($"Player connected from {tcpClient.Client.RemoteEndPoint}. Assigned uuid {uuid}.");
                             while (tcpClient.Connected && !disposing)
                             {
@@ -274,10 +274,10 @@ namespace FezMultiplayerDedicatedServer
                                 }
                                 //repeat until the client disconnects or times out
                                 WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys, GetNewPlayerAppearances(), null, null);
-                                clientData = ReadClientGameTickPacket(reader, clientData);
+                                clientData = ReadClientGameTickPacket(reader, clientData, uuid);
                                 Disconnecting = clientData.Disconnecting;
                                 playerMetadata = clientData.Metadata;
-                                Players.AddOrUpdate(playerMetadata.Uuid, addValueFactory, updateValueFactory);
+                                Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
                                 Thread.Sleep(10);
                             }
                         }
