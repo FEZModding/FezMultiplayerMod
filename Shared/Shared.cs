@@ -282,7 +282,7 @@ namespace FezSharedTools
         public volatile Exception FatalException = null;
 
         public abstract ConcurrentDictionary<Guid, P> Players { get; }
-        public ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
+        protected ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
 
         public string GetPlayerName(Guid playerUuid)
         {
@@ -292,6 +292,7 @@ namespace FezSharedTools
             }
             else
             {
+                //TODO asyncronously get the PlayerAppearance for players we don't know
                 return "Unknown";
             }
         }

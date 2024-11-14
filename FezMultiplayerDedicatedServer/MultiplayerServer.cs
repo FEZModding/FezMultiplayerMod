@@ -328,6 +328,9 @@ namespace FezMultiplayerDedicatedServer
             }
             catch (InvalidOperationException) { }
             catch (KeyNotFoundException) { } //this can happen if an item is removed by another thread while this thread is iterating over the items
+
+            //this should happen after we remove the player from the Players collection, to avoid any race conditions 
+            _ = PlayerAppearances.TryRemove(puid, out _);
         }
 
         private static readonly List<ActiveLevelState> empty = new List<ActiveLevelState>();
