@@ -111,15 +111,6 @@ namespace FezSharedTools
 
     public static class FezMultiplayerBinaryIOExtensions
     {
-        private static readonly MethodInfo read7BitEncodedIntMethod;
-        static FezMultiplayerBinaryIOExtensions()
-        {
-            //Read7BitEncodedInt is marked as protected internal on Framework 4.0
-            read7BitEncodedIntMethod = typeof(BinaryReader).GetMethod(
-                    "Read7BitEncodedInt",
-                    BindingFlags.Instance | BindingFlags.NonPublic); // Get the protected internal method
-
-        }
         //
         // For player names and whatnot
         // should be an inclusive list of all characters supported by all of the languages' game fonts

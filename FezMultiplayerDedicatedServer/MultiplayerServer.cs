@@ -40,7 +40,7 @@ namespace FezMultiplayerDedicatedServer
         private readonly TcpListener tcpListener;
         private readonly Task listenerTask;
         private readonly Task timeoutTask;
-        private int listenPort;
+        private readonly int listenPort;
         protected readonly int overduetimeout;
         private readonly bool useAllowList;
         private readonly IPFilter AllowList;
@@ -49,7 +49,7 @@ namespace FezMultiplayerDedicatedServer
 
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
-        private IEnumerable<TcpClient> connectedClients => Players.Select(p => p.Value.tcpClient);
+        private IEnumerable<TcpClient> ConnectedClients => Players.Select(p => p.Value.tcpClient);
         public EndPoint LocalEndPoint => tcpListener?.LocalEndpoint;
 
         public event Action OnUpdate = () => { };
@@ -198,7 +198,7 @@ namespace FezMultiplayerDedicatedServer
                     this.disposing = true;//let child threads know it's disposing time
                     OnDispose();
                     Thread.Sleep(1000);//try to wait for child threads to stop on their own
-                    foreach (TcpClient client in connectedClients)
+                    foreach (TcpClient client in ConnectedClients)
                     {
                         client.Close();
                     }

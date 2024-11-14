@@ -173,7 +173,7 @@ namespace FezGame.MultiplayerMod
                 {
                     foreach (PlayerMetadata p in mp.Players.Values)
                     {
-                        DrawPlayer(p, gameTime, false);
+                        DrawPlayer(p, mp.GetPlayerName(p.Uuid), gameTime, false);
                         mesh.Draw();
                     }
                 }
