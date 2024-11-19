@@ -63,6 +63,7 @@ namespace FezMultiplayerDedicatedServer
                         {
                             MultiplayerServer.ServerPlayerMetadata p = kvpair.Value;
                             s += $"{kvpair.Key}: {server.GetPlayerName(p.Uuid)}, "// + p.Uuid + ", "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
+                                + $"{p.TimeSinceJoin}, "
                                 + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
                                 + $"{p.Action}, {p.CameraViewpoint}, "
                                 + $"{p.Position/*.Round(3)*/}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";

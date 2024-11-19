@@ -80,7 +80,7 @@ namespace FezGame.MultiplayerMod
             {
                 return null;
             }
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
 
@@ -90,7 +90,7 @@ namespace FezGame.MultiplayerMod
             {
                 return null;
             }
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
 
@@ -100,7 +100,7 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
 
@@ -110,7 +110,7 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
     }

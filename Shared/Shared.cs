@@ -86,7 +86,7 @@ namespace FezSharedTools
     public struct SaveDataUpdate
     {
         public int TODO;
-        //TODO
+        //TODO not yet implemented
 
         public SaveDataUpdate(int TODO)
         {
@@ -97,7 +97,7 @@ namespace FezSharedTools
     public struct ActiveLevelState
     {
         public int TODO;
-        //TODO
+        //TODO not yet implemented
 
         public ActiveLevelState(int TODO)
         {
@@ -106,7 +106,7 @@ namespace FezSharedTools
     }
     public class SharedSaveData
     {
-        //TODO
+        //TODO not yet implemented
     }
 
     public static class FezMultiplayerBinaryIOExtensions
@@ -215,34 +215,34 @@ namespace FezSharedTools
         public static PlayerAppearance ReadPlayerAppearance(this BinaryReader reader)
         {
             string name = reader.ReadStringAsByteArrayWithLength(MaxPlayerNameLength);
-            object appearance = null;//TODO
+            object appearance = null;//TODO appearance format TBD
             return new PlayerAppearance(name, appearance);
         }
         public static void Write(this BinaryWriter writer, PlayerAppearance playerAppearance)
         {
             writer.WriteStringAsByteArrayWithLength(playerAppearance.PlayerName);
-            //writer.Write(playerAppearance.CustomCharacterAppearance);//TODO
+            //writer.Write(playerAppearance.CustomCharacterAppearance);//TODO appearance format TBD
         }
 
         public static SaveDataUpdate ReadSaveDataUpdate(this BinaryReader reader)
         {
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
         public static void Write(this BinaryWriter writer, SaveDataUpdate saveDataUpdate)
         {
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
 
         public static ActiveLevelState ReadActiveLevelState(this BinaryReader reader)
         {
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
         public static void Write(this BinaryWriter writer, ActiveLevelState activeLevelState)
         {
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
     }
@@ -274,16 +274,22 @@ namespace FezSharedTools
 
         public abstract ConcurrentDictionary<Guid, P> Players { get; }
         protected ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
+        /// <summary>
+        /// Note: only the Keys of this dictionary are used. Optimally, we'd use a concurrent hashset, but .NET doesn't have that.
+        /// </summary>
+        protected ConcurrentDictionary<Guid, bool> UnknownPlayerAppearanceGuids = new ConcurrentDictionary<Guid, bool>();
 
         public string GetPlayerName(Guid playerUuid)
         {
             if (PlayerAppearances.TryGetValue(playerUuid, out PlayerAppearance appearance))
             {
+                _ = UnknownPlayerAppearanceGuids.TryRemove(playerUuid, out var _);
                 return appearance.PlayerName;
             }
             else
             {
-                //TODO asyncronously get the PlayerAppearance for players we don't know
+                UnknownPlayerAppearanceGuids.TryAdd(playerUuid, true);
+                //TODO get the PlayerAppearances for players we don't know
                 return "Unknown";
             }
         }
@@ -316,7 +322,7 @@ namespace FezSharedTools
         /// <param name="reader">The BinaryReader to read data from</param>
         /// <param name="retval">The value to store the return values in</param>
         /// <returns>PlayerMetadata, true if the client is going to disconnect</returns>
-        protected MiscClientData ReadClientGameTickPacket(BinaryReader reader, MiscClientData retval, Guid playerUuid)
+        protected void ReadClientGameTickPacket(BinaryReader reader, ref MiscClientData retval, Guid playerUuid)
         {
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
             string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
@@ -338,14 +344,19 @@ namespace FezSharedTools
                 PlayerAppearance appearance = reader.ReadPlayerAppearance();
                 UpdatePlayerAppearance(playerUuid, appearance);
             }
+            int requestPlayerAppearanceLength = reader.ReadInt32();
+            for (int i = 0; i < requestPlayerAppearanceLength; ++i)
+            {
+                Guid guid = reader.ReadGuid();
+                //TODO get the requested PlayerAppearances from PlayerAppearances, if we can find them, and send them as part of the return packet
+            }
             bool Disconnecting = reader.ReadBoolean();
 
             retval.Metadata = playerMetadata;
             retval.Disconnecting = Disconnecting;
-
-            return retval;
         }
-        protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState, PlayerAppearance? appearance, bool Disconnecting)
+        protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState,
+                PlayerAppearance? appearance, ICollection<Guid> requestPlayerAppearance, bool Disconnecting)
         {
             //TODO optimize network writing so it doesn't send a bazillion packets for a single tick; should be able to write to a MemoryStream using a BinaryWriter, then get the result and write that to the network writer
             writer.WriteStringAsByteArrayWithLength(ProtocolSignature);
@@ -366,6 +377,11 @@ namespace FezSharedTools
             if (appearance.HasValue)
             {
                 writer.Write(appearance.Value);
+            }
+            writer.Write((int)requestPlayerAppearance.Count);
+            foreach (Guid guid in requestPlayerAppearance)
+            {
+                writer.Write(guid);
             }
             writer.Write(Disconnecting);
             writer.Flush();

@@ -29,6 +29,8 @@ namespace FezMultiplayerDedicatedServer
         public class ServerPlayerMetadata : PlayerMetadata
         {
             public TcpClient tcpClient;
+            public readonly DateTime joinTime = DateTime.UtcNow;
+            public TimeSpan TimeSinceJoin => DateTime.UtcNow - joinTime;
 
             public ServerPlayerMetadata(TcpClient tcpClient, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             : base(Uuid, CurrentLevelName, Position, CameraViewpoint, Action, AnimFrame, LookingDirection, LastUpdateTimestamp)
@@ -160,7 +162,7 @@ namespace FezMultiplayerDedicatedServer
                         }
                         catch (Exception e)
                         {
-                            //TODO
+                            //TODO handle exception
                             Console.WriteLine(e);
                         }
                         finally
@@ -244,7 +246,7 @@ namespace FezMultiplayerDedicatedServer
                             //send them our data and get player appearance from client
                             WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, sharedSaveData);
                             MiscClientData clientData = new MiscClientData(null, false);
-                            clientData = ReadClientGameTickPacket(reader, clientData, uuid);
+                            ReadClientGameTickPacket(reader, ref clientData, uuid);
                             bool Disconnecting = clientData.Disconnecting;
                             PlayerMetadata playerMetadata = clientData.Metadata;
 
@@ -256,6 +258,8 @@ namespace FezMultiplayerDedicatedServer
                             ServerPlayerMetadata updateValueFactory(Guid guid, ServerPlayerMetadata currentval)
                             {
                                 currentval.tcpClient = tcpClient;
+                                //Note: the value of playerMetadata.Uuid received from the client is never used
+                                //We use the Guid that we assigned instead, for security reasons. 
                                 currentval.Uuid = guid;
                                 if (currentval.LastUpdateTimestamp < playerMetadata.LastUpdateTimestamp)
                                 {
@@ -274,7 +278,9 @@ namespace FezMultiplayerDedicatedServer
                                 }
                                 //repeat until the client disconnects or times out
                                 WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys, GetNewPlayerAppearances(), null, null);
-                                clientData = ReadClientGameTickPacket(reader, clientData, uuid);
+                                ReadClientGameTickPacket(reader, ref clientData, uuid);
+                                //TODO get the requested PlayerAppearances from PlayerAppearances, if we can find them, and send them as part of the return packet. 
+                                //Note: we may not need GetNewPlayerAppearances() if we r
                                 Disconnecting = clientData.Disconnecting;
                                 playerMetadata = clientData.Metadata;
                                 Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
@@ -283,7 +289,7 @@ namespace FezMultiplayerDedicatedServer
                         }
                         catch (Exception e)
                         {
-                            //TODO
+                            //TODO handle exception
                             Console.WriteLine(e);
                         }
                         finally
@@ -297,7 +303,7 @@ namespace FezMultiplayerDedicatedServer
             }
             catch (Exception e)
             {
-                //TODO
+                //TODO handle exception
                 Console.WriteLine(e);
             }
             finally
@@ -347,7 +353,7 @@ namespace FezMultiplayerDedicatedServer
             {
                 return;
             }
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
         private SaveDataUpdate? GetSaveDataUpdate()
@@ -356,7 +362,7 @@ namespace FezMultiplayerDedicatedServer
             {
                 return null;
             }
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
 
@@ -366,18 +372,25 @@ namespace FezMultiplayerDedicatedServer
             {
                 return;
             }
-            //TODO
+            //TODO not yet implemented
             throw new NotImplementedException();
         }
+        private static readonly TimeSpan NewPlayerTimeSpan = TimeSpan.FromSeconds(1);
         /// <summary>
         /// Returns a collection of PlayerAppearances for players that have just joined
         /// </summary>
         /// <returns></returns>
         private Dictionary<Guid, PlayerAppearance> GetNewPlayerAppearances()
         {
-            return new Dictionary<Guid, PlayerAppearance>(0);
-            //TODO
-            throw new NotImplementedException();
+            //IEnumerable<Guid> recentlyJoinedPlayers = Players.Values.Where(meta => meta.TimeSinceJoin < NewPlayerTimeSpan)
+            //        .Select(p => p.Uuid).ToHashSet();
+            //idk which of these is better
+            IEnumerable<Guid> recentlyJoinedPlayers = Players.Where(p => p.Value.TimeSinceJoin < NewPlayerTimeSpan)
+                    .Select(p => p.Key).ToHashSet();
+
+            return PlayerAppearances
+                    .Where(entry => recentlyJoinedPlayers.Contains(entry.Key))
+                    .ToDictionary(entry => entry.Key, entry => entry.Value);
         }
     }
 }

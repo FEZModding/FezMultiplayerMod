@@ -66,7 +66,7 @@ namespace FezGame.MultiplayerMod
                     using (BinaryWriter writer = new BinaryWriter(tcpStream))
                     {
                         ReadServerGameTickPacket(reader);
-                        WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, false);
+                        WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
                         WasSucessfullyConnected = true;
                         while (true)
                         {
@@ -84,12 +84,12 @@ namespace FezGame.MultiplayerMod
                                 {
                                     saveDataUpdate = GetSaveDataUpdate();
                                 }
-
-                                WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, null, false);
+                                //TODO transmit MyAppearance whenever its value changes 
+                                WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, null, UnknownPlayerAppearanceGuids.Keys, false);
                             }
                             else
                             {
-                                WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, true);
+                                WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, new List<Guid>(0), true);
                                 break;
                             }
                         }
