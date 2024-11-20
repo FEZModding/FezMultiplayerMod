@@ -273,7 +273,7 @@ namespace FezSharedTools
         public volatile Exception FatalException = null;
 
         public abstract ConcurrentDictionary<Guid, P> Players { get; }
-        protected ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
+        public ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
         /// <summary>
         /// Note: only the Keys of this dictionary are used. Optimally, we'd use a concurrent hashset, but .NET doesn't have that.
         /// </summary>

@@ -101,6 +101,24 @@ namespace FezMultiplayerDedicatedServer
                             Console.WriteLine(s);
                         })
                     },
+                    {
+                        "appear".ToLowerInvariant(),
+                        ("Lists players appearances", () =>
+                        {
+                            string s = "Player appearances:\n";
+                            int count = 0;
+                            foreach (var kvpair in server.PlayerAppearances)
+                            {
+                                count++;
+                                s += $"{kvpair.Key}: Name=\"{kvpair.Value.PlayerName}\" Appearance=\"{kvpair.Value.CustomCharacterAppearance}\"\n";
+                            }
+                            if(count == 0)
+                            {
+                                s += "None";
+                            }
+                            Console.WriteLine(s);
+                        })
+                    },
                 };
                 int maxCommandLength = cliActions.Max(kv => kv.Key.Length);
                 (string desc, Action action) HelpCommand;
