@@ -264,7 +264,7 @@ namespace FezSharedTools
         #region network packet stuff
         private const int MaxProtocolVersionLength = 32;
         protected const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public const string ProtocolVersion = "sixteen";//Update this ever time you change something that affect the packets
+        public const string ProtocolVersion = "seventeen";//Update this ever time you change something that affect the packets
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
         /// <summary>
@@ -289,7 +289,6 @@ namespace FezSharedTools
             else
             {
                 UnknownPlayerAppearanceGuids.TryAdd(playerUuid, true);
-                //TODO get the PlayerAppearances for players we don't know
                 return "Unknown";
             }
         }
@@ -309,11 +308,15 @@ namespace FezSharedTools
         public struct MiscClientData {
             public PlayerMetadata Metadata;
             public bool Disconnecting;
+            public ICollection<Guid> RequestedAppearances;
 
-            public MiscClientData(PlayerMetadata Metadata, bool Disconnecting)
+            public const int MaxRequestedAppearancesSize = 10;
+
+            public MiscClientData(PlayerMetadata Metadata, bool Disconnecting, ICollection<Guid> RequestedAppearances)
             {
                 this.Metadata = Metadata;
                 this.Disconnecting = Disconnecting;
+                this.RequestedAppearances = RequestedAppearances;
             }
         }
         /// <summary>
@@ -345,48 +348,59 @@ namespace FezSharedTools
                 UpdatePlayerAppearance(playerUuid, appearance);
             }
             int requestPlayerAppearanceLength = reader.ReadInt32();
+            retval.RequestedAppearances.Clear();
             for (int i = 0; i < requestPlayerAppearanceLength; ++i)
             {
                 Guid guid = reader.ReadGuid();
-                //TODO get the requested PlayerAppearances from PlayerAppearances, if we can find them, and send them as part of the return packet
+                if(i < MiscClientData.MaxRequestedAppearancesSize)
+                {
+                    retval.RequestedAppearances.Add(guid);
+                }
             }
             bool Disconnecting = reader.ReadBoolean();
 
             retval.Metadata = playerMetadata;
             retval.Disconnecting = Disconnecting;
         }
-        protected void WriteClientGameTickPacket(BinaryWriter writer, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState,
+        protected void WriteClientGameTickPacket(BinaryWriter writer0, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState,
                 PlayerAppearance? appearance, ICollection<Guid> requestPlayerAppearance, bool Disconnecting)
         {
-            //TODO optimize network writing so it doesn't send a bazillion packets for a single tick; should be able to write to a MemoryStream using a BinaryWriter, then get the result and write that to the network writer
-            writer.WriteStringAsByteArrayWithLength(ProtocolSignature);
-            writer.WriteStringAsByteArrayWithLength(ProtocolVersion);
+            //optimize network writing so it doesn't send a bazillion packets for a single tick
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (BinaryNetworkWriter writer = new BinaryNetworkWriter(ms))
+                {
+                    writer.WriteStringAsByteArrayWithLength(ProtocolSignature);
+                    writer.WriteStringAsByteArrayWithLength(ProtocolVersion);
 
-            writer.Write(playerMetadata);
-            writer.Write(saveDataUpdate.HasValue);
-            if (saveDataUpdate.HasValue)
-            {
-                writer.Write(saveDataUpdate.Value);
+                    writer.Write(playerMetadata);
+                    writer.Write(saveDataUpdate.HasValue);
+                    if (saveDataUpdate.HasValue)
+                    {
+                        writer.Write(saveDataUpdate.Value);
+                    }
+                    writer.Write(levelState.HasValue);
+                    if (levelState.HasValue)
+                    {
+                        writer.Write(levelState.Value);
+                    }
+                    writer.Write(appearance.HasValue);
+                    if (appearance.HasValue)
+                    {
+                        writer.Write(appearance.Value);
+                    }
+                    writer.Write((int)requestPlayerAppearance.Count);
+                    foreach (Guid guid in requestPlayerAppearance)
+                    {
+                        writer.Write(guid);
+                    }
+                    writer.Write(Disconnecting);
+                    writer.Flush();
+                }
+                writer0.Write(ms.ToArray());
             }
-            writer.Write(levelState.HasValue);
-            if (levelState.HasValue)
-            {
-                writer.Write(levelState.Value);
-            }
-            writer.Write(appearance.HasValue);
-            if (appearance.HasValue)
-            {
-                writer.Write(appearance.Value);
-            }
-            writer.Write((int)requestPlayerAppearance.Count);
-            foreach (Guid guid in requestPlayerAppearance)
-            {
-                writer.Write(guid);
-            }
-            writer.Write(Disconnecting);
-            writer.Flush();
         }
-        protected void ReadServerGameTickPacket(BinaryReader reader)
+        protected void ReadServerGameTickPacket(BinaryReader reader, ref bool RetransmitAppearance)
         {
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
             string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
@@ -432,47 +446,56 @@ namespace FezSharedTools
                 Guid NewClientGuid = reader.ReadGuid();
                 ProcessNewClientGuid(NewClientGuid);
             }
+            RetransmitAppearance = reader.ReadBoolean();
         }
-        protected void WriteServerGameTickPacket(BinaryWriter writer, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
+        protected void WriteServerGameTickPacket(BinaryWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
                                                             ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
-                                                            SharedSaveData sharedSaveData)
+                                                            bool RequestAppearance, SharedSaveData sharedSaveData)
         {
-            //TODO optimize network writing so it doesn't send a bazillion packets for a single tick; should be able to write to a MemoryStream using a BinaryWriter, then get the result and write that to the network writer
-            writer.WriteStringAsByteArrayWithLength(ProtocolSignature);
-            writer.WriteStringAsByteArrayWithLength(ProtocolVersion);
+            //optimize network writing so it doesn't send a bazillion packets for a single tick
+            using (MemoryStream ms = new MemoryStream())
+            {
+                using (BinaryWriter writer = new BinaryWriter(ms))
+                {
+                    writer.WriteStringAsByteArrayWithLength(ProtocolSignature);
+                    writer.WriteStringAsByteArrayWithLength(ProtocolVersion);
 
-            writer.Write((int)playerMetadatas.Count);
-            foreach (PlayerMetadata playerMetadata in playerMetadatas)
-            {
-                writer.Write(playerMetadata);
+                    writer.Write((int)playerMetadatas.Count);
+                    foreach (PlayerMetadata playerMetadata in playerMetadatas)
+                    {
+                        writer.Write(playerMetadata);
+                    }
+                    writer.Write(saveDataUpdate.HasValue);
+                    if (saveDataUpdate.HasValue)
+                    {
+                        writer.Write(saveDataUpdate.Value);
+                    }
+                    writer.Write((int)levelStates.Count);
+                    foreach (ActiveLevelState levelState in levelStates)
+                    {
+                        writer.Write(levelState);
+                    }
+                    writer.Write((int)disconnectedPlayers.Count);
+                    foreach (Guid disconnectedPlayer in disconnectedPlayers)
+                    {
+                        writer.Write(disconnectedPlayer);
+                    }
+                    writer.Write((int)appearances.Count);
+                    foreach (KeyValuePair<Guid, PlayerAppearance> appearance in appearances)
+                    {
+                        writer.Write(appearance.Key);
+                        writer.Write(appearance.Value);
+                    }
+                    writer.Write(NewClientGuid.HasValue);
+                    if (NewClientGuid.HasValue)
+                    {
+                        writer.Write(NewClientGuid.Value);
+                    }
+                    writer.Write(RequestAppearance);
+                    writer.Flush();
+                }
+                writer0.Write(ms.ToArray());
             }
-            writer.Write(saveDataUpdate.HasValue);
-            if (saveDataUpdate.HasValue)
-            {
-                writer.Write(saveDataUpdate.Value);
-            }
-            writer.Write((int)levelStates.Count);
-            foreach (ActiveLevelState levelState in levelStates)
-            {
-                writer.Write(levelState);
-            }
-            writer.Write((int)disconnectedPlayers.Count);
-            foreach (Guid disconnectedPlayer in disconnectedPlayers)
-            {
-                writer.Write(disconnectedPlayer);
-            }
-            writer.Write((int)appearances.Count);
-            foreach (KeyValuePair<Guid, PlayerAppearance> appearance in appearances)
-            {
-                writer.Write(appearance.Key);
-                writer.Write(appearance.Value);
-            }
-            writer.Write(NewClientGuid.HasValue);
-            if (NewClientGuid.HasValue)
-            {
-                writer.Write(NewClientGuid.Value);
-            }
-            writer.Flush();
         }
         protected void UpdatePlayerAppearance(Guid puid, PlayerAppearance newAp)
         {
@@ -488,5 +511,120 @@ namespace FezSharedTools
         protected virtual void ProcessNewClientGuid(Guid puid) { }
         protected abstract void ProcessActiveLevelState(ActiveLevelState activeLevelState);
         #endregion
+    }
+
+
+    public class BinaryNetworkWriter : BinaryWriter
+    {
+        public BinaryNetworkWriter(Stream output) : base(output)
+        {
+        }
+
+        public override void Write(short value)
+        {
+            base.Write(IPAddress.HostToNetworkOrder(value));
+        }
+
+        public override void Write(ushort value)
+        {
+            base.Write((ushort)IPAddress.HostToNetworkOrder((short)value));
+        }
+
+        public override void Write(int value)
+        {
+            base.Write(IPAddress.HostToNetworkOrder(value));
+        }
+
+        public override void Write(uint value)
+        {
+            base.Write((uint)IPAddress.HostToNetworkOrder((int)value));
+        }
+
+        public override void Write(long value)
+        {
+            base.Write(IPAddress.HostToNetworkOrder(value));
+        }
+
+        public override void Write(ulong value)
+        {
+            base.Write((ulong)IPAddress.HostToNetworkOrder((long)value));
+        }
+
+        public override void Write(float value)
+        {
+            var bytes = BitConverter.GetBytes(value);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(bytes);
+            }
+            base.Write(bytes);
+        }
+
+        public override void Write(double value)
+        {
+            var bytes = BitConverter.GetBytes(value);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(bytes);
+            }
+            base.Write(bytes);
+        }
+    }
+
+    public class BinaryNetworkReader : BinaryReader
+    {
+        public BinaryNetworkReader(Stream input) : base(input)
+        {
+        }
+
+        public override short ReadInt16()
+        {
+            return IPAddress.NetworkToHostOrder(base.ReadInt16());
+        }
+
+        public override ushort ReadUInt16()
+        {
+            return (ushort)IPAddress.NetworkToHostOrder(base.ReadInt16());
+        }
+
+        public override int ReadInt32()
+        {
+            return IPAddress.NetworkToHostOrder(base.ReadInt32());
+        }
+
+        public override uint ReadUInt32()
+        {
+            return (uint)IPAddress.NetworkToHostOrder(base.ReadInt32());
+        }
+
+        public override long ReadInt64()
+        {
+            return IPAddress.NetworkToHostOrder(base.ReadInt64());
+        }
+
+        public override ulong ReadUInt64()
+        {
+            return (ulong)IPAddress.NetworkToHostOrder(base.ReadInt64());
+        }
+
+        public override float ReadSingle()
+        {
+            var bytes = base.ReadBytes(sizeof(float));
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(bytes);
+            }
+            return BitConverter.ToSingle(bytes, 0);
+        }
+
+        public override double ReadDouble()
+        {
+            var bytes = base.ReadBytes(sizeof(double));
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(bytes);
+            }
+            return BitConverter.ToDouble(bytes, 0);
+        }
     }
 }

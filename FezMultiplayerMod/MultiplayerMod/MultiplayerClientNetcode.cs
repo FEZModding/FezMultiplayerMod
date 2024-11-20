@@ -30,10 +30,14 @@ namespace FezGame.MultiplayerMod
         public override ConcurrentDictionary<Guid, PlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, PlayerMetadata>();
         public volatile bool Listening;
         public PlayerAppearance MyAppearance;
+        private volatile bool MyAppearanceChanged = false;
         public string MyPlayerName
         {
             get => MyAppearance.PlayerName;
-            set => MyAppearance.PlayerName = value;
+            set {
+                MyAppearance.PlayerName = value;
+                MyAppearanceChanged = true;
+            }
         }
 
         public event Action OnUpdate = () => { };
@@ -65,12 +69,13 @@ namespace FezGame.MultiplayerMod
                     using (BinaryReader reader = new BinaryReader(tcpStream))
                     using (BinaryWriter writer = new BinaryWriter(tcpStream))
                     {
-                        ReadServerGameTickPacket(reader);
+                        bool retransmitAppearanceRequested = false;
+                        ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
                         WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
                         WasSucessfullyConnected = true;
                         while (true)
                         {
-                            ReadServerGameTickPacket(reader);
+                            ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
                             if (!disposing)
                             {
                                 ActiveLevelState? activeLevelState = null;
@@ -85,7 +90,12 @@ namespace FezGame.MultiplayerMod
                                     saveDataUpdate = GetSaveDataUpdate();
                                 }
                                 //TODO transmit MyAppearance whenever its value changes 
-                                WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, null, UnknownPlayerAppearanceGuids.Keys, false);
+                                PlayerAppearance? appearance = null;
+                                if(retransmitAppearanceRequested || MyAppearanceChanged)
+                                {
+                                    appearance = MyAppearance;
+                                }
+                                WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false);
                             }
                             else
                             {

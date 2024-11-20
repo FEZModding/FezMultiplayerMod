@@ -227,6 +227,7 @@ namespace FezMultiplayerDedicatedServer
             OnUpdate();
         }
 
+        private static readonly TimeSpan NewPlayerTimeSpan = TimeSpan.FromSeconds(1);
         private void OnNewClientConnect(TcpClient tcpClient)
         {
             Guid uuid = Guid.NewGuid();
@@ -244,8 +245,8 @@ namespace FezMultiplayerDedicatedServer
                         try
                         {
                             //send them our data and get player appearance from client
-                            WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, sharedSaveData);
-                            MiscClientData clientData = new MiscClientData(null, false);
+                            WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, false, sharedSaveData);
+                            MiscClientData clientData = new MiscClientData(null, false, new HashSet<Guid>(MiscClientData.MaxRequestedAppearancesSize));
                             ReadClientGameTickPacket(reader, ref clientData, uuid);
                             bool Disconnecting = clientData.Disconnecting;
                             PlayerMetadata playerMetadata = clientData.Metadata;
@@ -270,17 +271,25 @@ namespace FezMultiplayerDedicatedServer
 
                             Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
                             Console.WriteLine($"Player connected from {tcpClient.Client.RemoteEndPoint}. Assigned uuid {uuid}.");
+
+                            bool PlayerAppearancesFilter(KeyValuePair<Guid, ServerPlayerMetadata> p)
+                            {
+                                //get the requested PlayerAppearances from PlayerAppearances, and players that have recently joined
+                                return clientData.RequestedAppearances.Contains(p.Key) || p.Value.TimeSinceJoin < NewPlayerTimeSpan;
+                            }
+                            
                             while (tcpClient.Connected && !disposing)
                             {
                                 if (Disconnecting)
                                 {
                                     break;
                                 }
+                                //if UnknownPlayerAppearanceGuids contains uuid, ask client to retransmit their PlayerAppearance
+                                bool requestAppearance = UnknownPlayerAppearanceGuids.ContainsKey(uuid);
                                 //repeat until the client disconnects or times out
-                                WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys, GetNewPlayerAppearances(), null, null);
+                                WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys,
+                                        GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, null);
                                 ReadClientGameTickPacket(reader, ref clientData, uuid);
-                                //TODO get the requested PlayerAppearances from PlayerAppearances, if we can find them, and send them as part of the return packet. 
-                                //Note: we may not need GetNewPlayerAppearances() if we r
                                 Disconnecting = clientData.Disconnecting;
                                 playerMetadata = clientData.Metadata;
                                 Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
@@ -375,17 +384,17 @@ namespace FezMultiplayerDedicatedServer
             //TODO not yet implemented
             throw new NotImplementedException();
         }
-        private static readonly TimeSpan NewPlayerTimeSpan = TimeSpan.FromSeconds(1);
         /// <summary>
-        /// Returns a collection of PlayerAppearances for players that have just joined
+        /// Returns a collection of PlayerAppearances for players that match <paramref name="where"/>
         /// </summary>
+        /// <param name="where">The filter to use to specify which PlayerAppearances to return</param>
         /// <returns></returns>
-        private Dictionary<Guid, PlayerAppearance> GetNewPlayerAppearances()
+        private Dictionary<Guid, PlayerAppearance> GetPlayerAppearances(Func<KeyValuePair<Guid, ServerPlayerMetadata>, bool> where)
         {
             //IEnumerable<Guid> recentlyJoinedPlayers = Players.Values.Where(meta => meta.TimeSinceJoin < NewPlayerTimeSpan)
             //        .Select(p => p.Uuid).ToHashSet();
             //idk which of these is better
-            IEnumerable<Guid> recentlyJoinedPlayers = Players.Where(p => p.Value.TimeSinceJoin < NewPlayerTimeSpan)
+            IEnumerable<Guid> recentlyJoinedPlayers = Players.Where(where)
                     .Select(p => p.Key).ToHashSet();
 
             return PlayerAppearances
