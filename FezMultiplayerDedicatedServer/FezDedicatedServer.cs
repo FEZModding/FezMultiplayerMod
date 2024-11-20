@@ -95,16 +95,18 @@ namespace FezMultiplayerDedicatedServer
                 };
                 int maxCommandLength = cliActions.Max(kv => kv.Key.Length);
                 (string desc, Action action) HelpCommand;
-                cliActions.Add("help".ToLowerInvariant(),
+                string helpCmdName = "help".ToLowerInvariant();
+                cliActions.Add(helpCmdName,
                     HelpCommand = ("Lists available commands", () =>
                     {
+                        Console.WriteLine("Available commands:");
                         foreach (var kvpair in cliActions)
                         {
-                            Console.WriteLine($"{kvpair.Key.PadRight(maxCommandLength+2, ' ')} {kvpair.Value.desc}\n");
+                            Console.WriteLine($"{kvpair.Key.PadRight(maxCommandLength, ' ')} - {kvpair.Value.desc}");
                         }
                     }
                 ));
-
+                Console.WriteLine($"Use {helpCmdName} to list available commands");
 
                 while (running)
                 {
@@ -116,6 +118,7 @@ namespace FezMultiplayerDedicatedServer
                     }
                     else
                     {
+                        Console.WriteLine($"Unknown command: \"{line}\"");
                         HelpCommand.action();
                     }
                 }
