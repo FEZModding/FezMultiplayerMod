@@ -223,6 +223,20 @@ namespace FezMultiplayerDedicatedServer
             {
                 throw FatalException;//This should never happen
             }
+            long curtime = DateTime.UtcNow.Ticks;
+            List<Guid> KeysToRemove = new List<Guid>();
+            foreach (var kvpair in DisconnectedPlayers)
+            {
+                if ((curtime - kvpair.Value) / (double)TimeSpan.TicksPerMillisecond >= overduetimeout)
+                {
+                    KeysToRemove.Add(kvpair.Key);
+                    //Don't remove the keys while iterating over the ConcurrentDictionary
+                }
+            }
+            foreach (var k in KeysToRemove)
+            {
+                _ = DisconnectedPlayers.TryRemove(k, out _);
+            }
 
             OnUpdate();
         }
