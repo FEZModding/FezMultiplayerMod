@@ -68,15 +68,18 @@ namespace FezMultiplayerDedicatedServer
                         ("Lists currently connected players", () =>
                         {
                             string s = "Connected players:\n";
+                            int count = 0;
                             foreach (var kvpair in server.Players)
                             {
                                 MultiplayerServer.ServerPlayerMetadata p = kvpair.Value;
+                                count++;
                                 s += $"{kvpair.Key}: {server.GetPlayerName(p.Uuid)}, "// + p.Uuid + ", "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
                                     + $"{p.TimeSinceJoin}, "
                                     + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
                                     + $"{p.Action}, {p.CameraViewpoint}, "
                                     + $"{p.Position/*.Round(3)*/}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
                             }
+                            s += $"{count} players online";
                             Console.WriteLine(s);
                         })
                     },
@@ -85,9 +88,15 @@ namespace FezMultiplayerDedicatedServer
                         ("Lists disconnected players", () =>
                         {
                             string s = "Disconnected players:\n";
+                            int count = 0;
                             foreach (var kvpair in server.DisconnectedPlayers)
                             {
+                                count++;
                                 s += $"{kvpair.Key}, {(DateTime.UtcNow.Ticks - kvpair.Value) / (double)TimeSpan.TicksPerSecond}\n";
+                            }
+                            if(count == 0)
+                            {
+                                s += "None";
                             }
                             Console.WriteLine(s);
                         })
