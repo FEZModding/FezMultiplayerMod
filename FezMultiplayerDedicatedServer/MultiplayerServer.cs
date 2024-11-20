@@ -239,8 +239,8 @@ namespace FezMultiplayerDedicatedServer
                     stream.ReadTimeout = overduetimeout;
                     stream.WriteTimeout = overduetimeout;
                     using (NetworkStream tcpStream = tcpClient.GetStream())
-                    using (BinaryReader reader = new BinaryReader(tcpStream))
-                    using (BinaryWriter writer = new BinaryWriter(tcpStream))
+                    using (BinaryNetworkReader reader = new BinaryNetworkReader(tcpStream))
+                    using (BinaryNetworkWriter writer = new BinaryNetworkWriter(tcpStream))
                     {
                         try
                         {

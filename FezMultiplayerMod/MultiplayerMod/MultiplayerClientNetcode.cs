@@ -66,8 +66,8 @@ namespace FezGame.MultiplayerMod
                         Thread.Sleep(100);
                     }
                     using (NetworkStream tcpStream = tcpClient.GetStream())
-                    using (BinaryReader reader = new BinaryReader(tcpStream))
-                    using (BinaryWriter writer = new BinaryWriter(tcpStream))
+                    using (BinaryNetworkReader reader = new BinaryNetworkReader(tcpStream))
+                    using (BinaryNetworkWriter writer = new BinaryNetworkWriter(tcpStream))
                     {
                         bool retransmitAppearanceRequested = false;
                         ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);

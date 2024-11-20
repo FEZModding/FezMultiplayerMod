@@ -136,20 +136,20 @@ namespace FezSharedTools
         public static readonly int MaxLevelNameLength = 256;
 
         /// <summary>
-        /// Reads a string from the given <see cref="BinaryReader"/> as a byte array with an explicit length,
+        /// Reads a string from the given <see cref="BinaryNetworkReader"/> as a byte array with an explicit length,
         /// throwing an <see cref="ArgumentOutOfRangeException"/> if the string length is larger than <paramref name="maxLength"/>.
         /// <br /> 
-        /// Note: do NOT use <see cref="BinaryReader.ReadString()"/> for network data, as the string length can be maliciously manipulated to hog network traffic.
+        /// Note: do NOT use <see cref="BinaryNetworkReader.ReadString()"/> for network data, as the string length can be maliciously manipulated to hog network traffic.
         /// <br /> See <a href="https://cwe.mitre.org/data/definitions/130.html">CWE-130</a> and <a href="https://cwe.mitre.org/data/definitions/400.html">CWE-400</a>
         /// </summary>
-        /// <param name="reader">The <see cref="BinaryReader"/> from which to read the string.</param>
+        /// <param name="reader">The <see cref="BinaryNetworkReader"/> from which to read the string.</param>
         /// <param name="maxLength">The maximum allowable length for the string. Any length greater than this will result in an exception.</param>
         /// <returns>A string read from the binary stream, decoded using UTF-8.</returns>
         /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when the length of the string read (specified by the first 4 bytes) is outside the allowed range of 0 to <paramref name="maxLength"/>.
         /// This exception is raised to prevent the application from processing excessively long data, which could lead to denial of service or allocate undue resources.
         /// </exception>
-        public static string ReadStringAsByteArrayWithLength(this BinaryReader reader, int maxLength)
+        public static string ReadStringAsByteArrayWithLength(this BinaryNetworkReader reader, int maxLength)
         {
             const int minLength = 0;
             int length = reader.ReadInt32();
@@ -170,23 +170,23 @@ namespace FezSharedTools
         /// <remarks>
         /// See also: <seealso cref="ReadStringAsByteArrayWithLength"/>
         /// </remarks>
-        public static void WriteStringAsByteArrayWithLength(this BinaryWriter writer, string str)
+        public static void WriteStringAsByteArrayWithLength(this BinaryNetworkWriter writer, string str)
         {
             byte[] bytes = Encoding.UTF8.GetBytes(str);
             writer.Write((Int32)bytes.Length);
             writer.Write(bytes);
         }
 
-        public static Guid ReadGuid(this BinaryReader reader)
+        public static Guid ReadGuid(this BinaryNetworkReader reader)
         {
             return new Guid(reader.ReadInt32(), reader.ReadInt16(), reader.ReadInt16(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte(), reader.ReadByte());
         }
-        public static void Write(this BinaryWriter writer, Guid guid)
+        public static void Write(this BinaryNetworkWriter writer, Guid guid)
         {
             writer.Write(guid.ToByteArray());
         }
 
-        public static PlayerMetadata ReadPlayerMetadata(this BinaryReader reader)
+        public static PlayerMetadata ReadPlayerMetadata(this BinaryNetworkReader reader)
         {
             Guid uuid = reader.ReadGuid();
             string lvl = reader.ReadStringAsByteArrayWithLength(MaxLevelNameLength);
@@ -198,7 +198,7 @@ namespace FezSharedTools
             long timestamp = reader.ReadInt64();
             return new PlayerMetadata(uuid, lvl, pos, vp, act, frame, lookdir, timestamp);
         }
-        public static void Write(this BinaryWriter writer, PlayerMetadata playerMetadata)
+        public static void Write(this BinaryNetworkWriter writer, PlayerMetadata playerMetadata)
         {
             writer.Write((Guid)playerMetadata.Uuid);
             writer.WriteStringAsByteArrayWithLength((String)playerMetadata.CurrentLevelName ?? "");
@@ -212,35 +212,35 @@ namespace FezSharedTools
             writer.Write((Int64)playerMetadata.LastUpdateTimestamp);
         }
 
-        public static PlayerAppearance ReadPlayerAppearance(this BinaryReader reader)
+        public static PlayerAppearance ReadPlayerAppearance(this BinaryNetworkReader reader)
         {
             string name = reader.ReadStringAsByteArrayWithLength(MaxPlayerNameLength);
             object appearance = null;//TODO appearance format TBD
             return new PlayerAppearance(name, appearance);
         }
-        public static void Write(this BinaryWriter writer, PlayerAppearance playerAppearance)
+        public static void Write(this BinaryNetworkWriter writer, PlayerAppearance playerAppearance)
         {
             writer.WriteStringAsByteArrayWithLength(playerAppearance.PlayerName);
             //writer.Write(playerAppearance.CustomCharacterAppearance);//TODO appearance format TBD
         }
 
-        public static SaveDataUpdate ReadSaveDataUpdate(this BinaryReader reader)
+        public static SaveDataUpdate ReadSaveDataUpdate(this BinaryNetworkReader reader)
         {
             //TODO not yet implemented
             throw new NotImplementedException();
         }
-        public static void Write(this BinaryWriter writer, SaveDataUpdate saveDataUpdate)
+        public static void Write(this BinaryNetworkWriter writer, SaveDataUpdate saveDataUpdate)
         {
             //TODO not yet implemented
             throw new NotImplementedException();
         }
 
-        public static ActiveLevelState ReadActiveLevelState(this BinaryReader reader)
+        public static ActiveLevelState ReadActiveLevelState(this BinaryNetworkReader reader)
         {
             //TODO not yet implemented
             throw new NotImplementedException();
         }
-        public static void Write(this BinaryWriter writer, ActiveLevelState activeLevelState)
+        public static void Write(this BinaryNetworkWriter writer, ActiveLevelState activeLevelState)
         {
             //TODO not yet implemented
             throw new NotImplementedException();
@@ -322,10 +322,10 @@ namespace FezSharedTools
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="reader">The BinaryReader to read data from</param>
+        /// <param name="reader">The BinaryNetworkReader to read data from</param>
         /// <param name="retval">The value to store the return values in</param>
         /// <returns>PlayerMetadata, true if the client is going to disconnect</returns>
-        protected void ReadClientGameTickPacket(BinaryReader reader, ref MiscClientData retval, Guid playerUuid)
+        protected void ReadClientGameTickPacket(BinaryNetworkReader reader, ref MiscClientData retval, Guid playerUuid)
         {
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
             string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
@@ -362,7 +362,7 @@ namespace FezSharedTools
             retval.Metadata = playerMetadata;
             retval.Disconnecting = Disconnecting;
         }
-        protected void WriteClientGameTickPacket(BinaryWriter writer0, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState,
+        protected void WriteClientGameTickPacket(BinaryNetworkWriter writer0, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState,
                 PlayerAppearance? appearance, ICollection<Guid> requestPlayerAppearance, bool Disconnecting)
         {
             //optimize network writing so it doesn't send a bazillion packets for a single tick
@@ -400,7 +400,7 @@ namespace FezSharedTools
                 writer0.Write(ms.ToArray());
             }
         }
-        protected void ReadServerGameTickPacket(BinaryReader reader, ref bool RetransmitAppearance)
+        protected void ReadServerGameTickPacket(BinaryNetworkReader reader, ref bool RetransmitAppearance)
         {
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
             string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
@@ -448,14 +448,14 @@ namespace FezSharedTools
             }
             RetransmitAppearance = reader.ReadBoolean();
         }
-        protected void WriteServerGameTickPacket(BinaryWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
+        protected void WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
                                                             ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
                                                             bool RequestAppearance, SharedSaveData sharedSaveData)
         {
             //optimize network writing so it doesn't send a bazillion packets for a single tick
             using (MemoryStream ms = new MemoryStream())
             {
-                using (BinaryWriter writer = new BinaryWriter(ms))
+                using (BinaryNetworkWriter writer = new BinaryNetworkWriter(ms))
                 {
                     writer.WriteStringAsByteArrayWithLength(ProtocolSignature);
                     writer.WriteStringAsByteArrayWithLength(ProtocolVersion);
