@@ -25,7 +25,7 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// A string representing the current version of this class.
         /// </summary>
-        public static readonly string Version = "0.1.0"
+        public static readonly string Version = "0.3.0"
 #if DEBUG
         + $" (debug build {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version})"
 #endif
