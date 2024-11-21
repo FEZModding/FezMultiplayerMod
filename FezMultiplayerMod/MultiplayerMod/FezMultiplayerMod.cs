@@ -137,8 +137,6 @@ namespace FezGame.MultiplayerMod
 
             KeyboardState.RegisterKey(ToggleMPDebug);
         }
-        private const int updatesBetweenUpdates = 1;
-        private int updatesSinceLastSent = 0;
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
@@ -147,13 +145,7 @@ namespace FezGame.MultiplayerMod
             {
                 ShowDebugInfo = !ShowDebugInfo;
             }
-
-            if (!GameState.Paused && updatesBetweenUpdates <= updatesSinceLastSent)
-            {
-                updatesSinceLastSent = 0;
-                mp.Update();
-            }
-            ++updatesSinceLastSent;
+            mp.Update();
         }
 
         private void PreDraw(GameTime gameTime)
