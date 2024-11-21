@@ -32,7 +32,7 @@ Serious refactoring
 Improved error handling 
 Added debug info toggle keybind (F3)
 
-0.3.0
+0.3.0 - 2024-11-21T06:08:47Z
 Breaking change: Changed protocol from UDP to TCP
 Breaking change: Removed serverless mode
 Extensive code refactoring
