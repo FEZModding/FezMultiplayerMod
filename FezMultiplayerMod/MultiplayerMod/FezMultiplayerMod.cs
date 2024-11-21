@@ -223,7 +223,10 @@ namespace FezGame.MultiplayerMod
             }
             if (mp.Listening)
             {
-                s += $"Connected players: ";
+                if(ShowDebugInfo)
+                {
+                    s += $"Connected players: \n";
+                }
                 debugTextDrawer.Color = Color.Gray;
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 try
