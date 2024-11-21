@@ -32,3 +32,10 @@ Serious refactoring
 Improved error handling 
 Added debug info toggle keybind (F3)
 
+0.3.0
+Breaking change: Changed protocol from UDP to TCP
+Breaking change: Removed serverless mode
+Extensive code refactoring
+Improved server command-line interface (CLI) 
+Now uses network byte order
+
