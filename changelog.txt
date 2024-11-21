@@ -1,6 +1,9 @@
 
 * Fez Multiplayer Mod
 
+Note: the timestamp to the right of the version number is the
+      build time on the distributed Release version of FezMultiplayerMod.dll
+
 0.0.0 - 2023-05-07T03:44:25Z
 Development starts
 

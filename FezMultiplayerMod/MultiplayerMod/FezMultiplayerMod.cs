@@ -213,7 +213,7 @@ namespace FezGame.MultiplayerMod
                     s += $"{mp.MyAppearance.PlayerName}, {mp.MyUuid}, "
                         + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
                         + $"{p.Action}, {p.CameraViewpoint}, "
-                        + $"{p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
+                        + $"{p.Position.Round(3)}\n";
                 }
             }
             if (mp.ErrorMessage != null)
@@ -231,6 +231,7 @@ namespace FezGame.MultiplayerMod
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 try
                 {
+                    //sort by distance so first person has correct draw order
                     IOrderedEnumerable<PlayerMetadata> players = mp.Players.Values.OrderByDescending(p => Vector3.Distance(mp.MyPlayerMetadata.Position, p.Position));
                     foreach (PlayerMetadata p in players)
                     {
