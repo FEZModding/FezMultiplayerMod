@@ -202,10 +202,10 @@ namespace FezGame.MultiplayerMod
                 if (p != null)
                 {
                     s += "(you): ";
-                    s += $"{mp.MyAppearance.PlayerName}, {mp.MyUuid}, "
+                    s += $"{mp.MyAppearance.PlayerName}, "//{mp.MyUuid}, "
                         + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
                         + $"{p.Action}, {p.CameraViewpoint}, "
-                        + $"{p.Position.Round(3)}\n";
+                        + $"{p.Position.Round(3)}, {mp.ConnectionLatencyUp}\n";
                 }
             }
             if (mp.ErrorMessage != null)
@@ -246,7 +246,12 @@ namespace FezGame.MultiplayerMod
                             {
                                 DrawPlayer(p, playerName, gameTime);
                             }
-                            catch { }
+                            catch(Exception e)
+                            {
+#if DEBUG
+                                System.Diagnostics.Debugger.Launch();
+                                #endif
+                            }
                         }
                     }
                 }
@@ -273,23 +278,30 @@ namespace FezGame.MultiplayerMod
             SamplerState = SamplerState.PointClamp
         };
         private TimeSpan sinceBackgroundChanged = TimeSpan.Zero;
+        const bool HideInFirstPerson = false;
         internal void DrawPlayer(PlayerMetadata p, string playerName, GameTime gameTime, bool doDraw = true)
         {
+            ActionType pAction = p.Action;
             #region adapted from GomezHost.Update
             if (GameState.Loading
                 || GameState.InMap
                 || GameState.Paused
-                || (FezMath.AlmostEqual(PlayerManager.GomezOpacity, 0f) && CameraManager.Viewpoint != Viewpoint.Perspective)
-                || p.Action == ActionType.None)
+                || (HideInFirstPerson
+                    && ((FezMath.AlmostEqual(PlayerManager.GomezOpacity, 0f) && CameraManager.Viewpoint != Viewpoint.Perspective)
+                    || pAction == ActionType.None)
+                )
+            )
             {
                 return;
             }
             //TODO fix the problem with climbing in different viewpoints; see p.CameraViewpoint
-            if (CameraManager.Viewpoint.GetOpposite() == p.CameraViewpoint)
+            HorizontalDirection LookingDir = p.LookingDirection;
+            Viewpoint cameraViewpoint = CameraManager.Viewpoint.IsOrthographic() ? CameraManager.Viewpoint : CameraManager.LastViewpoint;
+            if (cameraViewpoint.GetOpposite() == p.CameraViewpoint)
             {
-                p.LookingDirection = p.LookingDirection.GetOpposite();
+                LookingDir = LookingDir.GetOpposite();
             }
-            AnimatedTexture animation = PlayerManager.GetAnimation(p.Action);
+            AnimatedTexture animation = PlayerManager.GetAnimation(pAction);
             if (animation.Offsets.Length < 0)
             {
                 return;
@@ -310,7 +322,7 @@ namespace FezGame.MultiplayerMod
             mesh.Texture = animation.Texture;
             mesh.FirstGroup.TextureMatrix.Set(new Matrix((float)rectangle.Width / (float)width, 0f, 0f, 0f, 0f, (float)rectangle.Height / (float)height, 0f, 0f, (float)rectangle.X / (float)width, (float)rectangle.Y / (float)height, 1f, 0f, 0f, 0f, 0f, 0f));
             bool playerinbackground = false;// PlayerManager.Background;
-            /*if (lastBackground != playerinbackground && !p.Action.NoBackgroundDarkening())
+            /*if (lastBackground != playerinbackground && !pAction.NoBackgroundDarkening())
             {
                 sinceBackgroundChanged = TimeSpan.Zero;
                 lastBackground = playerinbackground;
@@ -319,9 +331,10 @@ namespace FezGame.MultiplayerMod
             {
                 sinceBackgroundChanged += gameTime.ElapsedGameTime;
             }
-            effect.Background = p.Action.NoBackgroundDarkening() ? 0f : FezMath.Saturate(playerinbackground ? ((float)sinceBackgroundChanged.TotalSeconds * 2f) : (1f - (float)sinceBackgroundChanged.TotalSeconds * 2f));
+            effect.Background = pAction.NoBackgroundDarkening() ? 0f : FezMath.Saturate(playerinbackground ? ((float)sinceBackgroundChanged.TotalSeconds * 2f) : (1f - (float)sinceBackgroundChanged.TotalSeconds * 2f));
             mesh.Scale = new Vector3(animation.FrameWidth / 16f, animation.FrameHeight / 16f, 1f);
-            mesh.Position = p.Position + GetPositionOffset(p, ref animation);
+
+            mesh.Position = p.Position + GetPositionOffset(pAction, ref animation, LookingDir, cameraViewpoint);
             #endregion
             #region adapted from GomezHost.DoDraw_Internal
             //if (GameState.StereoMode || LevelManager.Quantum)
@@ -334,13 +347,13 @@ namespace FezGame.MultiplayerMod
             {
                 mesh.Rotation = CameraManager.Rotation;//always point the mesh at the camera so first person mode looks good
             }
-            if (p.LookingDirection == HorizontalDirection.Left)
+            if (LookingDir == HorizontalDirection.Left)
             {
                 mesh.Rotation *= FezMath.QuaternionFromPhi((float)Math.PI);
             }
             //}
             //blinking
-            /*if (p.Action == ActionType.Suffering || p.Action == ActionType.Sinking)
+            /*if (pAction == ActionType.Suffering || pAction == ActionType.Sinking)
             {
                 mesh.Material.Opacity = (float)FezMath.Saturate((Math.Sin(PlayerManager.BlinkSpeed * ((float)Math.PI * 2f) * 5f) + 0.5 - (double)(PlayerManager.BlinkSpeed * 1.25f)) * 2.0);
             }
@@ -348,9 +361,10 @@ namespace FezGame.MultiplayerMod
             {
                 mesh.Material.Opacity = PlayerManager.GomezOpacity;
             }*/
+            mesh.Material.Opacity = 1;
             GraphicsDevice graphicsDevice = base.GraphicsDevice;
             //silhouette
-            if (!p.Action.SkipSilhouette())
+            if (!pAction.SkipSilhouette())
             {
                 graphicsDevice.PrepareStencilRead(CompareFunction.Greater, StencilMask.NoSilhouette);
                 mesh.DepthWrites = false;
@@ -368,7 +382,7 @@ namespace FezGame.MultiplayerMod
             }
             //finally draw the mesh
             graphicsDevice.PrepareStencilWrite(StencilMask.Gomez);
-            mesh.AlwaysOnTop = p.Action.NeedsAlwaysOnTop();
+            mesh.AlwaysOnTop = pAction.NeedsAlwaysOnTop();
             mesh.DepthWrites = !GameState.InFpsMode;
             effect.Silhouette = false;
             if (doDraw) mesh.Draw();
@@ -382,15 +396,14 @@ namespace FezGame.MultiplayerMod
             #endregion
         }
         //Adapted from GomezHost.GetPositionOffset
-        private Vector3 GetPositionOffset(PlayerMetadata p, ref AnimatedTexture anim)
+        private Vector3 GetPositionOffset(ActionType pAction, ref AnimatedTexture anim, HorizontalDirection LookingDir, Viewpoint view)
         {
-            float playerSizeY = p.Action.IsCarry() ? (Enum.GetName(typeof(ActionType), p.Action).Contains("Heavy") ? 1.75f : 1.9375f) : 0.9375f;//numbers from PlayerManager.SyncCollisionSize
-            float num = playerSizeY + ((p.Action.IsCarry() || p.Action == ActionType.ThrowingHeavy) ? (-2) : 0);
+            float playerSizeY = pAction.IsCarry() ? (Enum.GetName(typeof(ActionType), pAction).Contains("Heavy") ? 1.75f : 1.9375f) : 0.9375f;//numbers from PlayerManager.SyncCollisionSize
+            float num = playerSizeY + ((pAction.IsCarry() || pAction == ActionType.ThrowingHeavy) ? (-2) : 0);
             Vector3 vector = (1f - num) / 2f * Vector3.UnitY;
-            Vector2 vector2 = p.Action.GetOffset() / 16f;
+            Vector2 vector2 = pAction.GetOffset() / 16f;
             vector2.Y -= anim.PotOffset.Y / 64f;
-            Viewpoint view = ((CameraManager.Viewpoint.IsOrthographic() || !CameraManager.ActionRunning) ? CameraManager.Viewpoint : CameraManager.LastViewpoint);
-            return vector + (vector2.X * view.RightVector() * p.LookingDirection.Sign() + vector2.Y * Vector3.UnitY);
+            return vector + (vector2.X * view.RightVector() * LookingDir.Sign() + vector2.Y * Vector3.UnitY);
         }
         #endregion
     }

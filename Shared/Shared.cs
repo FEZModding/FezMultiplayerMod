@@ -7,6 +7,7 @@ using System.IO;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using System.Diagnostics;
 
 #if FEZCLIENT
 using ActionType = FezGame.Structure.ActionType;
@@ -14,17 +15,10 @@ using HorizontalDirection = FezEngine.HorizontalDirection;
 using Viewpoint = FezEngine.Viewpoint;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
 #else
-using ActionType = System.Int32;
-using HorizontalDirection = System.Int32;
-using Viewpoint = System.Int32;
-public struct Vector3
-{
-    public float X, Y, Z;
-    public Vector3(float x, float y, float z)
-    {
-        X = x; Y = y; Z = z;
-    }
-}
+using ActionType = FezMultiplayerDedicatedServer.ActionType;
+using HorizontalDirection = FezMultiplayerDedicatedServer.HorizontalDirection;
+using Viewpoint = FezMultiplayerDedicatedServer.Viewpoint;
+using Vector3 = FezMultiplayerDedicatedServer.Vector3;
 #endif
 namespace FezSharedTools
 {
@@ -362,9 +356,14 @@ namespace FezSharedTools
             retval.Metadata = playerMetadata;
             retval.Disconnecting = Disconnecting;
         }
-        protected void WriteClientGameTickPacket(BinaryNetworkWriter writer0, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState,
+        /// 
+        /// 
+        /// <returns>the amount of time, in ticks, it took to write the data to the network</returns>
+        protected long WriteClientGameTickPacket(BinaryNetworkWriter writer0, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState,
                 PlayerAppearance? appearance, ICollection<Guid> requestPlayerAppearance, bool Disconnecting)
         {
+            Stopwatch sw = new Stopwatch();
+            int datalength;
             //optimize network writing so it doesn't send a bazillion packets for a single tick
             using (MemoryStream ms = new MemoryStream())
             {
@@ -397,8 +396,14 @@ namespace FezSharedTools
                     writer.Write(Disconnecting);
                     writer.Flush();
                 }
-                writer0.Write(ms.ToArray());
+                byte[] data = ms.ToArray();
+                datalength = data.Length;
+                sw.Start();
+                writer0.Write(data);
+                writer0.Flush();
+                sw.Stop();
             }
+            return sw.ElapsedTicks / datalength;
         }
         protected void ReadServerGameTickPacket(BinaryNetworkReader reader, ref bool RetransmitAppearance)
         {
@@ -448,10 +453,15 @@ namespace FezSharedTools
             }
             RetransmitAppearance = reader.ReadBoolean();
         }
-        protected void WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
+        /// 
+        /// 
+        /// <returns>the amount of time, in ticks, it took to write the data to the network</returns>
+        protected long WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
                                                             ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
                                                             bool RequestAppearance, SharedSaveData sharedSaveData)
         {
+            Stopwatch sw = new Stopwatch();
+            int datalength;
             //optimize network writing so it doesn't send a bazillion packets for a single tick
             using (MemoryStream ms = new MemoryStream())
             {
@@ -494,8 +504,14 @@ namespace FezSharedTools
                     writer.Write(RequestAppearance);
                     writer.Flush();
                 }
-                writer0.Write(ms.ToArray());
+                byte[] data = ms.ToArray();
+                datalength = data.Length;
+                sw.Start();
+                writer0.Write(data);
+                writer0.Flush();
+                sw.Stop();
             }
+            return sw.ElapsedTicks / datalength;
         }
         protected void UpdatePlayerAppearance(Guid puid, PlayerAppearance newAp)
         {

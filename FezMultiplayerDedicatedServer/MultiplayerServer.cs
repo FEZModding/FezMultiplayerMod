@@ -9,10 +9,6 @@ using System.Net;
 using System.IO;
 using System.Collections.Concurrent;
 using FezSharedTools;
-
-using ActionType = System.Int32;
-using HorizontalDirection = System.Int32;
-using Viewpoint = System.Int32;
 using System.Threading.Tasks;
 using static FezMultiplayerDedicatedServer.MultiplayerServer;
 
@@ -31,6 +27,7 @@ namespace FezMultiplayerDedicatedServer
             public TcpClient tcpClient;
             public readonly DateTime joinTime = DateTime.UtcNow;
             public TimeSpan TimeSinceJoin => DateTime.UtcNow - joinTime;
+            public long NetworkSpeedUp = 0;
 
             public ServerPlayerMetadata(TcpClient tcpClient, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             : base(Uuid, CurrentLevelName, Position, CameraViewpoint, Action, AnimFrame, LookingDirection, LastUpdateTimestamp)
@@ -258,8 +255,12 @@ namespace FezMultiplayerDedicatedServer
                     {
                         try
                         {
+                            Queue<long> SpeedUp = new Queue<long>(100);
+                            long SpeedDown = 0;
                             //send them our data and get player appearance from client
-                            WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), null, GetActiveLevelStates(), DisconnectedPlayers.Keys, PlayerAppearances, uuid, false, sharedSaveData);
+                            SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
+                                    null, GetActiveLevelStates(), DisconnectedPlayers.Keys,
+                                    PlayerAppearances, uuid, false, sharedSaveData));
                             MiscClientData clientData = new MiscClientData(null, false, new HashSet<Guid>(MiscClientData.MaxRequestedAppearancesSize));
                             ReadClientGameTickPacket(reader, ref clientData, uuid);
                             bool Disconnecting = clientData.Disconnecting;
@@ -298,11 +299,18 @@ namespace FezMultiplayerDedicatedServer
                                 {
                                     break;
                                 }
+                                if(Players.TryGetValue(uuid, out ServerPlayerMetadata serverPlayerMetadata)){
+                                    serverPlayerMetadata.NetworkSpeedUp = (long)Math.Round(SpeedUp.Average());//Note: does not produce a meaningful number for connections to loopback addresses
+                                }
                                 //if UnknownPlayerAppearanceGuids contains uuid, ask client to retransmit their PlayerAppearance
                                 bool requestAppearance = UnknownPlayerAppearanceGuids.ContainsKey(uuid);
                                 //repeat until the client disconnects or times out
-                                WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(), GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys,
-                                        GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, null);
+                                if(SpeedUp.Count>=100){
+                                    _ = SpeedUp.Dequeue();
+                                }
+                                SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
+                                        GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys,
+                                        GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, null));
                                 ReadClientGameTickPacket(reader, ref clientData, uuid);
                                 Disconnecting = clientData.Disconnecting;
                                 playerMetadata = clientData.Metadata;

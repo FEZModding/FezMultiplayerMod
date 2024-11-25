@@ -77,7 +77,7 @@ namespace FezMultiplayerDedicatedServer
                                     + $"{p.TimeSinceJoin}, "
                                     + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
                                     + $"{p.Action}, {p.CameraViewpoint}, "
-                                    + $"{p.Position/*.Round(3)*/}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
+                                    + $"{p.Position.Round(3)}, {p.NetworkSpeedUp}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
                             }
                             s += $"{count} players online";
                             Console.WriteLine(s);

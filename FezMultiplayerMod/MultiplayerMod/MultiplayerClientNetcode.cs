@@ -31,6 +31,7 @@ namespace FezGame.MultiplayerMod
         public volatile bool Listening;
         public PlayerAppearance MyAppearance;
         private volatile bool MyAppearanceChanged = false;
+        public volatile uint ConnectionLatencyUp = 0;
         public string MyPlayerName
         {
             get => MyAppearance.PlayerName;
@@ -71,7 +72,7 @@ namespace FezGame.MultiplayerMod
                     {
                         bool retransmitAppearanceRequested = false;
                         ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
-                        WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
+                        ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
                         WasSucessfullyConnected = true;
                         while (true)
                         {
@@ -95,7 +96,7 @@ namespace FezGame.MultiplayerMod
                                 {
                                     appearance = MyAppearance;
                                 }
-                                WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false);
+                                ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false);
                             }
                             else
                             {

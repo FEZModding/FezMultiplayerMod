@@ -46,6 +46,7 @@
     </Compile>
     <Compile Include="FezDedicatedServer.cs" />
     <Compile Include="IPFilter.cs" />
+    <Compile Include="FezCompatibilityTypes.cs" />
     <Compile Include="MultiplayerServerSettings.cs" />
     <Compile Include="MultiplayerServer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
