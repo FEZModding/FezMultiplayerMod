@@ -48,7 +48,7 @@ namespace FezMultiplayerDedicatedServer
 
             //Note: gotta keep the program busy otherwise it'll close
 
-            //TODO make the CLI better
+            //TODO make the CLI better; see https://learn.microsoft.com/en-us/dotnet/api/system.console , particularly Console.CursorTop and Console.CursorLeft
 
             try
             {
