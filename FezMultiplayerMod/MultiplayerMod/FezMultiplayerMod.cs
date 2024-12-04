@@ -100,6 +100,10 @@ namespace FezGame.MultiplayerMod
             mp = new MultiplayerClient(settings);
             IniTools.WriteSettingsFile(SettingsFilePath, settings);
 
+            mp.ConnectToServerAsync(settings.MainEndpoint);
+
+            //TODO add a in-game menu to let players easily choose what server and name they want to use
+
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
         }
@@ -145,7 +149,39 @@ namespace FezGame.MultiplayerMod
             {
                 ShowDebugInfo = !ShowDebugInfo;
             }
-            mp.Update();
+            try
+            {
+                mp.Update();
+            }
+            catch (VersionMismatchException e)
+            {
+                //Server replied with data that is for a different network version of FezMultiplayerMod
+                //TODO tell the user the desired FezMultiplayerServer is using a network protocol that is incompatible with their version.
+                throw e;
+            }
+            catch (System.IO.InvalidDataException e)
+            {
+                //Server replied with data that is not related to FezMultiplayerMod or data is malformed
+                //TODO tell the user the IP endpoint provided is not a FezMultiplayerServer.
+                throw e;
+            }
+            catch (System.IO.IOException e)
+            {
+                //Connection failed, data read error, connection timeout, connection terminated by server, etc.
+                //TODO
+                throw e;
+            }
+            catch (Exception e)
+            {
+#if DEBUG
+                if (!System.Diagnostics.Debugger.IsAttached)
+                {
+                    System.Diagnostics.Debugger.Launch();
+                }
+                System.Diagnostics.Debugger.Break();
+#endif
+                throw e;//This should never happen
+            }
         }
 
         private void PreDraw(GameTime gameTime)

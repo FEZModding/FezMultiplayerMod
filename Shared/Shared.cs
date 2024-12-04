@@ -139,7 +139,7 @@ namespace FezSharedTools
         /// <param name="reader">The <see cref="BinaryNetworkReader"/> from which to read the string.</param>
         /// <param name="maxLength">The maximum allowable length for the string. Any length greater than this will result in an exception.</param>
         /// <returns>A string read from the binary stream, decoded using UTF-8.</returns>
-        /// <exception cref="ArgumentOutOfRangeException">
+        /// <exception cref="InvalidDataException">
         /// Thrown when the length of the string read (specified by the first 4 bytes) is outside the allowed range of 0 to <paramref name="maxLength"/>.
         /// This exception is raised to prevent the application from processing excessively long data, which could lead to denial of service or allocate undue resources.
         /// </exception>
@@ -149,7 +149,7 @@ namespace FezSharedTools
             int length = reader.ReadInt32();
             if (length > maxLength || length < 0)
             {
-                throw new ArgumentOutOfRangeException($"The length {length} is outside the allowed range of {minLength} to {maxLength}.");
+                throw new InvalidDataException($"The length {length} is outside the allowed range of {minLength} to {maxLength}.");
             }
             else
             {

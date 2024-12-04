@@ -15,20 +15,16 @@ using FezSharedTools;
 
 namespace FezGame.MultiplayerMod
 {
-    /// <summary>
-    /// The class that contains all the networking stuff
-    /// 
-    /// Note: This class should only contain System usings
-    /// </summary>
     public abstract class MultiplayerClientNetcode : SharedNetcode<PlayerMetadata>, IDisposable
     {
 
-        private readonly Thread listenerThread;
+        private Thread listenerThread;
 
         public Guid MyUuid { get; private set; }
         public volatile PlayerMetadata MyPlayerMetadata = null;
         public override ConcurrentDictionary<Guid, PlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, PlayerMetadata>();
-        public volatile bool Listening;
+        private volatile bool listening;
+        public bool Listening { get => listening; }
         public PlayerAppearance MyAppearance;
         private volatile bool MyAppearanceChanged = false;
         public volatile uint ConnectionLatencyUp = 0;
@@ -41,6 +37,9 @@ namespace FezGame.MultiplayerMod
             }
         }
 
+
+        public volatile bool SyncWorldState;
+
         public event Action OnUpdate = () => { };
         public event Action OnDispose = () => { };
 
@@ -51,17 +50,25 @@ namespace FezGame.MultiplayerMod
         /// <param name="settings">The <see cref="MultiplayerClientSettings"/> to use to create this instance.</param>
         internal MultiplayerClientNetcode(MultiplayerClientSettings settings)
         {
-            Listening = false;
+            listening = false;
+            SyncWorldState = settings.SyncWorldState;
             MyAppearance = new PlayerAppearance(settings.MyPlayerName, settings.Appearance);
+        }
 
+        public void ConnectToServerAsync(IPEndPoint endpoint)
+        {
+            if (listenerThread != null && listenerThread.IsAlive)
+            {
+                //TODO 
+            }
             listenerThread = new Thread(() =>
             {
-                bool WasSucessfullyConnected = false;
-                try
+                void ConnectToServerInternal(out bool ConnectionSucessful)
                 {
+                    ConnectionSucessful = false;
                     TcpClient tcpClient = new TcpClient(AddressFamily.InterNetwork);
-                    tcpClient.Connect(settings.MainEndpoint);
-                    Listening = true;
+                    tcpClient.Connect(endpoint);
+                    listening = true;
                     while (MyPlayerMetadata == null)
                     {
                         Thread.Sleep(100);
@@ -73,26 +80,26 @@ namespace FezGame.MultiplayerMod
                         bool retransmitAppearanceRequested = false;
                         ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
                         ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
-                        WasSucessfullyConnected = true;
+                        ConnectionSucessful = true;
                         while (true)
                         {
                             ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
                             if (!disposing)
                             {
                                 ActiveLevelState? activeLevelState = null;
-                                if (settings.SyncWorldState)
+                                if (SyncWorldState)
                                 {
                                     activeLevelState = GetCurrentLevelState();
                                 }
 
                                 SaveDataUpdate? saveDataUpdate = null;
-                                if (settings.SyncWorldState)
+                                if (SyncWorldState)
                                 {
                                     saveDataUpdate = GetSaveDataUpdate();
                                 }
                                 //TODO transmit MyAppearance whenever its value changes 
                                 PlayerAppearance? appearance = null;
-                                if(retransmitAppearanceRequested || MyAppearanceChanged)
+                                if (retransmitAppearanceRequested || MyAppearanceChanged)
                                 {
                                     appearance = MyAppearance;
                                 }
@@ -110,22 +117,22 @@ namespace FezGame.MultiplayerMod
                         tcpClient.Close();
                     }
                 }
-                catch (VersionMismatchException e)
+                bool WasSucessfullyConnected = false;
+                try
                 {
-                    FatalException = e;
-                }
-                catch (InvalidDataException e)
-                {
-                    FatalException = e;
+                    ConnectToServerInternal(out WasSucessfullyConnected);
                 }
                 //catch (EndOfStreamException e)
                 //{
                 //    FatalException = e;
                 //}
-                catch (IOException e)
+                catch (IOException e)//Connection failed, data read error, connection terminated by server, etc.
                 {
-                    if(WasSucessfullyConnected){
-                        //TODO retry connection?
+                    if (WasSucessfullyConnected)
+                    {
+                        //retry connection
+                        ConnectToServerInternal(out WasSucessfullyConnected);
+                        //TODO retry connection multiple times?
                         FatalException = e;
                     }
                     else
@@ -133,13 +140,13 @@ namespace FezGame.MultiplayerMod
                         FatalException = e;
                     }
                 }
-                catch (Exception e)
+                catch (Exception e)// Note: VersionMismatchException and InvalidDataException also get caught here
                 {
                     FatalException = e;
                 }
                 finally
                 {
-                    Listening = false;
+                    listening = false;
                 }
             });
             listenerThread.Start();
@@ -191,17 +198,10 @@ namespace FezGame.MultiplayerMod
         {
             if (FatalException != null)
             {
-#if DEBUG
-                if (!System.Diagnostics.Debugger.IsAttached)
-                {
-                    System.Diagnostics.Debugger.Launch();
-                }
-                System.Diagnostics.Debugger.Break();
-#endif
-                throw FatalException;//This should never happen
+                throw FatalException;
             }
 
-            if (!Listening)
+            if (!listening)
             {
                 return;
             }

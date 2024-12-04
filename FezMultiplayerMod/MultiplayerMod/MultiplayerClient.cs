@@ -22,7 +22,7 @@ using FezSharedTools;
 namespace FezGame.MultiplayerMod
 {
     /// <summary>
-    /// The class that contains all the networking stuff
+    /// The GameComponent-like class that handles updating data from the Game and updating data in the Game
     /// </summary>
     public class MultiplayerClient : MultiplayerClientNetcode, IDisposable
     {
@@ -35,11 +35,10 @@ namespace FezGame.MultiplayerMod
         [ServiceDependency]
         public IGameCameraManager CameraManager { private get; set; }
 
-        public bool SyncWorldState;
-
         /// <summary>
         /// Creates a new instance of this class with the provided parameters.
-        /// For any errors that get encountered see <see cref="ErrorMessage"/> an <see cref="FatalException"/>
+        /// For any errors that get encountered see <see cref="ErrorMessage"/> and <see cref="FatalException"/>
+        /// Use <c>ConnectToServerAsync(IPEndPoint)</c> to connect to a server.
         /// </summary>
         /// <param name="settings">The <see cref="MultiplayerClientSettings"/> to use to create this instance.</param>
         internal MultiplayerClient(MultiplayerClientSettings settings) : base(settings)
@@ -47,8 +46,6 @@ namespace FezGame.MultiplayerMod
             _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () => ServiceHelper.InjectServices(this));
 
             OnUpdate += UpdateMyPlayer;
-
-            SyncWorldState = settings.SyncWorldState;
         }
 
         public void UpdateMyPlayer()
