@@ -75,7 +75,7 @@ namespace FezGame.MultiplayerMod
                 {
                     spriteBatch.BeginPoint();
                 }
-                spriteBatch.DrawString(Font, playerName, (scalableMiddleSize / 2f - textSize / 2f).Round() + new Vector2(padding_sides, padding_top), TextColor, 0f, Vector2.Zero, fontScale, SpriteEffects.None, 0);
+                spriteBatch.DrawString(Font, playerName, new Vector2(padding_sides, padding_top), TextColor, 0f, Vector2.Zero, fontScale, SpriteEffects.None, 0);
                 spriteBatch.End();
                 GraphicsDevice.SetRenderTarget(null);
                 mesh.Effect = new DefaultEffect.Textured();
@@ -85,7 +85,6 @@ namespace FezGame.MultiplayerMod
                 mesh.AlwaysOnTop = true;
                 scalableMiddleSize /= 16;
                 scalableMiddleSize -= Vector2.One;
-                mesh.Scale = new Vector3(scalableMiddleSize.X + 1f, scalableMiddleSize.Y + 1f, 1f);
                 meshes.Add(playerName, new MeshData(mesh, scalableMiddleSize));
             }
             else
