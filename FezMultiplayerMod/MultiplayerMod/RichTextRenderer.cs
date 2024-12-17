@@ -126,7 +126,37 @@ namespace FezGame.MultiplayerMod
         {
             return LoadFonts(CMProvider.Global);//Should always use Global
         }
+        public static Vector2 MeasureString(IFontManager fontManager, string text)
+        {
+            return MeasureString(fontManager.Big, fontManager.BigFactor, text);
+        }
+        public static Vector2 MeasureString(SpriteFont defaultFont, float defaultFontScale, string text)
+        {
+            return IterateLines(defaultFont, defaultFontScale, text, Color.White, (token, positionOffset) => { });
+        }
+        public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor, float scale)
+        {
+            DrawString(batch, fontManager.Big, fontManager.BigFactor, text, position, defaultColor, scale, 0);
+        }
+        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, float scale)
+        {
+            DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, scale, 0);
+        }
+        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, float scale, float layerDepth)
+        {
+            /*
+             * Note: currently, I think tokens are drawn with vertical-align: top
+             * Because of this, it is very important that the font scale and values in List<FontData> are correct, and all fonts appear the same scale
+             */
 
+            _ = IterateLines(defaultFont, defaultFontScale, text, Color.White, (token, positionOffset) =>
+            {
+                FontData fontData = token.FontData;
+                batch.DrawString(fontData.Font, token.Text, position + positionOffset, token.Color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
+            });
+        }
+
+        //TODO add more tests
         public static readonly string[] testStrings = {
             "\x1B[31mThis is red text\x1B[0m and this is normal.",
             "\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
@@ -140,6 +170,70 @@ namespace FezGame.MultiplayerMod
             "8bit colors: \x1B[38;5;237mGrayish\x1B[38;5;10mLime\x1B[38;5;213mPink\x1B[38;5;208mOrange.",
             "true bit colors: \x1B[38;2;255;0;255mMagenta.",
         };
+        private static Vector2 IterateLines(SpriteFont defaultFont, float defaultFontScale, string text, Color defaultColor, Action<TokenizedText, Vector2> onToken)
+        {
+            /*
+             * Note: currently, I think tokens are drawn with vertical-align: top
+             * Because of this, it is very important that the font scale and values in List<FontData> are correct, and all fonts appear the same scale
+             */
+            /// The total size required for the text
+            Vector2 size = Vector2.Zero;
+            /// The starting position of the current token
+            Vector2 currentPositionOffset = Vector2.Zero;
+            FontData defaultFontData = new FontData(defaultFont, defaultFontScale);
+            string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            string line;
+            FontData currentFont = defaultFontData;
+            Color currentColor = defaultColor;
+            // TODO implement text decorations
+            TextDecoration currentDecoration = TextDecoration.None;
+            // TODO implement font weight (draw this many times, shifting over by 1 px every time)
+            ushort currentWeight = 1;
+            // TODO implement slanted text
+            // TODO determine what angle unit to use for slanted text (radians or degrees)
+            /// Text slant, in angle units. See https://developer.mozilla.org/en-US/docs/Web/CSS/font-style
+            float currentSlant = 0;
+
+            for (int i = 0; i < lines.Length; ++i)
+            {
+                line = lines[i];
+                Vector2 linesize = Vector2.Zero;
+                TokenizeChars(line, defaultFontData, defaultColor,
+                        ref currentFont, ref currentColor,
+                        ref currentDecoration, ref currentWeight, ref currentSlant
+                        ).ForEach((TokenizedText token) =>
+                        {
+                            FontData fontData = token.FontData;
+                            Vector2 tokensize;
+                            try
+                            {
+                                tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale;
+                            }
+                            catch (Exception e)
+                            {
+                                tokensize = fontData.Font.MeasureString("" + (fontData.Font.DefaultCharacter ?? ' ')) * fontData.Scale;
+                                System.Diagnostics.Debugger.Launch();
+                            }
+                            onToken(token, currentPositionOffset);
+                            linesize.Y = Math.Max(linesize.Y, tokensize.Y);
+                            float tokenSizeXWithSpacing = tokensize.X + fontData.Font.Spacing;
+                            linesize.X += tokenSizeXWithSpacing;
+                            currentPositionOffset.X += tokenSizeXWithSpacing;
+                        });
+                size.X = Math.Max(linesize.X, size.X);
+                size.Y += linesize.Y;
+                currentPositionOffset.Y += linesize.Y;
+                //check if there's more lines
+                if (i + 1 < lines.Length)
+                {
+                    float scaledLineSpacing = defaultFontData.Font.LineSpacing * defaultFontData.Scale;
+                    currentPositionOffset.X = 0;
+                    size.Y += scaledLineSpacing;
+                    currentPositionOffset.Y += scaledLineSpacing;
+                }
+            }
+            return size;
+        }
         private static List<TokenizedText> TokenizeChars(string text, FontData defaultFontData, Color defaultColor,
                 ref FontData currentFont, ref Color currentColor, ref TextDecoration currentDecoration, ref ushort currentWeight, ref float currentSlant)
         {
@@ -234,101 +328,6 @@ namespace FezGame.MultiplayerMod
 
             return tokens;
         }
-        private static Vector2 IterateLines(SpriteFont defaultFont, float defaultFontScale, string text, Color defaultColor, Action<TokenizedText, Vector2> onToken)
-        {
-            /*
-             * Note: currently, I think tokens are drawn with vertical-align: top
-             * Because of this, it is very important that the font scale and values in List<FontData> are correct, and all fonts appear the same scale
-             */
-            /// The total size required for the text
-            Vector2 size = Vector2.Zero;
-            /// The starting position of the current token
-            Vector2 currentPositionOffset = Vector2.Zero;
-            FontData defaultFontData = new FontData(defaultFont, defaultFontScale);
-            string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-            string line;
-            FontData currentFont = defaultFontData;
-            Color currentColor = defaultColor;
-            // TODO implement text decorations
-            TextDecoration currentDecoration = TextDecoration.None;
-            // TODO implement font weight (draw this many times, shifting over by 1 px every time)
-            ushort currentWeight = 1;
-            // TODO implement slanted text
-            // TODO determine what angle unit to use for slanted text (radians or degrees)
-            /// Text slant, in angle units. See https://developer.mozilla.org/en-US/docs/Web/CSS/font-style
-            float currentSlant = 0;
-
-            for (int i = 0; i < lines.Length; ++i)
-            {
-                line = lines[i];
-                Vector2 linesize = Vector2.Zero;
-                TokenizeChars(line, defaultFontData, defaultColor,
-                        ref currentFont, ref currentColor,
-                        ref currentDecoration, ref currentWeight, ref currentSlant
-                        ).ForEach((TokenizedText token) =>
-                        {
-                            FontData fontData = token.FontData;
-                            Vector2 tokensize;
-                            try
-                            {
-                                tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale;
-                            }
-                            catch (Exception e)
-                            {
-                                tokensize = fontData.Font.MeasureString("" + (fontData.Font.DefaultCharacter ?? ' ')) * fontData.Scale;
-                                System.Diagnostics.Debugger.Launch();
-                            }
-                            onToken(token, currentPositionOffset);
-                            linesize.Y = Math.Max(linesize.Y, tokensize.Y);
-                            float tokenSizeXWithSpacing = tokensize.X + fontData.Font.Spacing;
-                            linesize.X += tokenSizeXWithSpacing;
-                            currentPositionOffset.X += tokenSizeXWithSpacing;
-                        });
-                size.X = Math.Max(linesize.X, size.X);
-                size.Y += linesize.Y;
-                currentPositionOffset.Y += linesize.Y;
-                //check if there's more lines
-                if (i + 1 < lines.Length)
-                {
-                    float scaledLineSpacing = defaultFontData.Font.LineSpacing * defaultFontData.Scale;
-                    currentPositionOffset.X = 0;
-                    size.Y += scaledLineSpacing;
-                    currentPositionOffset.Y += scaledLineSpacing;
-                }
-            }
-            return size;
-        }
-
-        public static Vector2 MeasureString(IFontManager fontManager, string text)
-        {
-            return MeasureString(fontManager.Big, fontManager.BigFactor, text);
-        }
-        public static Vector2 MeasureString(SpriteFont defaultFont, float defaultFontScale, string text)
-        {
-            return IterateLines(defaultFont, defaultFontScale, text, Color.White, (token, positionOffset) => { });
-        }
-        public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor, float scale)
-        {
-            DrawString(batch, fontManager.Big, fontManager.BigFactor, text, position, defaultColor, scale, 0);
-        }
-        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, float scale)
-        {
-            DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, scale, 0);
-        }
-        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, float scale, float layerDepth)
-        {
-            /*
-             * Note: currently, I think tokens are drawn with vertical-align: top
-             * Because of this, it is very important that the font scale and values in List<FontData> are correct, and all fonts appear the same scale
-             */
-
-            _ = IterateLines(defaultFont, defaultFontScale, text, Color.White, (token, positionOffset) =>
-            {
-                FontData fontData = token.FontData;
-                batch.DrawString(fontData.Font, token.Text, position + positionOffset, token.Color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
-            });
-        }
-
         private static FontData GetFirstSupportedFont(FontData defaultFontData, char ch)
         {
             if (FontSupportsCharacter(defaultFontData.Font, ch))
