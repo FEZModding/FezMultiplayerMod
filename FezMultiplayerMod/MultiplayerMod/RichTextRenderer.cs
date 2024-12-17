@@ -61,8 +61,9 @@ namespace FezGame.MultiplayerMod
 		 *     BigFactor = 2f;
          */
 
+
         //TODO test these
-        private string[] testStrings = {
+        private static string[] testStrings = {
             "\x1B[31mThis is red text\x1B[0m and this is normal.",
             "\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
             "\x1B[31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
@@ -165,11 +166,11 @@ namespace FezGame.MultiplayerMod
 
             return tokens;
         }
-        public Vector2 MeasureString(FontManager fontManager, string text)
+        public static Vector2 MeasureString(FontManager fontManager, string text)
         {
             return MeasureString(fontManager.Big, fontManager.BigFactor, text);
         }
-        public Vector2 MeasureString(SpriteFont defaultFont, float defaultFontScale, string text)
+        public static Vector2 MeasureString(SpriteFont defaultFont, float defaultFontScale, string text)
         {
             FontData defaultFontData = new FontData(defaultFont, defaultFontScale);
             Vector2 size = Vector2.Zero;
@@ -196,15 +197,15 @@ namespace FezGame.MultiplayerMod
             }
             return size;
         }
-        public void DrawString(SpriteBatch batch, FontManager fontManager, string text, Vector2 position, Color defaultColor, float scale)
+        public static void DrawString(SpriteBatch batch, FontManager fontManager, string text, Vector2 position, Color defaultColor, float scale)
         {
             DrawString(batch, fontManager.Big, fontManager.BigFactor, text, position, defaultColor, scale, 0);
         }
-        public void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, float scale)
+        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, float scale)
         {
             DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, scale, 0);
         }
-        public void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, float scale, float layerDepth)
+        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, float scale, float layerDepth)
         {
             /*
              * Note: currently, I think tokens are drawn with vertical-align: top
