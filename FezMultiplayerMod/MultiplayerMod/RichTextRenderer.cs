@@ -10,7 +10,6 @@ using System.Text;
 
 namespace FezGame.MultiplayerMod
 {
-    //TODO test this actually works
     //TODO Implement this
     /// <summary>
     /// Uses format codes to stylize, format, and display text.
@@ -99,9 +98,9 @@ namespace FezGame.MultiplayerMod
                 FontsNeedLoading = false;
                 new List<Tuple<string, float>>{
                     //Don't use small fonts because they don't look that great
+                    new Tuple<string, float>("Chinese Big", 0.34125f ),
                     new Tuple<string, float>("Japanese Big", 0.34125f ),
                     new Tuple<string, float>("Korean Big", 0.34125f ),
-                    new Tuple<string, float>("Chinese Big", 0.34125f ),
                     new Tuple<string, float>("Latin Big", 2f),
                 }.ForEach((langdat) =>
                 {
@@ -128,23 +127,23 @@ namespace FezGame.MultiplayerMod
             return LoadFonts(CMProvider.Global);//Should always use Global
         }
 
-        //TODO test these
         public static readonly string[] testStrings = {
             "\x1B[31mThis is red text\x1B[0m and this is normal.",
             "\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
             "\x1B[31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
             "Some text \x1B[32mGreen\x1B[0m, then some text \x1B[35Hello but this won't change.",
-            "Multifont test: [Y\u3042\xE9\u56DB\u5B89\uAFB8\uD658\uFF1FZ\u4E0AW]",
+            "Multifont test: [Y\u3042\u3044\xE9\u56DB\u5B89\uAFB8\uD658\uFF1FZ\u4E0AW]",
+            "Multifont test 2: [\u3046e\u56DB\uAFB8\u3044\u5B89\uD658]",
+            "Colored multifont test: [Y\x1B[31m\u3042\u3044\xE9\x1B[93m\u56DB\u5B89\x1B[96m\uAFB8\uD658\x1B[90m\uFF1FZ\x1B[0m\u4E0AW]",
             "dark: \x1B[30mBlack\x1B[0m, \x1B[31mRed\x1B[0m, \x1B[32mGreen\x1B[0m, \x1B[33mYellow\x1B[0m, \x1B[34mBlue\x1B[0m, \x1B[35mMagenta\x1B[0m, \x1B[36mCyan\x1B[0m, \x1B[37mWhite\x1B[0m.",
             "light: \x1B[90mBlack\x1B[0m, \x1B[91mRed\x1B[0m, \x1B[92mGreen\x1B[0m, \x1B[93mYellow\x1B[0m, \x1B[94mBlue\x1B[0m, \x1B[95mMagenta\x1B[0m, \x1B[96mCyan\x1B[0m, \x1B[97mWhite\x1B[0m.",
-            "dark: \x1B[30mBk\x1B[0m, \x1B[31mRd\x1B[0m, \x1B[32mGn\x1B[0m, \x1B[33mYl\x1B[0m, \x1B[34mBl\x1B[0m, \x1B[35mMg\x1B[0m, \x1B[36mCy\x1B[0m, \x1B[37mWh\x1B[0m.",
-            "light: \x1B[90mBk\x1B[0m, \x1B[91mRd\x1B[0m, \x1B[92mGn\x1B[0m, \x1B[93mYl\x1B[0m, \x1B[94mBl\x1B[0m, \x1B[95mMg\x1B[0m, \x1B[96mCy\x1B[0m, \x1B[97mWh\x1B[0m.",
+            "8bit colors: \x1B[38;5;237mGrayish\x1B[38;5;10mLime\x1B[38;5;213mPink\x1B[38;5;208mOrange.",
+            "true bit colors: \x1B[38;2;255;0;255mMagenta.",
         };
-        private static List<TokenizedText> TokenizeChars(string text, FontData defaultFontData, Color defaultColor, 
+        private static List<TokenizedText> TokenizeChars(string text, FontData defaultFontData, Color defaultColor,
                 ref FontData currentFont, ref Color currentColor, ref TextDecoration currentDecoration, ref ushort currentWeight, ref float currentSlant)
         {
             List<TokenizedText> tokens = new List<TokenizedText>();
-            FontData lastFont = defaultFontData;
             string currentToken = "";
             for (int i = 0; i < text.Length; ++i)//changed from foreach so we can look ahead from the current position 
             {
@@ -176,7 +175,7 @@ namespace FezGame.MultiplayerMod
                         if (i_temp < text.Length)
                         {
                             // Note: some of the escape codes have a space
-                            if(text[i_temp - 1] == '\x20')
+                            if (text[i_temp - 1] == '\x20')
                             {
                                 switch (text[i_temp])
                                 {
@@ -213,17 +212,18 @@ namespace FezGame.MultiplayerMod
                         }
                     }
                 }
-                currentFont = GetFirstSupportedFont(defaultFontData, c);
-                if (currentFont.Equals(lastFont))
+                FontData nextFont = GetFirstSupportedFont(defaultFontData, c);
+                if (nextFont.Equals(currentFont))
                 {
                     currentToken += c;
                 }
                 else
                 {
                     tokens.Add(new TokenizedText(currentToken, currentColor, currentFont, currentDecoration, currentWeight, currentSlant));
-                    currentToken = "";
-                    lastFont = currentFont;
+                    currentToken = "" + c;
+                    currentFont = nextFont;
                 }
+                currentFont = nextFont;
             }
 
             // Flush the remaining token if any
@@ -249,8 +249,13 @@ namespace FezGame.MultiplayerMod
             string line;
             FontData currentFont = defaultFontData;
             Color currentColor = defaultColor;
+            // TODO implement text decorations
             TextDecoration currentDecoration = TextDecoration.None;
+            // TODO implement font weight (draw this many times, shifting over by 1 px every time)
             ushort currentWeight = 1;
+            // TODO implement slanted text
+            // TODO determine what angle unit to use for slanted text (radians or degrees)
+            /// Text slant, in angle units. See https://developer.mozilla.org/en-US/docs/Web/CSS/font-style
             float currentSlant = 0;
 
             for (int i = 0; i < lines.Length; ++i)
@@ -263,7 +268,16 @@ namespace FezGame.MultiplayerMod
                         ).ForEach((TokenizedText token) =>
                         {
                             FontData fontData = token.FontData;
-                            Vector2 tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale;
+                            Vector2 tokensize;
+                            try
+                            {
+                                tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale;
+                            }
+                            catch (Exception e)
+                            {
+                                tokensize = fontData.Font.MeasureString("" + (fontData.Font.DefaultCharacter ?? ' ')) * fontData.Scale;
+                                System.Diagnostics.Debugger.Launch();
+                            }
                             onToken(token, currentPositionOffset);
                             linesize.Y = Math.Max(linesize.Y, tokensize.Y);
                             float tokenSizeXWithSpacing = tokensize.X + fontData.Font.Spacing;
@@ -311,7 +325,7 @@ namespace FezGame.MultiplayerMod
             _ = IterateLines(defaultFont, defaultFontScale, text, Color.White, (token, positionOffset) =>
             {
                 FontData fontData = token.FontData;
-                    batch.DrawString(fontData.Font, token.Text, position + positionOffset, token.Color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
+                batch.DrawString(fontData.Font, token.Text, position + positionOffset, token.Color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
             });
         }
 
@@ -350,6 +364,7 @@ namespace FezGame.MultiplayerMod
                 {
                     switch (codeValue)
                     {
+                    //TODO add support for more of these
                     case 0: // Reset
                         currentFont = defaultFontData; // Reset to default font
                         currentColor = defaultColor; // Reset to default color
@@ -421,11 +436,11 @@ namespace FezGame.MultiplayerMod
                             else if (colorType == 2) // 24-bit true color
                             {
                                 if (i + 4 < codes.Length &&
-                                    int.TryParse(codes[i + 1], out int r) &&
-                                    int.TryParse(codes[i + 2], out int g) &&
-                                    int.TryParse(codes[i + 3], out int b))
+                                    int.TryParse(codes[i + 2], out int r) &&
+                                    int.TryParse(codes[i + 3], out int g) &&
+                                    int.TryParse(codes[i + 4], out int b))
                                 {
-                                    currentColor = new Color(MathHelper.Clamp(r, 0, 255), MathHelper.Clamp(g, 0, 255), MathHelper.Clamp(b, 0, 255));
+                                    currentColor = new Color(MathHelper.Clamp(r, 0, 255) / 255f, MathHelper.Clamp(g, 0, 255) / 255f, MathHelper.Clamp(b, 0, 255) / 255f);
                                     i += 4; // Skip the next four parameters
                                 }
                             }
