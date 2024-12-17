@@ -230,7 +230,7 @@ namespace FezGame.MultiplayerMod
             PlayerManager.CanRotate = true;
             LevelManager.Flat = false;
             GameState.SaveData.HasFPView = true;
-            RichTextRenderer.DrawString(drawer, FontManager, "test", Vector2.Zero, Color.White, 1);
+            RichTextRenderer.DrawString(drawer, FontManager, String.Join("\n", RichTextRenderer.testStrings), Vector2.Zero, Color.White, 1);
 #endif
 
             string s = "";

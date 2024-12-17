@@ -38,6 +38,7 @@ namespace FezGame.MultiplayerMod
         [Flags]
         private enum TextDecoration
         {
+            None = 0,
             Underline = 0b1,
             Strikethrough = 0b10,
             Overline = 0b100,
@@ -128,20 +129,19 @@ namespace FezGame.MultiplayerMod
         }
 
         //TODO test these
-        private static string[] testStrings = {
+        public static readonly string[] testStrings = {
             "\x1B[31mThis is red text\x1B[0m and this is normal.",
             "\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
             "\x1B[31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
             "Some text \x1B[32mGreen\x1B[0m, then some text \x1B[35Hello but this won't change.",
+            "Multifont test: [Y\u3042\xE9\u56DB\u5B89\uAFB8\uD658\uFF1FZ\u4E0AW]",
             "dark: \x1B[30mBlack\x1B[0m, \x1B[31mRed\x1B[0m, \x1B[32mGreen\x1B[0m, \x1B[33mYellow\x1B[0m, \x1B[34mBlue\x1B[0m, \x1B[35mMagenta\x1B[0m, \x1B[36mCyan\x1B[0m, \x1B[37mWhite\x1B[0m.",
             "light: \x1B[90mBlack\x1B[0m, \x1B[91mRed\x1B[0m, \x1B[92mGreen\x1B[0m, \x1B[93mYellow\x1B[0m, \x1B[94mBlue\x1B[0m, \x1B[95mMagenta\x1B[0m, \x1B[96mCyan\x1B[0m, \x1B[97mWhite\x1B[0m.",
             "dark: \x1B[30mBk\x1B[0m, \x1B[31mRd\x1B[0m, \x1B[32mGn\x1B[0m, \x1B[33mYl\x1B[0m, \x1B[34mBl\x1B[0m, \x1B[35mMg\x1B[0m, \x1B[36mCy\x1B[0m, \x1B[37mWh\x1B[0m.",
             "light: \x1B[90mBk\x1B[0m, \x1B[91mRd\x1B[0m, \x1B[92mGn\x1B[0m, \x1B[93mYl\x1B[0m, \x1B[94mBl\x1B[0m, \x1B[95mMg\x1B[0m, \x1B[96mCy\x1B[0m, \x1B[97mWh\x1B[0m.",
-
-            "\x1B[90m0 \x1B[91m1 \x1B[92m2 \x1B[93m3 \x1B[94m4 \x1B[95m5 \x1B[96m6 \x1B[97m7 \x1B[98m8 \x1B[99m9 \x1B[9ama \x1B[9bmb \x1B[9cmc \x1B[9dmd \x1B[9eme \x1B[9fmf",
         };
         private static List<TokenizedText> TokenizeChars(string text, FontData defaultFontData, Color defaultColor, 
-                ref FontData currentFont, ref Color currentColor)
+                ref FontData currentFont, ref Color currentColor, ref TextDecoration currentDecoration, ref ushort currentWeight, ref float currentSlant)
         {
             List<TokenizedText> tokens = new List<TokenizedText>();
             FontData lastFont = defaultFontData;
@@ -153,6 +153,10 @@ namespace FezGame.MultiplayerMod
                 //check for special characters to change currentColor and whatever other presentation options we want to include; see "Select Graphic Rendition"
                 if (c == '\x1B')//ANSI escape codes
                 {
+                    //flush current token
+                    tokens.Add(new TokenizedText(currentToken, currentColor, currentFont, currentDecoration, currentWeight, currentSlant));
+                    currentToken = "";
+
                     // Check if the next character is '['
                     if (i + 1 < text.Length && text[i + 1] == '[')
                     {
@@ -164,7 +168,7 @@ namespace FezGame.MultiplayerMod
                         i_temp += 2; // Skip over the escape and the '['
 
                         // Collect until we find a letter or the end of the string
-                        while (i_temp < text.Length && (c = text[i_temp]) >= '\x40' && c <= '\x7F')
+                        while (i_temp < text.Length && !((c = text[i_temp]) >= '\x40' && c <= '\x7F'))
                         {
                             i_temp++;
                         }
@@ -196,7 +200,7 @@ namespace FezGame.MultiplayerMod
                                 string escapeSequence = text.Substring(start, i_temp - start + 1);
 
                                 // Parse the escape sequence to change font/color attributes
-                                ParseSGREscape(escapeSequence, in defaultFontData, in defaultColor, ref currentFont, ref currentColor);
+                                ParseSGREscape(escapeSequence, in defaultFontData, in defaultColor, ref currentFont, ref currentColor, ref currentDecoration, ref currentWeight, ref currentSlant);
                                 break;
                             //TODO add more cases for other stuff?
                             case '\\'://SET ADDITIONAL CHARACTER SEPARATION
@@ -216,7 +220,7 @@ namespace FezGame.MultiplayerMod
                 }
                 else
                 {
-                    tokens.Add(new TokenizedText(currentToken, currentColor, currentFont));
+                    tokens.Add(new TokenizedText(currentToken, currentColor, currentFont, currentDecoration, currentWeight, currentSlant));
                     currentToken = "";
                     lastFont = currentFont;
                 }
@@ -225,45 +229,69 @@ namespace FezGame.MultiplayerMod
             // Flush the remaining token if any
             if (!string.IsNullOrEmpty(currentToken))
             {
-                tokens.Add(new TokenizedText(currentToken, currentColor, currentFont));
+                tokens.Add(new TokenizedText(currentToken, currentColor, currentFont, currentDecoration, currentWeight, currentSlant));
             }
 
             return tokens;
         }
+        private static Vector2 IterateLines(SpriteFont defaultFont, float defaultFontScale, string text, Color defaultColor, Action<TokenizedText, Vector2> onToken)
+        {
+            /*
+             * Note: currently, I think tokens are drawn with vertical-align: top
+             * Because of this, it is very important that the font scale and values in List<FontData> are correct, and all fonts appear the same scale
+             */
+            /// The total size required for the text
+            Vector2 size = Vector2.Zero;
+            /// The starting position of the current token
+            Vector2 currentPositionOffset = Vector2.Zero;
+            FontData defaultFontData = new FontData(defaultFont, defaultFontScale);
+            string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+            string line;
+            FontData currentFont = defaultFontData;
+            Color currentColor = defaultColor;
+            TextDecoration currentDecoration = TextDecoration.None;
+            ushort currentWeight = 1;
+            float currentSlant = 0;
+
+            for (int i = 0; i < lines.Length; ++i)
+            {
+                line = lines[i];
+                Vector2 linesize = Vector2.Zero;
+                TokenizeChars(line, defaultFontData, defaultColor,
+                        ref currentFont, ref currentColor,
+                        ref currentDecoration, ref currentWeight, ref currentSlant
+                        ).ForEach((TokenizedText token) =>
+                        {
+                            FontData fontData = token.FontData;
+                            Vector2 tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale;
+                            onToken(token, currentPositionOffset);
+                            linesize.Y = Math.Max(linesize.Y, tokensize.Y);
+                            float tokenSizeXWithSpacing = tokensize.X + fontData.Font.Spacing;
+                            linesize.X += tokenSizeXWithSpacing;
+                            currentPositionOffset.X += tokenSizeXWithSpacing;
+                        });
+                size.X = Math.Max(linesize.X, size.X);
+                size.Y += linesize.Y;
+                currentPositionOffset.Y += linesize.Y;
+                //check if there's more lines
+                if (i + 1 < lines.Length)
+                {
+                    float scaledLineSpacing = defaultFontData.Font.LineSpacing * defaultFontData.Scale;
+                    currentPositionOffset.X = 0;
+                    size.Y += scaledLineSpacing;
+                    currentPositionOffset.Y += scaledLineSpacing;
+                }
+            }
+            return size;
+        }
+
         public static Vector2 MeasureString(IFontManager fontManager, string text)
         {
             return MeasureString(fontManager.Big, fontManager.BigFactor, text);
         }
         public static Vector2 MeasureString(SpriteFont defaultFont, float defaultFontScale, string text)
         {
-            FontData defaultFontData = new FontData(defaultFont, defaultFontScale);
-            Vector2 size = Vector2.Zero;
-            string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-            string line;
-            for (int i = 0; i < lines.Length; ++i)
-            {
-                line = lines[i];
-                Vector2 linesize = Vector2.Zero;
-                FontData currentFont = defaultFontData;
-                Color currentColor = Color.White;
-                TokenizeChars(line, defaultFontData, Color.White,
-                        ref currentFont, ref currentColor
-                        ).ForEach((TokenizedText token) =>
-                {
-                    FontData fontData = token.FontData;
-                    Vector2 tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale;
-                    linesize.X += tokensize.X + fontData.Font.Spacing;
-                    linesize.Y = Math.Max(linesize.Y, tokensize.Y);
-                });
-                size.X = Math.Max(linesize.X, size.X);
-                size.Y += linesize.Y;
-                //check if there's more lines
-                if (i + 1 < lines.Length)
-                {
-                    size.Y += defaultFontData.Font.LineSpacing * defaultFontData.Scale;
-                }
-            }
-            return size;
+            return IterateLines(defaultFont, defaultFontScale, text, Color.White, (token, positionOffset) => { });
         }
         public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor, float scale)
         {
@@ -279,35 +307,12 @@ namespace FezGame.MultiplayerMod
              * Note: currently, I think tokens are drawn with vertical-align: top
              * Because of this, it is very important that the font scale and values in List<FontData> are correct, and all fonts appear the same scale
              */
-            Vector2 currentPositionOffset = Vector2.Zero;
-            FontData defaultFontData = new FontData(defaultFont, defaultFontScale);
-            string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-            string line;
-            for (int i = 0; i < lines.Length; ++i)
+
+            _ = IterateLines(defaultFont, defaultFontScale, text, Color.White, (token, positionOffset) =>
             {
-                line = lines[i];
-                Vector2 linesize = Vector2.Zero;
-                FontData currentFont = defaultFontData;
-                Color currentColor = defaultColor;
-                TokenizeChars(line, defaultFontData, defaultColor,
-                        ref currentFont, ref currentColor
-                        ).ForEach((TokenizedText token) =>
-                {
-                    FontData fontData = token.FontData;
-                    Vector2 tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale;
-                    batch.DrawString(fontData.Font, token.Text, position + currentPositionOffset, token.Color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
-                    linesize.X += tokensize.X + fontData.Font.Spacing;
-                    linesize.Y = Math.Max(linesize.Y, tokensize.Y);
-                    currentPositionOffset.X += linesize.X;
-                });
-                currentPositionOffset.Y += linesize.Y;
-                //check if there's more lines
-                if (i + 1 < lines.Length)
-                {
-                    currentPositionOffset.X = 0;
-                    currentPositionOffset.Y += defaultFontData.Font.LineSpacing * defaultFontData.Scale;
-                }
-            }
+                FontData fontData = token.FontData;
+                    batch.DrawString(fontData.Font, token.Text, position + positionOffset, token.Color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
+            });
         }
 
         private static FontData GetFirstSupportedFont(FontData defaultFontData, char ch)
@@ -332,7 +337,9 @@ namespace FezGame.MultiplayerMod
         {
             return font.Characters.Contains(ch);
         }
-        private static void ParseSGREscape(string escapeSequence, in FontData defaultFontData, in Color defaultColor, ref FontData currentFont, ref Color currentColor)
+        private static void ParseSGREscape(string escapeSequence, in FontData defaultFontData, in Color defaultColor,
+                ref FontData currentFont, ref Color currentColor,
+                ref TextDecoration currentDecoration, ref ushort currentWeight, ref float currentSlant)
         {
             string parameters = escapeSequence.Substring(2, escapeSequence.Length - 3); // Exclude the ESC and '[' and 'm'
             var codes = parameters.Split(';');
