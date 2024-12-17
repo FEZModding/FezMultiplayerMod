@@ -77,6 +77,8 @@ namespace FezGame.MultiplayerMod
 
         [ServiceDependency]
         public IKeyboardStateManager KeyboardState { private get; set; }
+        [ServiceDependency]
+        public IContentManagerProvider CMProvider { private get; set; }
 
         #endregion
 
@@ -133,6 +135,10 @@ namespace FezGame.MultiplayerMod
             ILightingPostProcess lpp = null;
             _ = Waiters.Wait(() => (lpp = ServiceHelper.Get<ILightingPostProcess>()) != null, () => lpp.DrawGeometryLights += PreDraw);
             textDrawer = new TextDrawer3D(this.Game, FontManager.Big);
+
+            //IContentManagerProvider cmp = null;
+            //_ = Waiters.Wait(() => (cmp = ServiceHelper.Get<IContentManagerProvider>()) != null, () => RichTextRenderer.LoadFonts(cmp));
+            _ = RichTextRenderer.LoadFonts(CMProvider);
 
             DrawActionScheduler.Schedule(delegate
             {
@@ -224,6 +230,7 @@ namespace FezGame.MultiplayerMod
             PlayerManager.CanRotate = true;
             LevelManager.Flat = false;
             GameState.SaveData.HasFPView = true;
+            RichTextRenderer.DrawString(drawer, FontManager, "test", Vector2.Zero, Color.White, 1);
 #endif
 
             string s = "";

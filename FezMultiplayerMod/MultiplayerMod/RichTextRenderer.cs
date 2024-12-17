@@ -24,6 +24,9 @@ namespace FezGame.MultiplayerMod
         private struct FontData
         {
             public SpriteFont Font { get; }
+            /// <summary>
+            /// The amount to scale this font by so it looks the same size as the other fonts
+            /// </summary>
             public float Scale { get; }
 
             public FontData(SpriteFont font, float size)
@@ -32,35 +35,97 @@ namespace FezGame.MultiplayerMod
                 Scale = size;
             }
         }
+        [Flags]
+        private enum TextDecoration
+        {
+            Underline = 0b1,
+            Strikethrough = 0b10,
+            Overline = 0b100,
+        }
         private struct TokenizedText
         {
+            /// <summary>
+            /// The text in this token
+            /// </summary>
             public string Text { get; }
+            /// <summary>
+            /// The color to use for this text
+            /// </summary>
             public Color Color { get; }
+            /// <summary>
+            /// The font to use for this text
+            /// </summary>
             public FontData FontData { get; }
+            public TextDecoration Decoration { get; }
+            public ushort FontWeight { get; }
+            public float ObliqueAngle { get; }
 
-            public TokenizedText(string text, Color color, FontData fontdata)
+            public TokenizedText(string text, Color color, FontData fontdata, TextDecoration decoration, ushort weight, float slantAngle)
             {
                 Text = text;
                 Color = color;
                 FontData = fontdata;
+                Decoration = decoration;
+                FontWeight = weight;
+                ObliqueAngle = slantAngle;
             }
         }
-        private static List<FontData> Fonts = new List<FontData>();//TODO populate list
-        /*
-         * Japanese:
-		 *     Big = CMProvider.Global.Load<SpriteFont>("Fonts/Japanese Big");
-		 *     BigFactor = 0.34125f;
-		 * Korean:
-		 *     Big = CMProvider.Global.Load<SpriteFont>("Fonts/Korean Big");
-		 *     BigFactor = 0.34125f;
-		 * Chinese:
-		 *     Big = CMProvider.Global.Load<SpriteFont>("Fonts/Chinese Big");
-		 *     BigFactor = 0.34125f;
-         * Other:
-		 *     Big = CMProvider.Global.Load<SpriteFont>("Fonts/Latin Big");
-		 *     BigFactor = 2f;
-         */
+        /// <summary>
+        /// Simple list for keeping track of how many fonts are loaded, and for enumerating through the fonts.
+        /// </summary>
+        private static readonly List<FontData> Fonts = new List<FontData>();
+        /// <summary>
+        /// For looking up fonts by name
+        /// </summary>
+        private static readonly Dictionary<string, FontData> FontsByName = new Dictionary<string, FontData>();
 
+        /// <summary>
+        /// Indicated if the fonts are loaded into Fonts
+        /// </summary>
+        private static bool FontsNeedLoading = true;
+        /// <summary>
+        /// Loads the fonts using the specified ContentManager, and returns the total number of fonts loaded.
+        /// </summary>
+        /// <param name="CM"></param>
+        /// <returns>The number of fonts loaded</returns>
+        /// <remarks>
+        /// Note subsequent calls to this method will not trigger reloading of the fonts, but instead just returns the number of fonts already loaded.
+        /// </remarks>
+        private static int LoadFonts(Microsoft.Xna.Framework.Content.ContentManager CM)
+        {
+            if (FontsNeedLoading)
+            {
+                FontsNeedLoading = false;
+                new List<Tuple<string, float>>{
+                    //Don't use small fonts because they don't look that great
+                    new Tuple<string, float>("Japanese Big", 0.34125f ),
+                    new Tuple<string, float>("Korean Big", 0.34125f ),
+                    new Tuple<string, float>("Chinese Big", 0.34125f ),
+                    new Tuple<string, float>("Latin Big", 2f),
+                }.ForEach((langdat) =>
+                {
+                    string lang = langdat.Item1;
+                    float size = langdat.Item2;
+                    SpriteFont font = CM.Load<SpriteFont>($"Fonts/{lang}");
+                    FontData fontdata = new FontData(font, size);
+                    Fonts.Add(fontdata);
+                    FontsByName.Add(lang, fontdata);
+                });
+            }
+            return Fonts.Count;
+        }
+        /// <summary>
+        /// Loads the fonts using the Global ContentManager, and returns the total number of fonts loaded.
+        /// </summary>
+        /// <param name="CMProvider"></param>
+        /// <returns>The number of fonts loaded</returns>
+        /// <remarks>
+        /// Note subsequent calls to this method will not trigger reloading of the fonts, but instead just returns the number of fonts already loaded.
+        /// </remarks>
+        public static int LoadFonts(IContentManagerProvider CMProvider)
+        {
+            return LoadFonts(CMProvider.Global);//Should always use Global
+        }
 
         //TODO test these
         private static string[] testStrings = {
@@ -75,12 +140,11 @@ namespace FezGame.MultiplayerMod
 
             "\x1B[90m0 \x1B[91m1 \x1B[92m2 \x1B[93m3 \x1B[94m4 \x1B[95m5 \x1B[96m6 \x1B[97m7 \x1B[98m8 \x1B[99m9 \x1B[9ama \x1B[9bmb \x1B[9cmc \x1B[9dmd \x1B[9eme \x1B[9fmf",
         };
-        private static List<TokenizedText> TokenizeChars(string text, FontData defaultFontData, Color defaultColor)
+        private static List<TokenizedText> TokenizeChars(string text, FontData defaultFontData, Color defaultColor, 
+                ref FontData currentFont, ref Color currentColor)
         {
             List<TokenizedText> tokens = new List<TokenizedText>();
             FontData lastFont = defaultFontData;
-            FontData currentFont = defaultFontData;
-            Color currentColor = defaultColor;
             string currentToken = "";
             for (int i = 0; i < text.Length; ++i)//changed from foreach so we can look ahead from the current position 
             {
@@ -166,7 +230,7 @@ namespace FezGame.MultiplayerMod
 
             return tokens;
         }
-        public static Vector2 MeasureString(FontManager fontManager, string text)
+        public static Vector2 MeasureString(IFontManager fontManager, string text)
         {
             return MeasureString(fontManager.Big, fontManager.BigFactor, text);
         }
@@ -180,7 +244,11 @@ namespace FezGame.MultiplayerMod
             {
                 line = lines[i];
                 Vector2 linesize = Vector2.Zero;
-                TokenizeChars(line, defaultFontData, Color.White).ForEach((TokenizedText token) =>
+                FontData currentFont = defaultFontData;
+                Color currentColor = Color.White;
+                TokenizeChars(line, defaultFontData, Color.White,
+                        ref currentFont, ref currentColor
+                        ).ForEach((TokenizedText token) =>
                 {
                     FontData fontData = token.FontData;
                     Vector2 tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale;
@@ -197,7 +265,7 @@ namespace FezGame.MultiplayerMod
             }
             return size;
         }
-        public static void DrawString(SpriteBatch batch, FontManager fontManager, string text, Vector2 position, Color defaultColor, float scale)
+        public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor, float scale)
         {
             DrawString(batch, fontManager.Big, fontManager.BigFactor, text, position, defaultColor, scale, 0);
         }
@@ -219,7 +287,11 @@ namespace FezGame.MultiplayerMod
             {
                 line = lines[i];
                 Vector2 linesize = Vector2.Zero;
-                TokenizeChars(line, defaultFontData, defaultColor).ForEach((TokenizedText token) =>
+                FontData currentFont = defaultFontData;
+                Color currentColor = defaultColor;
+                TokenizeChars(line, defaultFontData, defaultColor,
+                        ref currentFont, ref currentColor
+                        ).ForEach((TokenizedText token) =>
                 {
                     FontData fontData = token.FontData;
                     Vector2 tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale;
