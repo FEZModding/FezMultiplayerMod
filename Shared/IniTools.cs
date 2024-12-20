@@ -14,7 +14,7 @@ using System.Text.RegularExpressions;
 
 namespace FezSharedTools
 {
-    class IniTools
+    internal sealed class IniTools
     {
         private const char IniKeyValDelimiter = '=';
         /// <summary>

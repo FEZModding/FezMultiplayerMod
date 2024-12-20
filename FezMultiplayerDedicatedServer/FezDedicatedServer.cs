@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace FezMultiplayerDedicatedServer
 {
-    class FezDedicatedServer
+    sealed class FezDedicatedServer
     {
         private static MultiplayerServer server;
         static void Main(string[] args)

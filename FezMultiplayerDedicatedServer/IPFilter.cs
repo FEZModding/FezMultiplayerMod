@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 
 namespace FezMultiplayerDedicatedServer
 {
-    public class IPFilter
+    public sealed class IPFilter
     {
         private string filterString;
         public string FilterString

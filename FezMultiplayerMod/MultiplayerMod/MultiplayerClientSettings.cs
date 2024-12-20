@@ -6,7 +6,7 @@ namespace FezGame.MultiplayerMod
     /// <summary>
     /// The class that contains the settings for <see cref="MultiplayerClientNetcode"/>
     /// </summary>
-    public class MultiplayerClientSettings
+    public sealed class MultiplayerClientSettings
     {
         private const int DefaultPort = 7777;
         /// <summary>

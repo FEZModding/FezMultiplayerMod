@@ -6,7 +6,7 @@ namespace FezMultiplayerDedicatedServer
     /// <summary>
     /// The class that contains the settings for <see cref="MultiplayerServer"/>
     /// </summary>
-    public class MultiplayerServerSettings
+    public sealed class MultiplayerServerSettings
     {
         /// <summary>
         /// The port to listen on

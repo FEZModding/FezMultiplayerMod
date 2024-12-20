@@ -22,7 +22,7 @@ using Vector3 = FezMultiplayerDedicatedServer.Vector3;
 #endif
 namespace FezSharedTools
 {
-    class SharedConstants
+    internal sealed class SharedConstants
     {
         public static readonly int DefaultPort = 7777;
     }
@@ -241,7 +241,7 @@ namespace FezSharedTools
         }
     }
 
-    public class VersionMismatchException : Exception
+    public sealed class VersionMismatchException : Exception
     {
         public string ExpectedVersion { get; }
         public string ReceivedVersion { get; }
@@ -530,7 +530,7 @@ namespace FezSharedTools
     }
 
 
-    public class BinaryNetworkWriter : BinaryWriter
+    public sealed class BinaryNetworkWriter : BinaryWriter
     {
         public BinaryNetworkWriter(Stream output) : base(output)
         {
@@ -587,7 +587,7 @@ namespace FezSharedTools
         }
     }
 
-    public class BinaryNetworkReader : BinaryReader
+    public sealed class BinaryNetworkReader : BinaryReader
     {
         public BinaryNetworkReader(Stream input) : base(input)
         {

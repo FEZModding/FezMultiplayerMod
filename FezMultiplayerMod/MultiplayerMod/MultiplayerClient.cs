@@ -24,7 +24,7 @@ namespace FezGame.MultiplayerMod
     /// <summary>
     /// The GameComponent-like class that handles updating data from the Game and updating data in the Game
     /// </summary>
-    public class MultiplayerClient : MultiplayerClientNetcode, IDisposable
+    public sealed class MultiplayerClient : MultiplayerClientNetcode, IDisposable
     {
         [ServiceDependency]
         public IPlayerManager PlayerManager { private get; set; }

@@ -34,7 +34,7 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// This class is mainly so we can get text to display over everything else but still have the other players render on the correct layer. 
         /// </summary>
-        private class DebugTextDrawer : DrawableGameComponent
+        private sealed class DebugTextDrawer : DrawableGameComponent
         {
             private readonly FezMultiplayerMod mod;
             public string Text = "";

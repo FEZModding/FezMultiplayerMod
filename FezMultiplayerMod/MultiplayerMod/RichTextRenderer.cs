@@ -18,7 +18,7 @@ namespace FezGame.MultiplayerMod
     /// <remarks>
     /// <a href="https://www.ecma-international.org/publications-and-standards/standards/ecma-48/">https://www.ecma-international.org/publications-and-standards/standards/ecma-48/</a>
     /// </remarks>
-    public class RichTextRenderer
+    public sealed class RichTextRenderer
     {
         private struct FontData
         {
@@ -45,7 +45,7 @@ namespace FezGame.MultiplayerMod
             Strikethrough = 0b10,
             Overline = 0b100,
         }
-        private class TokenStyle
+        private sealed class TokenStyle
         {
             /// <summary>
             /// The color to use for this token
@@ -271,59 +271,150 @@ namespace FezGame.MultiplayerMod
                     tokens.Add(new TokenizedText(currentToken, currentStyle));
                     currentToken = "";
 
-                    // Check if the next character is '['
-                    if (i + 1 < text.Length && text[i + 1] == '[')
+                    /*
+                     * Note: 
+                     * This code only handles Presentation control functions that I (Jenna Sloan) deemed possible to implement in the XNA framework.
+                     * As such, it does not support:
+                     *     Delimiters,
+                     *     Introducers,
+                     *     Shift functions,
+                     *     Format effectors,
+                     *     Editor functions,
+                     *     Cursor control functions,
+                     *     Device control functions,
+                     *     Information separators,
+                     *     Area definition,
+                     *     any codes that require areas,
+                     *     Mode setting,
+                     *     Transmission control functions,
+                     *     Miscellaneous control functions
+                     * with the exception of PRIVATE USE ONE and PRIVATE USE TWO, which may be used for something at a later date.
+                     * 
+                     * Anyways, I manually went through all the escape codes and picked out ones that I though would fit with XNA's DrawString.
+                     */
+
+                    if (i + 1 < text.Length)
                     {
-                        // Control Sequence Identifier
-
-                        // Start collecting the escape sequence
-                        int start = i;
-                        int i_temp = i;
-                        i_temp += 2; // Skip over the escape and the '['
-
-                        // Collect until we find a letter or the end of the string
-                        while (i_temp < text.Length && !((c = text[i_temp]) >= '\x40' && c <= '\x7F'))
+                        switch (text[i + 1])
                         {
-                            i_temp++;
-                        }
+                        case '[':
+                            // CSI (Control Sequence Identifier) codes
 
-                        if (i_temp < text.Length)
-                        {
-                            // Note: some of the escape codes have a space
-                            if (text[i_temp - 1] == '\x20')
+                            // Start collecting the escape sequence
+                            int start = i;
+                            int i_temp = i;
+                            i_temp += 2; // Skip over the escape and the '['
+
+                            // Collect until we find a letter or the end of the string
+                            while (i_temp < text.Length && !((c = text[i_temp]) >= '\x40' && c <= '\x7F'))
                             {
-                                switch (text[i_temp])
+                                i_temp++;
+                            }
+
+                            if (i_temp < text.Length)
+                            {
+                                // Note: some of the escape codes have a space as the penultimate character
+                                if (text[i_temp - 1] == '\x20')
                                 {
-                                /*
-                                 * See Table 4 in ECMA-48 ( https://www.ecma-international.org/publications-and-standards/standards/ecma-48/ )
-                                 * Note in ECMA-48 the "Representation" text is in a format where 02/00 is character \x20, 04/11 is \x4B, 04/15 is \x4F, etc.
-                                **/
-                                //TODO populate switch?
-                                default:
-                                    break;
-                                }
-                            }
-                            switch (text[i_temp])
-                            {
-                            /*
-                             * See Table 3 in ECMA-48 ( https://www.ecma-international.org/publications-and-standards/standards/ecma-48/ )
-                             * Note in ECMA-48 the "Representation" text is in a format where 02/00 is character \x20, 04/11 is \x4B, 04/15 is \x4F, etc.
-                            **/
-                            case 'm':
-                                // Capture the full escape sequence, including the ESC and '['
-                                string escapeSequence = text.Substring(start, i_temp - start + 1);
+                                    switch (text[i_temp])
+                                    {
+                                    /*
+                                     * See Table 4 in ECMA-48 ( https://www.ecma-international.org/publications-and-standards/standards/ecma-48/ )
+                                     * Note in ECMA-48 the "Representation" text is in a format where 02/00 is character \x20, 04/11 is \x4B, 04/15 is \x4F, etc.
+                                    **/
+                                    //TODO support all these empty switch cases?
+                                    case '\x42'://GSM - GRAPHIC SIZE MODIFICATION
+                                        break;
+                                    case '\x43'://GSS - GRAPHIC SIZE SELECTION
+                                        break;
+                                    case '\x44'://FNT - FONT SELECTION
+                                        break;
+                                    case '\x45'://TSS - THIN SPACE SPECIFICATION
+                                        break;
+                                    case '\x46'://JFY - JUSTIFY
+                                        break;
+                                    case '\x47'://SPI - SPACING INCREMENT
+                                        break;
+                                    case '\x48'://QUAD - QUAD
+                                        break;
+                                    case '\x49'://SSU - SELECT SIZE UNIT
+                                        break;
+                                    case '\x4A'://PFS - PAGE FORMAT SELECTION
+                                        break;
+                                    case '\x4B'://SHS - SELECT CHARACTER SPACING
+                                        break;
+                                    case '\x4C'://SVS - SELECT LINE SPACING
+                                        break;
 
-                                // Parse the escape sequence to change font/color attributes
-                                ParseSGREscape(escapeSequence, in defaultFontData, in defaultColor, currentStyle);
-                                break;
-                            //TODO add more cases for other stuff?
-                            case '\\'://SET ADDITIONAL CHARACTER SEPARATION
-                            default:
-                                break;
+                                    case '\x53'://SPD - SELECT PRESENTATION DIRECTIONS
+                                        break;
+
+                                    case '\x5A'://PEC - PRESENTATION EXPAND OR CONTRACT
+                                        break;
+                                    case '\x5B'://SSW - SET SPACE WIDTH
+                                        break;
+                                    case '\\'://SACS - SET ADDITIONAL CHARACTER SEPARATION
+                                        break;
+                                    case '\x5D'://SAPV - SELECT ALTERNATIVE PRESENTATION VARIANTS
+                                        break;
+                                    case '\x5E'://STAB - SELECTIVE TABULATION
+                                        break;
+                                    case '\x5F'://GCC - GRAPHIC CHARACTER COMBINATION
+                                        break;
+
+                                    case '\x65'://SCO - SELECT CHARACTER ORIENTATION
+                                        break;
+                                    case '\x66'://SRCS - SET REDUCED CHARACTER SEPARATION
+                                        break;
+                                    case '\x67'://SCS - SET CHARACTER SPACING
+                                        break;
+                                    case '\x68'://SLS - SET LINE SPACING
+                                        break;
+
+                                    case '\x6B'://SCP - SELECT CHARACTER PATH
+                                        break;
+
+                                    default:
+                                        //Not supported escape code
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    switch (text[i_temp])
+                                    {
+                                    /*
+                                     * See Table 3 in ECMA-48 ( https://www.ecma-international.org/publications-and-standards/standards/ecma-48/ )
+                                     * Note in ECMA-48 the "Representation" text is in a format where 02/00 is character \x20, 04/11 is \x4B, 04/15 is \x4F, etc.
+                                    **/
+                                    //TODO add support for reversed text?
+                                    case '\x5B'://SRS - START REVERSED STRING
+                                        break;
+                                    case '\x5D'://SDS - START DIRECTED STRING
+                                        break;
+                                    case 'm':
+                                        // Capture the full escape sequence, including the ESC and '['
+                                        string escapeSequence = text.Substring(start, i_temp - start + 1);
+
+                                        // Parse the escape sequence to change style data
+                                        ParseSGREscape(escapeSequence, in defaultFontData, in defaultColor, currentStyle);
+                                        break;
+                                    default:
+                                        //Not supported escape code
+                                        break;
+                                    }
+                                }
+                                // skip to the next character
+                                i = i_temp;
+                                continue;
                             }
-                            // We already processed up to the 'm', so we can skip to the next character
-                            i = i_temp;
-                            continue;
+                            break;
+                        //ESC codes
+                        case 'Q'://PRIVATE USE ONE
+                        case 'R'://PRIVATE USE TWO
+                        default:
+                            //Not supported escape code
+                            break;
                         }
                     }
                 }

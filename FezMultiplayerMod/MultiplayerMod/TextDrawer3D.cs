@@ -11,7 +11,7 @@ using System.Collections.Generic;
 using MeshData = System.Tuple<FezEngine.Structure.Mesh, Microsoft.Xna.Framework.Vector2>;
 namespace FezGame.MultiplayerMod
 {
-    public class TextDrawer3D
+    public sealed class TextDrawer3D
     {
         private readonly Dictionary<string, MeshData> meshes;
         private readonly SpriteFont Font;
