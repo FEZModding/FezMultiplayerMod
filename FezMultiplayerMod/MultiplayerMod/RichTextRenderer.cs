@@ -41,9 +41,16 @@ namespace FezGame.MultiplayerMod
         private enum TextDecoration
         {
             None = 0,
-            Underline = 0b1,
-            Strikethrough = 0b10,
-            Overline = 0b100,
+            #pragma warning disable IDE0055
+            Underline       = 0b00000001,
+            Strikethrough   = 0b00000010,
+            Overline        = 0b00000100,
+            DoubleUnderline = 0b00001000 | Underline,
+            Framed          = 0b00010000,
+            Encircled       = 0b00100000,
+            DoubleOverline  = 0b01000000 | Overline,
+            Concealed       = 0b10000000,
+            #pragma warning restore IDE0055
         }
         private sealed class TokenStyle
         {
@@ -51,6 +58,10 @@ namespace FezGame.MultiplayerMod
             /// The color to use for this token
             /// </summary>
             public Color Color { get; set; }
+            /// <summary>
+            /// The color to use for this token
+            /// </summary>
+            public Color BackgroundColor { get; set; }
             /// <summary>
             /// The font to use for this token
             /// </summary>
@@ -68,14 +79,14 @@ namespace FezGame.MultiplayerMod
             public ushort FontWeight { get; set; }
             /// <summary>
             /// TODO implement slanted text <br />
-            /// TODO determine what angle unit to use for slanted text(radians or degrees) <br />
-            /// Text slant, in angle units. See https://developer.mozilla.org/en-US/docs/Web/CSS/font-style
+            /// Text slant, in degrees. See https://developer.mozilla.org/en-US/docs/Web/CSS/font-style
             /// </summary>
             public float ObliqueAngle { get; set; }
 
-            public TokenStyle(Color color, FontData fontdata, TextDecoration decoration, ushort weight, float slantAngle)
+            public TokenStyle(Color color, Color backgroundColor, FontData fontdata, TextDecoration decoration, ushort weight, float slantAngle)
             {
                 Color = color;
+                BackgroundColor = backgroundColor;
                 FontData = fontdata;
                 Decoration = decoration;
                 FontWeight = weight;
@@ -163,32 +174,39 @@ namespace FezGame.MultiplayerMod
         }
         public static Vector2 MeasureString(SpriteFont defaultFont, float defaultFontScale, string text)
         {
-            return IterateLines(defaultFont, defaultFontScale, text, Color.White, (token, positionOffset) => { });
+            return IterateLines(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, (token, positionOffset) => { });
         }
-        public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor, float scale)
+        public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale)
         {
-            DrawString(batch, fontManager.Big, fontManager.BigFactor, text, position, defaultColor, scale, 0);
+            DrawString(batch, fontManager.Big, fontManager.BigFactor, text, position, defaultColor, defaultBGColor, scale, 0);
         }
-        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, float scale)
+        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale)
         {
-            DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, scale, 0);
+            DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, defaultBGColor, scale, 0);
         }
-        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, float scale, float layerDepth)
+        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale, float layerDepth)
         {
             /*
              * Note: currently, I think tokens are drawn with vertical-align: top
              * Because of this, it is very important that the font scale and values in List<FontData> are correct, and all fonts appear the same scale
              */
 
-            _ = IterateLines(defaultFont, defaultFontScale, text, Color.White, (token, positionOffset) =>
+            _ = IterateLines(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, (token, positionOffset) =>
             {
                 FontData fontData = token.Style.FontData;
-                batch.DrawString(fontData.Font, token.Text, position + positionOffset, token.Style.Color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
+                Color color = token.Style.Color;
+
+                TextDecoration decoration = token.Style.Decoration;
+                ushort weight = token.Style.FontWeight;
+                float slant = token.Style.ObliqueAngle;
+
+                batch.DrawString(fontData.Font, token.Text, position + positionOffset, color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
             });
         }
 
         //TODO add more tests
         public static readonly string[] testStrings = {
+            "\x1B[0\x20\x68",//set line spacing
             "\x1B[31mThis is red text\x1B[0m and this is normal.",
             "\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
             "\x1B[31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
@@ -201,7 +219,8 @@ namespace FezGame.MultiplayerMod
             "8bit colors: \x1B[38;5;237mGrayish\x1B[38;5;10mLime\x1B[38;5;213mPink\x1B[38;5;208mOrange.",
             "true bit colors: \x1B[38;2;255;0;255mMagenta.",
         };
-        private static Vector2 IterateLines(SpriteFont defaultFont, float defaultFontScale, string text, Color defaultColor, Action<TokenizedText, Vector2> onToken)
+        private static readonly ushort DefaultFontWeight = 1;
+        private static Vector2 IterateLines(SpriteFont defaultFont, float defaultFontScale, string text, Color defaultColor, Color defaultBGColor, Action<TokenizedText, Vector2> onToken)
         {
             /*
              * Note: currently, I think tokens are drawn with vertical-align: top
@@ -214,14 +233,17 @@ namespace FezGame.MultiplayerMod
             FontData defaultFontData = new FontData(defaultFont, defaultFontScale);
             string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
             string line;
-            TokenStyle currentStyle = new TokenStyle(defaultColor, defaultFontData, TextDecoration.None, 1, 0f);
+            TokenStyle currentStyle = new TokenStyle(defaultColor, Color.Transparent, defaultFontData, TextDecoration.None, DefaultFontWeight, 0f);
+
+            float defaultLineSpacing = defaultFontData.Font.LineSpacing * defaultFontData.Scale;
+            float currentLineSpacing = defaultLineSpacing;
 
             for (int i = 0; i < lines.Length; ++i)
             {
                 line = lines[i];
                 Vector2 linesize = Vector2.Zero;
-                TokenizeChars(line, defaultFontData, defaultColor,
-                        currentStyle
+                TokenizeChars(line, in defaultFontData, in defaultColor, in defaultBGColor, in defaultLineSpacing,
+                        currentStyle, ref currentLineSpacing
                         ).ForEach((TokenizedText token) =>
                         {
                             FontData fontData = token.Style.FontData;
@@ -247,16 +269,15 @@ namespace FezGame.MultiplayerMod
                 //check if there's more lines
                 if (i + 1 < lines.Length)
                 {
-                    float scaledLineSpacing = defaultFontData.Font.LineSpacing * defaultFontData.Scale;
                     currentPositionOffset.X = 0;
-                    size.Y += scaledLineSpacing;
-                    currentPositionOffset.Y += scaledLineSpacing;
+                    size.Y += currentLineSpacing;
+                    currentPositionOffset.Y += currentLineSpacing;
                 }
             }
             return size;
         }
-        private static List<TokenizedText> TokenizeChars(string text, FontData defaultFontData, Color defaultColor,
-                TokenStyle currentStyle)
+        private static List<TokenizedText> TokenizeChars(string text, in FontData defaultFontData, in Color defaultColor, in Color defaultBGColor, in float defaultLineSpacing,
+                TokenStyle currentStyle, ref float currentLineSpacing)
         {
             List<TokenizedText> tokens = new List<TokenizedText>();
             string currentToken = "";
@@ -316,6 +337,8 @@ namespace FezGame.MultiplayerMod
                                 // Note: some of the escape codes have a space as the penultimate character
                                 if (text[i_temp - 1] == '\x20')
                                 {
+                                    // Capture the full parameter, excluding the ESC and '[' and ending characters
+                                    string parameters = text.Substring(start + 2, i_temp - start - 3);
                                     switch (text[i_temp])
                                     {
                                     /*
@@ -323,6 +346,7 @@ namespace FezGame.MultiplayerMod
                                      * Note in ECMA-48 the "Representation" text is in a format where 02/00 is character \x20, 04/11 is \x4B, 04/15 is \x4F, etc.
                                     **/
                                     //TODO support all these empty switch cases?
+                                    //TODO change these hex codes to their corresponding ASCII character
                                     case '\x42'://GSM - GRAPHIC SIZE MODIFICATION
                                         break;
                                     case '\x43'://GSS - GRAPHIC SIZE SELECTION
@@ -344,6 +368,7 @@ namespace FezGame.MultiplayerMod
                                     case '\x4B'://SHS - SELECT CHARACTER SPACING
                                         break;
                                     case '\x4C'://SVS - SELECT LINE SPACING
+                                        //TODO implement this
                                         break;
 
                                     case '\x53'://SPD - SELECT PRESENTATION DIRECTIONS
@@ -369,6 +394,15 @@ namespace FezGame.MultiplayerMod
                                     case '\x67'://SCS - SET CHARACTER SPACING
                                         break;
                                     case '\x68'://SLS - SET LINE SPACING
+                                        //Set to a percentage of the normal line spacing
+                                        if (float.TryParse(parameters, out float newLineSpacing))
+                                        {
+                                            currentLineSpacing = defaultLineSpacing * (newLineSpacing / 100);
+                                        }
+                                        else
+                                        {
+                                            currentLineSpacing = defaultLineSpacing;
+                                        }
                                         break;
 
                                     case '\x6B'://SCP - SELECT CHARACTER PATH
@@ -381,6 +415,8 @@ namespace FezGame.MultiplayerMod
                                 }
                                 else
                                 {
+                                    // Capture the full parameter, excluding the ESC and '[' and ending character
+                                    string parameters = text.Substring(start + 2, i_temp - start - 2);
                                     switch (text[i_temp])
                                     {
                                     /*
@@ -393,11 +429,9 @@ namespace FezGame.MultiplayerMod
                                     case '\x5D'://SDS - START DIRECTED STRING
                                         break;
                                     case 'm':
-                                        // Capture the full escape sequence, including the ESC and '['
-                                        string escapeSequence = text.Substring(start, i_temp - start + 1);
 
                                         // Parse the escape sequence to change style data
-                                        ParseSGREscape(escapeSequence, in defaultFontData, in defaultColor, currentStyle);
+                                        ParseSGREscape(parameters, defaultFontData, defaultColor, defaultBGColor, currentStyle);
                                         break;
                                     default:
                                         //Not supported escape code
@@ -462,59 +496,108 @@ namespace FezGame.MultiplayerMod
         {
             return font.Characters.Contains(ch);
         }
-        private static void ParseSGREscape(string escapeSequence, in FontData defaultFontData, in Color defaultColor,
+        private static void ParseSGREscape(string parameters, FontData defaultFontData, Color defaultColor, Color defaultBGColor,
                 TokenStyle currentStyle)
         {
-            string parameters = escapeSequence.Substring(2, escapeSequence.Length - 3); // Exclude the ESC and '[' and 'm'
             var codes = parameters.Split(';');
+
 
             for (int i = 0; i < codes.Length; i++)
             {
+                void GetTrueColor(ref Color color)
+                {
+                    if (i + 1 < codes.Length && int.TryParse(codes[i + 1], out int colorType))
+                    {
+                        if (colorType == 5) // 8-bit color index
+                        {
+                            if (i + 2 < codes.Length && int.TryParse(codes[i + 2], out int colorIndex))
+                            {
+                                if (TryGetColorFrom8BitIndex(colorIndex, out Color newColor))
+                                {
+                                    color = newColor;
+                                };
+                                i += 2; // Skip the next two parameters
+                            }
+                        }
+                        else if (colorType == 2) // 24-bit true color
+                        {
+                            if (i + 4 < codes.Length &&
+                                int.TryParse(codes[i + 2], out int r) &&
+                                int.TryParse(codes[i + 3], out int g) &&
+                                int.TryParse(codes[i + 4], out int b))
+                            {
+                                color = new Color(MathHelper.Clamp(r, 0, 255) / 255f, MathHelper.Clamp(g, 0, 255) / 255f, MathHelper.Clamp(b, 0, 255) / 255f);
+                                i += 4; // Skip the next four parameters
+                            }
+                        }
+                    }
+                }
                 if (int.TryParse(codes[i], out int codeValue))
                 {
                     switch (codeValue)
                     {
-                    //TODO add support for more of these
                     case 0: // Reset
                         currentStyle.FontData = defaultFontData; // Reset to default font
                         currentStyle.Color = defaultColor; // Reset to default color
+                        currentStyle.BackgroundColor = defaultBGColor; // Reset to default color
+                        currentStyle.Decoration = TextDecoration.None;
+                        currentStyle.FontWeight = DefaultFontWeight;
+                        currentStyle.ObliqueAngle = 0f;
                         break;
                     case 1: // Bold
+                        //TODO set currentStyle.FontWeight to a value greater than DefaultFontWeight
                         break;
                     case 2: // Faint
+                        //TODO set currentStyle.FontWeight to a value less than DefaultFontWeight
                         break;
                     case 3: // Italic
+                        currentStyle.ObliqueAngle = 15f;
                         break;
                     case 4: // Underline
+                        currentStyle.Decoration |= TextDecoration.Underline;
                         break;
                     case 5: // Slow blink
+                        //TODO decide how to implement this; either as part of TextDecoration, or a float BlinkSpeed in TokenStyle
                         break;
                     case 6: // Rapid blink
+                        //TODO decide how to implement this; either as part of TextDecoration, or a float BlinkSpeed in TokenStyle
                         break;
                     case 7: // Negative image
+                        //TODO decide if/how to implement this
                         break;
                     case 8: // Obfuscate / concealed characters
+                        currentStyle.Decoration |= TextDecoration.Concealed;
                         break;
                     case 9: // Strikethrough
+                        currentStyle.Decoration |= TextDecoration.Strikethrough;
                         break;
                     //cases 10 to 20 are fonts
                     case 21: // Double-underline
+                        currentStyle.Decoration |= TextDecoration.DoubleUnderline;
                         break;
                     case 22: // Neither bold nor faint
+                        currentStyle.FontWeight = DefaultFontWeight;
                         break;
                     case 23: // Not italic
+                        currentStyle.ObliqueAngle = 0f;
                         break;
                     case 24: // Not underlined
+                        currentStyle.Decoration &= ~(TextDecoration.Underline | TextDecoration.DoubleUnderline);
                         break;
                     case 25: // Not blinking
+                        //TODO decide how to implement this; either as part of TextDecoration, or a float BlinkSpeed in TokenStyle
                         break;
-                    case 26: // Proportional spacing (Not supporting this)
+                    case 26: // Proportional spacing
+                        //Not supporting this
                         break;
                     case 27: // Not negative image
+                        //TODO decide if/how to implement this
                         break;
                     case 28: // Revealed characters / Not obfuscated
+                        currentStyle.Decoration &= ~TextDecoration.Concealed;
                         break;
                     case 29: // Not strikethrough
+                        currentStyle.Decoration &= ~TextDecoration.Strikethrough;
                         break;
 
                     // Using Windows XP Console colors
@@ -530,59 +613,69 @@ namespace FezGame.MultiplayerMod
                     case 37: currentStyle.Color = Color.Silver; break;  // Dark White
 
                     case 38: // Start of 8-bit or true color
-                        if (i + 1 < codes.Length && int.TryParse(codes[i + 1], out int colorType))
                         {
-                            if (colorType == 5) // 8-bit color index
-                            {
-                                if (i + 2 < codes.Length && int.TryParse(codes[i + 2], out int colorIndex))
-                                {
-                                    if (TryGetColorFrom8BitIndex(colorIndex, out Color newColor))
-                                    {
-                                        currentStyle.Color = newColor;
-                                    };
-                                    i += 2; // Skip the next two parameters
-                                }
-                            }
-                            else if (colorType == 2) // 24-bit true color
-                            {
-                                if (i + 4 < codes.Length &&
-                                    int.TryParse(codes[i + 2], out int r) &&
-                                    int.TryParse(codes[i + 3], out int g) &&
-                                    int.TryParse(codes[i + 4], out int b))
-                                {
-                                    currentStyle.Color = new Color(MathHelper.Clamp(r, 0, 255) / 255f, MathHelper.Clamp(g, 0, 255) / 255f, MathHelper.Clamp(b, 0, 255) / 255f);
-                                    i += 4; // Skip the next four parameters
-                                }
-                            }
+                            Color c = currentStyle.Color;
+                            GetTrueColor(ref c);
+                            currentStyle.Color = c;
+                            break;
                         }
-                        break;
                     case 39: currentStyle.Color = defaultColor; break;
 
+                    case 40: currentStyle.BackgroundColor = Color.Black; break;   // Dark Black
+                    case 41: currentStyle.BackgroundColor = Color.Maroon; break;  // Dark Red
+                    case 42: currentStyle.BackgroundColor = Color.Green; break;   // Dark Green
+                    case 43: currentStyle.BackgroundColor = Color.Olive; break;   // Dark Yellow
+                    case 44: currentStyle.BackgroundColor = Color.Navy; break;    // Dark Blue
+                    case 45: currentStyle.BackgroundColor = Color.Purple; break;  // Dark Magenta
+                    case 46: currentStyle.BackgroundColor = Color.Teal; break;    // Dark Cyan
+                    case 47: currentStyle.BackgroundColor = Color.Silver; break;  // Dark White
+                    
+                    case 48: // Start of 8-bit or true color
+                        {
+                            Color c = currentStyle.BackgroundColor;
+                            GetTrueColor(ref c);
+                            currentStyle.BackgroundColor = c;
+                            break;
+                        }
+                    case 49: currentStyle.BackgroundColor = defaultBGColor; break;
+
                     // cases 40 to 49 are for backgrounds, in the same order as 30 to 39
-                    case 50: // Cancel proportional spacing (Not supporting this)
+                    case 50: // Cancel proportional spacing
+                        //Not supporting this
                         break;
                     case 51: // Framed
+                        currentStyle.Decoration |= TextDecoration.Framed;
                         break;
                     case 52: // Encircled
+                        currentStyle.Decoration |= TextDecoration.Encircled;
                         break;
                     case 53: // Overlined
+                        currentStyle.Decoration |= TextDecoration.Overline;
                         break;
                     case 54: // Not framed, not encircled
+                        currentStyle.Decoration &= ~(TextDecoration.Framed | TextDecoration.Encircled);
                         break;
                     case 55: // Not overlined
+                        currentStyle.Decoration &= ~TextDecoration.Overline;
                         break;
                     // cases 56 to 59 are not defined
                     case 60: // ideogram underline or right side line
+                        currentStyle.Decoration |= TextDecoration.Underline;
                         break;
                     case 61: // ideogram double underline or double line on the right side
+                        currentStyle.Decoration |= TextDecoration.DoubleUnderline;
                         break;
                     case 62: // ideogram overline or left side line
+                        currentStyle.Decoration |= TextDecoration.Overline;
                         break;
                     case 63: // ideogram double overline or double line on the left side
+                        currentStyle.Decoration |= TextDecoration.DoubleOverline;
                         break;
                     case 64: // ideogram stress marking
+                        //TODO idk what this means
                         break;
                     case 65: // cancels the effect of the rendition aspects established by parameter values 60 to 64
+                        currentStyle.Decoration &= ~(TextDecoration.Underline | TextDecoration.DoubleUnderline | TextDecoration.Overline | TextDecoration.DoubleOverline);
                         break;
                     //nothing defined for 
                     // Bright colors
