@@ -34,6 +34,9 @@ namespace FezGame.MultiplayerMod
                 Scale = size;
             }
         }
+        /// <summary>
+        /// Stuff like Underline, Strikethrough, Overline
+        /// </summary>
         [Flags]
         private enum TextDecoration
         {
@@ -42,32 +45,60 @@ namespace FezGame.MultiplayerMod
             Strikethrough = 0b10,
             Overline = 0b100,
         }
+        private class TokenStyle
+        {
+            /// <summary>
+            /// The color to use for this token
+            /// </summary>
+            public Color Color { get; set; }
+            /// <summary>
+            /// The font to use for this token
+            /// </summary>
+            public FontData FontData { get; set; }
+            /// <summary>
+            /// TODO implement text decorations <br />
+            /// Stuff like underline, overline, strikethrough <br />
+            /// See https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
+            /// </summary>
+            public TextDecoration Decoration { get; set; }
+            /// <summary>
+            /// TODO implement font weight (maybe draw this many times, shifting over by 1 px every time) <br />
+            /// For potential reference, see https://developer.mozilla.org/en-US/docs/Web/CSS/font-weight
+            /// </summary>
+            public ushort FontWeight { get; set; }
+            /// <summary>
+            /// TODO implement slanted text <br />
+            /// TODO determine what angle unit to use for slanted text(radians or degrees) <br />
+            /// Text slant, in angle units. See https://developer.mozilla.org/en-US/docs/Web/CSS/font-style
+            /// </summary>
+            public float ObliqueAngle { get; set; }
+
+            public TokenStyle(Color color, FontData fontdata, TextDecoration decoration, ushort weight, float slantAngle)
+            {
+                Color = color;
+                FontData = fontdata;
+                Decoration = decoration;
+                FontWeight = weight;
+                ObliqueAngle = slantAngle;
+            }
+
+            public TokenStyle Clone()
+            {
+                return (TokenStyle)MemberwiseClone();
+            }
+        }
         private struct TokenizedText
         {
             /// <summary>
             /// The text in this token
             /// </summary>
             public string Text { get; }
-            /// <summary>
-            /// The color to use for this text
-            /// </summary>
-            public Color Color { get; }
-            /// <summary>
-            /// The font to use for this text
-            /// </summary>
-            public FontData FontData { get; }
-            public TextDecoration Decoration { get; }
-            public ushort FontWeight { get; }
-            public float ObliqueAngle { get; }
+            public TokenStyle Style { get; }
 
-            public TokenizedText(string text, Color color, FontData fontdata, TextDecoration decoration, ushort weight, float slantAngle)
+            public TokenizedText(string text, TokenStyle tokenStyle)
             {
                 Text = text;
-                Color = color;
-                FontData = fontdata;
-                Decoration = decoration;
-                FontWeight = weight;
-                ObliqueAngle = slantAngle;
+                Style = tokenStyle.Clone();
             }
         }
         /// <summary>
@@ -151,8 +182,8 @@ namespace FezGame.MultiplayerMod
 
             _ = IterateLines(defaultFont, defaultFontScale, text, Color.White, (token, positionOffset) =>
             {
-                FontData fontData = token.FontData;
-                batch.DrawString(fontData.Font, token.Text, position + positionOffset, token.Color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
+                FontData fontData = token.Style.FontData;
+                batch.DrawString(fontData.Font, token.Text, position + positionOffset, token.Style.Color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
             });
         }
 
@@ -183,27 +214,17 @@ namespace FezGame.MultiplayerMod
             FontData defaultFontData = new FontData(defaultFont, defaultFontScale);
             string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
             string line;
-            FontData currentFont = defaultFontData;
-            Color currentColor = defaultColor;
-            // TODO implement text decorations
-            TextDecoration currentDecoration = TextDecoration.None;
-            // TODO implement font weight (draw this many times, shifting over by 1 px every time)
-            ushort currentWeight = 1;
-            // TODO implement slanted text
-            // TODO determine what angle unit to use for slanted text (radians or degrees)
-            /// Text slant, in angle units. See https://developer.mozilla.org/en-US/docs/Web/CSS/font-style
-            float currentSlant = 0;
+            TokenStyle currentStyle = new TokenStyle(defaultColor, defaultFontData, TextDecoration.None, 1, 0f);
 
             for (int i = 0; i < lines.Length; ++i)
             {
                 line = lines[i];
                 Vector2 linesize = Vector2.Zero;
                 TokenizeChars(line, defaultFontData, defaultColor,
-                        ref currentFont, ref currentColor,
-                        ref currentDecoration, ref currentWeight, ref currentSlant
+                        currentStyle
                         ).ForEach((TokenizedText token) =>
                         {
-                            FontData fontData = token.FontData;
+                            FontData fontData = token.Style.FontData;
                             Vector2 tokensize;
                             try
                             {
@@ -235,7 +256,7 @@ namespace FezGame.MultiplayerMod
             return size;
         }
         private static List<TokenizedText> TokenizeChars(string text, FontData defaultFontData, Color defaultColor,
-                ref FontData currentFont, ref Color currentColor, ref TextDecoration currentDecoration, ref ushort currentWeight, ref float currentSlant)
+                TokenStyle currentStyle)
         {
             List<TokenizedText> tokens = new List<TokenizedText>();
             string currentToken = "";
@@ -247,7 +268,7 @@ namespace FezGame.MultiplayerMod
                 if (c == '\x1B')//ANSI escape codes
                 {
                     //flush current token
-                    tokens.Add(new TokenizedText(currentToken, currentColor, currentFont, currentDecoration, currentWeight, currentSlant));
+                    tokens.Add(new TokenizedText(currentToken, currentStyle));
                     currentToken = "";
 
                     // Check if the next character is '['
@@ -293,7 +314,7 @@ namespace FezGame.MultiplayerMod
                                 string escapeSequence = text.Substring(start, i_temp - start + 1);
 
                                 // Parse the escape sequence to change font/color attributes
-                                ParseSGREscape(escapeSequence, in defaultFontData, in defaultColor, ref currentFont, ref currentColor, ref currentDecoration, ref currentWeight, ref currentSlant);
+                                ParseSGREscape(escapeSequence, in defaultFontData, in defaultColor, currentStyle);
                                 break;
                             //TODO add more cases for other stuff?
                             case '\\'://SET ADDITIONAL CHARACTER SEPARATION
@@ -307,23 +328,23 @@ namespace FezGame.MultiplayerMod
                     }
                 }
                 FontData nextFont = GetFirstSupportedFont(defaultFontData, c);
-                if (nextFont.Equals(currentFont))
+                if (nextFont.Equals(currentStyle.FontData))
                 {
                     currentToken += c;
                 }
                 else
                 {
-                    tokens.Add(new TokenizedText(currentToken, currentColor, currentFont, currentDecoration, currentWeight, currentSlant));
+                    tokens.Add(new TokenizedText(currentToken, currentStyle));
                     currentToken = "" + c;
-                    currentFont = nextFont;
+                    currentStyle.FontData = nextFont;
                 }
-                currentFont = nextFont;
+                currentStyle.FontData = nextFont;
             }
 
             // Flush the remaining token if any
             if (!string.IsNullOrEmpty(currentToken))
             {
-                tokens.Add(new TokenizedText(currentToken, currentColor, currentFont, currentDecoration, currentWeight, currentSlant));
+                tokens.Add(new TokenizedText(currentToken, currentStyle));
             }
 
             return tokens;
@@ -351,8 +372,7 @@ namespace FezGame.MultiplayerMod
             return font.Characters.Contains(ch);
         }
         private static void ParseSGREscape(string escapeSequence, in FontData defaultFontData, in Color defaultColor,
-                ref FontData currentFont, ref Color currentColor,
-                ref TextDecoration currentDecoration, ref ushort currentWeight, ref float currentSlant)
+                TokenStyle currentStyle)
         {
             string parameters = escapeSequence.Substring(2, escapeSequence.Length - 3); // Exclude the ESC and '[' and 'm'
             var codes = parameters.Split(';');
@@ -365,8 +385,8 @@ namespace FezGame.MultiplayerMod
                     {
                     //TODO add support for more of these
                     case 0: // Reset
-                        currentFont = defaultFontData; // Reset to default font
-                        currentColor = defaultColor; // Reset to default color
+                        currentStyle.FontData = defaultFontData; // Reset to default font
+                        currentStyle.Color = defaultColor; // Reset to default color
                         break;
                     case 1: // Bold
                         break;
@@ -409,14 +429,14 @@ namespace FezGame.MultiplayerMod
                     // Using Windows XP Console colors
                     // Note these are the same as the first 16 colors from TryGetColorFrom8BitIndex
                     // Standard colors
-                    case 30: currentColor = Color.Black; break;   // Dark Black
-                    case 31: currentColor = Color.Maroon; break;  // Dark Red
-                    case 32: currentColor = Color.Green; break;   // Dark Green
-                    case 33: currentColor = Color.Olive; break;   // Dark Yellow
-                    case 34: currentColor = Color.Navy; break;    // Dark Blue
-                    case 35: currentColor = Color.Purple; break;  // Dark Magenta
-                    case 36: currentColor = Color.Teal; break;    // Dark Cyan
-                    case 37: currentColor = Color.Silver; break;  // Dark White
+                    case 30: currentStyle.Color = Color.Black; break;   // Dark Black
+                    case 31: currentStyle.Color = Color.Maroon; break;  // Dark Red
+                    case 32: currentStyle.Color = Color.Green; break;   // Dark Green
+                    case 33: currentStyle.Color = Color.Olive; break;   // Dark Yellow
+                    case 34: currentStyle.Color = Color.Navy; break;    // Dark Blue
+                    case 35: currentStyle.Color = Color.Purple; break;  // Dark Magenta
+                    case 36: currentStyle.Color = Color.Teal; break;    // Dark Cyan
+                    case 37: currentStyle.Color = Color.Silver; break;  // Dark White
 
                     case 38: // Start of 8-bit or true color
                         if (i + 1 < codes.Length && int.TryParse(codes[i + 1], out int colorType))
@@ -427,7 +447,7 @@ namespace FezGame.MultiplayerMod
                                 {
                                     if (TryGetColorFrom8BitIndex(colorIndex, out Color newColor))
                                     {
-                                        currentColor = newColor;
+                                        currentStyle.Color = newColor;
                                     };
                                     i += 2; // Skip the next two parameters
                                 }
@@ -439,13 +459,13 @@ namespace FezGame.MultiplayerMod
                                     int.TryParse(codes[i + 3], out int g) &&
                                     int.TryParse(codes[i + 4], out int b))
                                 {
-                                    currentColor = new Color(MathHelper.Clamp(r, 0, 255) / 255f, MathHelper.Clamp(g, 0, 255) / 255f, MathHelper.Clamp(b, 0, 255) / 255f);
+                                    currentStyle.Color = new Color(MathHelper.Clamp(r, 0, 255) / 255f, MathHelper.Clamp(g, 0, 255) / 255f, MathHelper.Clamp(b, 0, 255) / 255f);
                                     i += 4; // Skip the next four parameters
                                 }
                             }
                         }
                         break;
-                    case 39: currentColor = defaultColor; break;
+                    case 39: currentStyle.Color = defaultColor; break;
 
                     // cases 40 to 49 are for backgrounds, in the same order as 30 to 39
                     case 50: // Cancel proportional spacing (Not supporting this)
@@ -475,14 +495,14 @@ namespace FezGame.MultiplayerMod
                         break;
                     //nothing defined for 
                     // Bright colors
-                    case 90: currentColor = Color.Gray; break;    // Bright Black (Gray)
-                    case 91: currentColor = Color.Red; break;     // Bright Red
-                    case 92: currentColor = Color.Lime; break;    // Bright Green
-                    case 93: currentColor = Color.Yellow; break;  // Bright Yellow
-                    case 94: currentColor = Color.Blue; break;    // Bright Blue
-                    case 95: currentColor = Color.Magenta; break; // Bright Magenta
-                    case 96: currentColor = Color.Cyan; break;    // Bright Cyan
-                    case 97: currentColor = Color.White; break;   // Bright White
+                    case 90: currentStyle.Color = Color.Gray; break;    // Bright Black (Gray)
+                    case 91: currentStyle.Color = Color.Red; break;     // Bright Red
+                    case 92: currentStyle.Color = Color.Lime; break;    // Bright Green
+                    case 93: currentStyle.Color = Color.Yellow; break;  // Bright Yellow
+                    case 94: currentStyle.Color = Color.Blue; break;    // Bright Blue
+                    case 95: currentStyle.Color = Color.Magenta; break; // Bright Magenta
+                    case 96: currentStyle.Color = Color.Cyan; break;    // Bright Cyan
+                    case 97: currentStyle.Color = Color.White; break;   // Bright White
                     // cases 100 to 107 are for backgrounds, in the same order as 90 to 97
 
                     //nothing defined after 107
