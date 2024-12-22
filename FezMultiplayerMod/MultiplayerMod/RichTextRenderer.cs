@@ -16,10 +16,14 @@ namespace FezGame.MultiplayerMod
     /// See ANSI escape codes or ECMA-48
     /// </summary>
     /// <remarks>
-    /// <a href="https://www.ecma-international.org/publications-and-standards/standards/ecma-48/">https://www.ecma-international.org/publications-and-standards/standards/ecma-48/</a>
+    /// See ANSI escape codes or <a href="https://www.ecma-international.org/publications-and-standards/standards/ecma-48/">ECMA-48</a> for more formatting information.
     /// </remarks>
     public sealed class RichTextRenderer
     {
+        /// <summary>
+        /// Contains a <see cref="SpriteFont"/> and the float value used to make this font appear at the same scale as other fonts. <br />
+        /// These values should match up with the possible values seen in <see cref="FontManager"/> for <see cref="FontManager.Big"/> and <see cref="FontManager.BigFactor"/>
+        /// </summary>
         private struct FontData
         {
             public SpriteFont Font { get; }
@@ -52,6 +56,9 @@ namespace FezGame.MultiplayerMod
             Concealed       = 0b10000000,
             #pragma warning restore IDE0055
         }
+        /// <summary>
+        /// Represents all the text styles to use for this token.
+        /// </summary>
         private sealed class TokenStyle
         {
             /// <summary>
@@ -98,6 +105,9 @@ namespace FezGame.MultiplayerMod
                 return (TokenStyle)MemberwiseClone();
             }
         }
+        /// <summary>
+        /// Contains the text and style for a token.
+        /// </summary>
         private struct TokenizedText
         {
             /// <summary>
@@ -168,30 +178,89 @@ namespace FezGame.MultiplayerMod
         {
             return LoadFonts(CMProvider.Global);//Should always use Global
         }
+
+        /// <inheritdoc cref="MeasureString(SpriteFont, float, string)"/>
+        /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, float, float)"/>
         public static Vector2 MeasureString(IFontManager fontManager, string text)
         {
             return MeasureString(fontManager.Big, fontManager.BigFactor, text);
         }
+        /// <summary>
+        /// Measures the size of the specified text, taking into account any ANSI escape codes that may have affected the size of the text. <br />
+        /// <br />
+        /// <inheritdoc cref="RichTextRenderer"/>
+        /// </summary>
+        /// <param name="text">The text to measure</param>
+        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, float, float)"/>
+        /// <returns>A <see cref="Vector2"/> representing the size of the text.</returns>
         public static Vector2 MeasureString(SpriteFont defaultFont, float defaultFontScale, string text)
         {
-            return IterateLines(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, (token, positionOffset) => { });
+            return ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, (token, positionOffset) => { });
         }
-        public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale)
+
+
+
+        /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, float, float)"/>
+        public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor)
         {
-            DrawString(batch, fontManager.Big, fontManager.BigFactor, text, position, defaultColor, defaultBGColor, scale, 0);
+            DrawString(batch, fontManager, text, position, defaultColor, Color.Transparent);
         }
-        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale)
+        /// <param name="fontManager">The fontManager to use to get the information about the default font to use for this text.</param>
+        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, float, float)"/>
+        public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale = 1, float layerDepth = 0f)
         {
-            DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, defaultBGColor, scale, 0);
+            DrawString(batch, fontManager.Big, fontManager.BigFactor, text, position, defaultColor, defaultBGColor, scale, layerDepth);
         }
-        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale, float layerDepth)
+
+        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, float, float)"/>
+        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor)
         {
+            DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, Color.Transparent);
+        }
+
+        /// <param name="batch">The <see cref="SpriteBatch"/> to use to draw the text.</param>
+        /// <param name="defaultFont">
+        ///         The default font to use for the text. <br />
+        ///         See also: <seealso cref="FontManager.Big"/>
+        /// </param>
+        /// <param name="defaultFontScale">
+        ///         The scaling factor to use for the font provided in the parameter <paramref name="defaultFont"/> so it appears the same size as the other fonts. <br />
+        ///         See also: <see cref="FontManager.BigFactor"/>
+        /// </param>
+        /// <param name="text">The text to draw</param>
+        /// <param name="position">The top-left position to draw the text</param>
+        /// <param name="defaultColor">The default color to use for the text</param>
+        /// <param name="defaultBGColor">The default background color to use for the text</param>
+        /// <param name="scale">The scale by which to render the text (Note: Do NOT confuse this with <paramref name="defaultFontScale"/>)</param>
+        /// <param name="layerDepth">To be honest, I don't really know what this does, but the default value is 0f</param>
+        /// <inheritdoc cref="RichTextRenderer"/>
+        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale = 1f, float layerDepth = 0f)
+        {
+            if (batch is null)
+            {
+                throw new ArgumentNullException(nameof(batch));
+            }
+            if (defaultFont is null)
+            {
+                throw new ArgumentNullException(nameof(defaultFont));
+            }
+            if (text is null)
+            {
+                throw new ArgumentNullException(nameof(text));
+            }
             /*
              * Note: currently, I think tokens are drawn with vertical-align: top
              * Because of this, it is very important that the font scale and values in List<FontData> are correct, and all fonts appear the same scale
              */
 
-            _ = IterateLines(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, (token, positionOffset) =>
+            //TODO figure out the vertical positions of where the underline and overline and strikethrough should go
+            // Y position offsets
+            float underlineOffset = 0;
+            float overlineOffset = 0;
+            float strikethroughOffset = 0;
+            float doublelineOffsetOffset = 0;
+
+            _ = ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, (token, positionOffset) =>
             {
                 FontData fontData = token.Style.FontData;
                 Color color = token.Style.Color;
@@ -200,27 +269,80 @@ namespace FezGame.MultiplayerMod
                 ushort weight = token.Style.FontWeight;
                 float slant = token.Style.ObliqueAngle;
 
+                if ((decoration & TextDecoration.Underline) != 0)
+                {
+                    Vector2 underlinePosition = positionOffset + underlineOffset * Vector2.UnitY;
+                    //TODO draw line with width of token starting at underlinePosition
+                    if ((decoration & TextDecoration.DoubleUnderline) != 0)
+                    {
+                        underlinePosition += doublelineOffsetOffset * Vector2.UnitY;
+                        //TODO draw line with width of token starting at underlinePosition
+                    }
+                }
+                if ((decoration & TextDecoration.Strikethrough) != 0)
+                {
+                    Vector2 strikethroughPosition = positionOffset + strikethroughOffset * Vector2.UnitY;
+                    //TODO draw line with width of token starting at position strikethroughPosition
+                }
+                if ((decoration & TextDecoration.Overline) != 0)
+                {
+                    Vector2 overlinePosition = positionOffset + overlineOffset * Vector2.UnitY;
+                    //TODO draw line with width of token starting at position overlinePosition
+                    if ((decoration & TextDecoration.DoubleOverline) != 0)
+                    {
+                        overlinePosition += doublelineOffsetOffset * Vector2.UnitY;
+                        //TODO draw line with width of token starting at position overlinePosition
+                    }
+                }
+                if ((decoration & TextDecoration.Framed) != 0)
+                {
+                    //TODO draw the outline of a box around the characters
+                }
+                if ((decoration & TextDecoration.Encircled) != 0)
+                {
+                    //TODO draw the outline of an ellipse around the characters
+                }
+                if ((decoration & TextDecoration.Concealed) != 0)
+                {
+                    //TODO decide how to conceal the characters
+                }
+
                 batch.DrawString(fontData.Font, token.Text, position + positionOffset, color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
             });
         }
-
         //TODO add more tests
         public static readonly string[] testStrings = {
             "\x1B[0\x20\x68",//set line spacing
-            "\x1B[31mThis is red text\x1B[0m and this is normal.",
-            "\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
-            "\x1B[31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
+            //"\x1B[31mThis is red text\x1B[0m and this is normal.",
+            //"\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
+            //"\x1B[31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
             "Some text \x1B[32mGreen\x1B[0m, then some text \x1B[35Hello but this won't change.",
             "Multifont test: [Y\u3042\u3044\xE9\u56DB\u5B89\uAFB8\uD658\uFF1FZ\u4E0AW]",
             "Multifont test 2: [\u3046e\u56DB\uAFB8\u3044\u5B89\uD658]",
             "Colored multifont test: [Y\x1B[31m\u3042\u3044\xE9\x1B[93m\u56DB\u5B89\x1B[96m\uAFB8\uD658\x1B[90m\uFF1FZ\x1B[0m\u4E0AW]",
-            "dark: \x1B[30mBlack\x1B[0m, \x1B[31mRed\x1B[0m, \x1B[32mGreen\x1B[0m, \x1B[33mYellow\x1B[0m, \x1B[34mBlue\x1B[0m, \x1B[35mMagenta\x1B[0m, \x1B[36mCyan\x1B[0m, \x1B[37mWhite\x1B[0m.",
-            "light: \x1B[90mBlack\x1B[0m, \x1B[91mRed\x1B[0m, \x1B[92mGreen\x1B[0m, \x1B[93mYellow\x1B[0m, \x1B[94mBlue\x1B[0m, \x1B[95mMagenta\x1B[0m, \x1B[96mCyan\x1B[0m, \x1B[97mWhite\x1B[0m.",
-            "8bit colors: \x1B[38;5;237mGrayish\x1B[38;5;10mLime\x1B[38;5;213mPink\x1B[38;5;208mOrange.",
-            "true bit colors: \x1B[38;2;255;0;255mMagenta.",
+            //"dark: \x1B[30mBlack\x1B[0m, \x1B[31mRed\x1B[0m, \x1B[32mGreen\x1B[0m, \x1B[33mYellow\x1B[0m, \x1B[34mBlue\x1B[0m, \x1B[35mMagenta\x1B[0m, \x1B[36mCyan\x1B[0m, \x1B[37mWhite\x1B[0m.",
+            //"light: \x1B[90mBlack\x1B[0m, \x1B[91mRed\x1B[0m, \x1B[92mGreen\x1B[0m, \x1B[93mYellow\x1B[0m, \x1B[94mBlue\x1B[0m, \x1B[95mMagenta\x1B[0m, \x1B[96mCyan\x1B[0m, \x1B[97mWhite\x1B[0m.",
+            //"8bit colors: \x1B[38;5;237mGrayish\x1B[38;5;10mLime\x1B[38;5;213mPink\x1B[38;5;208mOrange.",
+            //"true bit colors: \x1B[38;2;255;0;255mMagenta.",
+            "\x1B[21;53mThis text has both double underlined and has an overline\x1B[0m",
+            "\x1B[21mdouble underlined\x1B[24m, \x1B[53moverlined\x1B[55m, \x1B[9mstrikethrough\x1B[29m",
+            "\x1B[63mdouble overline\x1B[55m, \x1B[9mstrikethrough\x1B[29m, \x1B[21mdouble underlined\x1B[24m",
+            "\x1B[63;9;21mThis text has all double overline, strikethrough, and double underline\x1B[0m",
+            "\x1B[51mFramed\x1B[54m, \x1B[52mEncircled\x1B[54m, and \x1B[51;52mboth\x1B[54m\x1B[0m",
         };
         private static readonly ushort DefaultFontWeight = 1;
-        private static Vector2 IterateLines(SpriteFont defaultFont, float defaultFontScale, string text, Color defaultColor, Color defaultBGColor, Action<TokenizedText, Vector2> onToken)
+        /// <summary>
+        /// Iterates through the provided <paramref name="text"/> line by line, parsing ECMA-48 escape codes, and calling <paramref name="onToken"/> on each token, in order of occurance.
+        /// </summary>
+        /// <param name="text">The text to process the escape codes on</param>
+        /// <param name="onToken">
+        ///         The action to perform on each token,
+        ///         accepting a <see cref="TokenizedText"/> representing the calculated presentation settings and text for the token,
+        ///         and a <see cref="Vector2"/> representing the calculated top-left corner of the token.
+        /// </param>
+        /// <inheritdoc cref="MeasureString(SpriteFont, float, string)"/>
+        /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, float, float)"/>
+        private static Vector2 ProcessECMA48EscapeCodes(SpriteFont defaultFont, float defaultFontScale, string text, Color defaultColor, Color defaultBGColor, Action<TokenizedText, Vector2> onToken)
         {
             /*
              * Note: currently, I think tokens are drawn with vertical-align: top
@@ -276,6 +398,21 @@ namespace FezGame.MultiplayerMod
             }
             return size;
         }
+        /// <summary>
+        /// Parses all ECMA-48 escape codes in the provided <paramref name="text"/>,
+        /// returning a <see cref="List{TokenizedText}"/> of <see cref="TokenizedText"/> objects containing information on the presentation data and text for each token.
+        /// </summary>
+        /// <param name="text">The line of text to process the escape codes on</param>
+        /// <param name="defaultFontData">The default font (for the current font, see <paramref name="currentStyle"/>)</param>
+        /// <param name="defaultColor">The default color (for the current color, see <paramref name="currentStyle"/>)</param>
+        /// <param name="defaultBGColor">The default background color (for the current background color, see <paramref name="currentStyle"/>)</param>
+        /// <param name="defaultLineSpacing">The default line spacing (for the current line spacing, see <paramref name="currentLineSpacing"/>)</param>
+        /// <param name="currentStyle">
+        ///         The current style used to store and use for the next tokens. <br />
+        ///         The values in the provided object will be updated according to any valid ECMA-48 escape codes.
+        /// </param>
+        /// <param name="currentLineSpacing">The current line spacing to use for the tokens on this and subsequent lines. </param>
+        /// <returns>A <see cref="List{TokenizedText}"/> of <see cref="TokenizedText"/> objects containing information on the presentation data and text for each token.</returns>
         private static List<TokenizedText> TokenizeChars(string text, in FontData defaultFontData, in Color defaultColor, in Color defaultBGColor, in float defaultLineSpacing,
                 TokenStyle currentStyle, ref float currentLineSpacing)
         {
@@ -474,6 +611,15 @@ namespace FezGame.MultiplayerMod
 
             return tokens;
         }
+        /// <summary>
+        /// Gets the first supported font for the given character, prefering <paramref name="defaultFontData"/> if possible, 
+        /// </summary>
+        /// <param name="defaultFontData">The default font to use</param>
+        /// <param name="ch">The character to find a supported font for</param>
+        /// <returns>
+        ///         <paramref name="defaultFontData"/> if that font supports the character, else the first compatible font in <see cref="Fonts"/>.
+        ///         If no compatible font is found, returns defaultFontData.
+        /// </returns>
         private static FontData GetFirstSupportedFont(FontData defaultFontData, char ch)
         {
             if (FontSupportsCharacter(defaultFontData.Font, ch))
@@ -492,6 +638,12 @@ namespace FezGame.MultiplayerMod
                 return defaultFontData;
             }
         }
+        /// <summary>
+        /// Returns <c>true</c> if the supplied <see cref="SpriteFont"/> supports the provided character.
+        /// </summary>
+        /// <param name="font">The font to check</param>
+        /// <param name="ch">The character to check</param>
+        /// <returns><c>true</c> if the supplied <see cref="SpriteFont"/> supports the provided character; false otherwise.</returns>
         private static bool FontSupportsCharacter(SpriteFont font, char ch)
         {
             return font.Characters.Contains(ch);
@@ -629,7 +781,7 @@ namespace FezGame.MultiplayerMod
                     case 45: currentStyle.BackgroundColor = Color.Purple; break;  // Dark Magenta
                     case 46: currentStyle.BackgroundColor = Color.Teal; break;    // Dark Cyan
                     case 47: currentStyle.BackgroundColor = Color.Silver; break;  // Dark White
-                    
+
                     case 48: // Start of 8-bit or true color
                         {
                             Color c = currentStyle.BackgroundColor;
