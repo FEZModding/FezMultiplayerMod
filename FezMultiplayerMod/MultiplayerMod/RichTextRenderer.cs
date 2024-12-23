@@ -74,7 +74,6 @@ namespace FezGame.MultiplayerMod
             /// </summary>
             public FontData FontData { get; set; }
             /// <summary>
-            /// TODO implement text decorations <br />
             /// Stuff like underline, overline, strikethrough <br />
             /// See https://developer.mozilla.org/en-US/docs/Web/CSS/text-decoration
             /// </summary>
@@ -217,6 +216,7 @@ namespace FezGame.MultiplayerMod
         {
             DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, Color.Transparent);
         }
+        private static Texture2D _texture;
 
         /// <param name="batch">The <see cref="SpriteBatch"/> to use to draw the text.</param>
         /// <param name="defaultFont">
@@ -233,6 +233,11 @@ namespace FezGame.MultiplayerMod
         /// <param name="defaultBGColor">The default background color to use for the text</param>
         /// <param name="scale">The scale by which to render the text (Note: Do NOT confuse this with <paramref name="defaultFontScale"/>)</param>
         /// <param name="layerDepth">To be honest, I don't really know what this does, but the default value is 0f</param>
+        /// <remarks>
+        /// Note: This method assumes all the characters in a given font are the same height.<br />
+        /// <br/>
+        /// <include cref="RichTextRenderer"/>
+        /// </remarks>
         /// <inheritdoc cref="RichTextRenderer"/>
         public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale = 1f, float layerDepth = 0f)
         {
@@ -248,55 +253,100 @@ namespace FezGame.MultiplayerMod
             {
                 throw new ArgumentNullException(nameof(text));
             }
+
+            void DrawLine(Vector2 start, float width, float height, Color color)
+            {
+                if (_texture == null)
+                {
+                    _texture = new Texture2D(batch.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
+                    _texture.SetData(new[] { Color.White });
+                }
+                batch.Draw(_texture, start, null, color, 0f, Vector2.Zero, new Vector2(width, height), SpriteEffects.None, 0f);
+            }
+
             /*
              * Note: currently, I think tokens are drawn with vertical-align: top
              * Because of this, it is very important that the font scale and values in List<FontData> are correct, and all fonts appear the same scale
              */
 
-            //TODO figure out the vertical positions of where the underline and overline and strikethrough should go
+            float lineheight = defaultFont.MeasureString("o").Y * defaultFontScale * scale;
+
+            //Might have to tweak these values 
+            const float lineThickness_LineheightPercentage = 0.04f;
+            const float underlineOffset_LineheightPercentage = 0.95f;
+            const float overlineOffset_LineheightPercentage = -lineThickness_LineheightPercentage - 0.005f;
+            const float strikethroughOffset_LineheightPercentage = 0.50f;
+            const float doublelineOffsetOffset_LineheightPercentage = 0.10f;
+
+            // figure out the vertical positions of where the underline and overline and strikethrough should go
             // Y position offsets
-            float underlineOffset = 0;
-            float overlineOffset = 0;
-            float strikethroughOffset = 0;
-            float doublelineOffsetOffset = 0;
+            float underlineOffset = lineheight * underlineOffset_LineheightPercentage;
+            float overlineOffset = lineheight * overlineOffset_LineheightPercentage;
+            float strikethroughOffset = lineheight * strikethroughOffset_LineheightPercentage;
+            float doublelineOffsetOffset = lineheight * doublelineOffsetOffset_LineheightPercentage;
+            float lineThickness = Math.Max(1f, lineheight * lineThickness_LineheightPercentage);
 
             _ = ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, (token, positionOffset) =>
             {
                 FontData fontData = token.Style.FontData;
                 Color color = token.Style.Color;
 
+                float letterSpacing = 1;//TODO
+
                 TextDecoration decoration = token.Style.Decoration;
                 ushort weight = token.Style.FontWeight;
                 float slant = token.Style.ObliqueAngle;
+                Vector2 tokenSize = fontData.Font.MeasureString(token.Text) * fontData.Scale * scale;
+                float tokenWidth = tokenSize.X + letterSpacing;
 
+                batch.DrawString(fontData.Font, token.Text, position + positionOffset, color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
+
+                //Draw text decorations
                 if ((decoration & TextDecoration.Underline) != 0)
                 {
                     Vector2 underlinePosition = positionOffset + underlineOffset * Vector2.UnitY;
-                    //TODO draw line with width of token starting at underlinePosition
+                    // draw line with width of token starting at position underlinePosition
+                    DrawLine(underlinePosition, tokenWidth, lineThickness, color);
                     if ((decoration & TextDecoration.DoubleUnderline) != 0)
                     {
                         underlinePosition += doublelineOffsetOffset * Vector2.UnitY;
-                        //TODO draw line with width of token starting at underlinePosition
+                        // draw line with width of token starting at position underlinePosition
+                        DrawLine(underlinePosition, tokenWidth, lineThickness, color);
                     }
                 }
                 if ((decoration & TextDecoration.Strikethrough) != 0)
                 {
                     Vector2 strikethroughPosition = positionOffset + strikethroughOffset * Vector2.UnitY;
-                    //TODO draw line with width of token starting at position strikethroughPosition
+                    // draw line with width of token starting at position strikethroughPosition
+                    DrawLine(strikethroughPosition, tokenWidth, lineThickness, color);
                 }
                 if ((decoration & TextDecoration.Overline) != 0)
                 {
                     Vector2 overlinePosition = positionOffset + overlineOffset * Vector2.UnitY;
-                    //TODO draw line with width of token starting at position overlinePosition
+                    // draw line with width of token starting at position overlinePosition
+                    DrawLine(overlinePosition, tokenWidth, lineThickness, color);
                     if ((decoration & TextDecoration.DoubleOverline) != 0)
                     {
-                        overlinePosition += doublelineOffsetOffset * Vector2.UnitY;
-                        //TODO draw line with width of token starting at position overlinePosition
+                        overlinePosition -= doublelineOffsetOffset * Vector2.UnitY;
+                        // draw line with width of token starting at position overlinePosition
+                        DrawLine(overlinePosition, tokenWidth, lineThickness, color);
                     }
                 }
                 if ((decoration & TextDecoration.Framed) != 0)
                 {
-                    //TODO draw the outline of a box around the characters
+                    // draw the outline of a box around the characters
+                    float padding = lineThickness;
+                    Vector2 origin = positionOffset - new Vector2(padding + lineThickness, padding + lineThickness);
+                    float boxWidth = tokenSize.X + padding * 2 + lineThickness * 2;
+                    float boxHeight = tokenSize.Y + padding * 2 + lineThickness * 2;
+                    //top
+                    DrawLine(origin, boxWidth, lineThickness, color);
+                    //left
+                    DrawLine(origin, lineThickness, boxHeight, color);
+                    //bottom
+                    DrawLine(origin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, color);
+                    //right
+                    DrawLine(origin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, color);
                 }
                 if ((decoration & TextDecoration.Encircled) != 0)
                 {
@@ -306,13 +356,11 @@ namespace FezGame.MultiplayerMod
                 {
                     //TODO decide how to conceal the characters
                 }
-
-                batch.DrawString(fontData.Font, token.Text, position + positionOffset, color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
             });
         }
         //TODO add more tests
         public static readonly string[] testStrings = {
-            "\x1B[0\x20\x68",//set line spacing
+            "\x1B[50\x20\x68",//set line spacing
             //"\x1B[31mThis is red text\x1B[0m and this is normal.",
             //"\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
             //"\x1B[31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
@@ -328,6 +376,7 @@ namespace FezGame.MultiplayerMod
             "\x1B[21mdouble underlined\x1B[24m, \x1B[53moverlined\x1B[55m, \x1B[9mstrikethrough\x1B[29m",
             "\x1B[63mdouble overline\x1B[55m, \x1B[9mstrikethrough\x1B[29m, \x1B[21mdouble underlined\x1B[24m",
             "\x1B[63;9;21mThis text has all double overline, strikethrough, and double underline\x1B[0m",
+            "Decorated colored multifont test: [\x1B[63;9;21mY\x1B[31m\u3042\u3044\xE9\x1B[93m\u56DB\u5B89\x1B[96m\uAFB8\uD658\x1B[90m\uFF1FZ\x1B[38;2;255;0;255m\u4E0AW\x1B[0m]",
             "\x1B[51mFramed\x1B[54m, \x1B[52mEncircled\x1B[54m, and \x1B[51;52mboth\x1B[54m\x1B[0m",
         };
         private static readonly ushort DefaultFontWeight = 1;
