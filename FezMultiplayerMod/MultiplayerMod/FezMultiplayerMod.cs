@@ -134,7 +134,7 @@ namespace FezGame.MultiplayerMod
             };
             ILightingPostProcess lpp = null;
             _ = Waiters.Wait(() => (lpp = ServiceHelper.Get<ILightingPostProcess>()) != null, () => lpp.DrawGeometryLights += PreDraw);
-            textDrawer = new TextDrawer3D(this.Game, FontManager.Big);
+            textDrawer = new TextDrawer3D(this.Game, FontManager);
 
             //IContentManagerProvider cmp = null;
             //_ = Waiters.Wait(() => (cmp = ServiceHelper.Get<IContentManagerProvider>()) != null, () => RichTextRenderer.LoadFonts(cmp));
@@ -437,7 +437,7 @@ namespace FezGame.MultiplayerMod
             #region draw player name
             Vector3 namePos = p.Position + Vector3.Up * 1.35f;//center text over player 
             //TODO: sanitize player name because the game's font doesn't have every character
-            textDrawer.DrawPlayerName(GraphicsDevice, playerName, namePos, CameraManager.Rotation, mesh.DepthWrites, FontManager.BigFactor * 2, GraphicsDevice.GetViewScale() / 32f / 1.5f, 0.35f);
+            textDrawer.DrawPlayerName(GraphicsDevice, playerName, namePos, CameraManager.Rotation, mesh.DepthWrites, 2, GraphicsDevice.GetViewScale() / 32f / 1.5f, 0.35f);
             #endregion
         }
         //Adapted from GomezHost.GetPositionOffset
