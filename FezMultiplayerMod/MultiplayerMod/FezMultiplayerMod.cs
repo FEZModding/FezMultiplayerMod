@@ -86,7 +86,13 @@ namespace FezGame.MultiplayerMod
 
         private readonly MultiplayerClient mp;
         public volatile bool ShowDebugInfo = true;
-        private const Microsoft.Xna.Framework.Input.Keys ToggleMPDebug = Microsoft.Xna.Framework.Input.Keys.F3;
+        private const Microsoft.Xna.Framework.Input.Keys ToggleMPDebug = Microsoft.Xna.Framework.Input.Keys.F3,
+                        LeftAlt = Microsoft.Xna.Framework.Input.Keys.LeftAlt,
+                        ToggleFontTest1 = Microsoft.Xna.Framework.Input.Keys.D1,
+                        ToggleFontTest2 = Microsoft.Xna.Framework.Input.Keys.D2,
+                        ToggleFontTest3 = Microsoft.Xna.Framework.Input.Keys.D3,
+                        ScaleFontTestDown = Microsoft.Xna.Framework.Input.Keys.D4,
+                        ScaleFontTestUp = Microsoft.Xna.Framework.Input.Keys.D5;
         private readonly DebugTextDrawer debugTextDrawer;
 
         public FezMultiplayerMod(Game game)
@@ -146,7 +152,15 @@ namespace FezGame.MultiplayerMod
             });
 
             KeyboardState.RegisterKey(ToggleMPDebug);
+            KeyboardState.RegisterKey(LeftAlt);
+            KeyboardState.RegisterKey(ToggleFontTest1);
+            KeyboardState.RegisterKey(ToggleFontTest2);
+            KeyboardState.RegisterKey(ToggleFontTest3);
+            KeyboardState.RegisterKey(ScaleFontTestDown);
+            KeyboardState.RegisterKey(ScaleFontTestUp);
         }
+        private int ShownFontTest = 0;
+        private float ShownFontTestScale = 0.95f;
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
@@ -154,6 +168,30 @@ namespace FezGame.MultiplayerMod
             if (KeyboardState.GetKeyState(ToggleMPDebug) == FezButtonState.Pressed)
             {
                 ShowDebugInfo = !ShowDebugInfo;
+            }
+            if (KeyboardState.GetKeyState(LeftAlt) == FezButtonState.Down)
+            {
+                if (KeyboardState.GetKeyState(ToggleFontTest1) == FezButtonState.Pressed)
+                {
+                    ShownFontTest = ShownFontTest == 1 ? ShownFontTest = 0 : ShownFontTest = 1;
+                }
+                if (KeyboardState.GetKeyState(ToggleFontTest2) == FezButtonState.Pressed)
+                {
+                    ShownFontTest = ShownFontTest == 2 ? ShownFontTest = 0 : ShownFontTest = 2;
+                }
+                if (KeyboardState.GetKeyState(ToggleFontTest3) == FezButtonState.Pressed)
+                {
+                    ShownFontTest = ShownFontTest == 3 ? ShownFontTest = 0 : ShownFontTest = 3;
+                }
+                if (KeyboardState.GetKeyState(ScaleFontTestDown) == FezButtonState.Pressed)
+                {
+                    ShownFontTestScale -= 0.1f;
+                }
+                if (KeyboardState.GetKeyState(ScaleFontTestUp) == FezButtonState.Pressed)
+                {
+                    ShownFontTestScale += 0.1f;
+                }
+                ShownFontTestScale = MathHelper.Clamp(ShownFontTestScale, 0.45f, 2.55f);
             }
             try
             {
@@ -231,7 +269,10 @@ namespace FezGame.MultiplayerMod
             LevelManager.Flat = false;
             GameState.SaveData.HasFPView = true;
             drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-            RichTextRenderer.DrawString(drawer, FontManager, String.Join("\n", RichTextRenderer.testStrings), Vector2.Zero, Color.White, Color.Transparent, 1);
+            if (RichTextRenderer.testStrings.TryGetValue(ShownFontTest, out string[] tests))
+            {
+                RichTextRenderer.DrawString(drawer, FontManager, String.Join("\n", tests), new Vector2(50, 100), Color.White, Color.Transparent, ShownFontTestScale);
+            }
             drawer.End();
 #endif
 
@@ -260,7 +301,7 @@ namespace FezGame.MultiplayerMod
             }
             if (mp.Listening)
             {
-                if(ShowDebugInfo)
+                if (ShowDebugInfo)
                 {
                     s += $"Connected players: \n";
                 }
@@ -280,7 +321,7 @@ namespace FezGame.MultiplayerMod
                                 s += "(you): ";
                             }
                             s += $"{playerName}, "// + p.Uuid + ", "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
-                                + $"{((p.CurrentLevelName==null || p.CurrentLevelName.Length==0) ? "???" : p.CurrentLevelName)}, "
+                                + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
                                 + $"{p.Action}, {p.CameraViewpoint}, "
                                 + $"{p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
                         }
@@ -291,11 +332,11 @@ namespace FezGame.MultiplayerMod
                             {
                                 DrawPlayer(p, playerName, gameTime);
                             }
-                            catch(Exception e)
+                            catch (Exception e)
                             {
 #if DEBUG
                                 System.Diagnostics.Debugger.Launch();
-                                #endif
+#endif
                             }
                         }
                     }

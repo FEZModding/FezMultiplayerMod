@@ -190,32 +190,46 @@ namespace FezGame.MultiplayerMod
         /// <inheritdoc cref="RichTextRenderer"/>
         /// </summary>
         /// <param name="text">The text to measure</param>
-        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, float, float)"/>
+        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, Vector2, float)"/>
         /// <returns>A <see cref="Vector2"/> representing the size of the text.</returns>
         public static Vector2 MeasureString(SpriteFont defaultFont, float defaultFontScale, string text)
         {
-            return ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, (token, positionOffset) => { });
+            return ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, Vector2.One, (token, positionOffset) => { });
         }
 
 
 
-        /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, float, float)"/>
+        /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, Vector2, float)"/>
         public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor)
         {
             DrawString(batch, fontManager, text, position, defaultColor, Color.Transparent);
         }
         /// <param name="fontManager">The fontManager to use to get the information about the default font to use for this text.</param>
-        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, float, float)"/>
+        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, Vector2, float)"/>
         public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale = 1, float layerDepth = 0f)
         {
             DrawString(batch, fontManager.Big, fontManager.BigFactor, text, position, defaultColor, defaultBGColor, scale, layerDepth);
         }
 
-        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, float, float)"/>
+        /// <param name="fontManager">The fontManager to use to get the information about the default font to use for this text.</param>
+        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, Vector2, float)"/>
+        public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor, Color defaultBGColor, Vector2 scale, float layerDepth = 0f)
+        {
+            DrawString(batch, fontManager.Big, fontManager.BigFactor, text, position, defaultColor, defaultBGColor, scale, layerDepth);
+        }
+
+        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, Vector2, float)"/>
         public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor)
         {
             DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, Color.Transparent);
         }
+
+        /// <inheritdoc cref="DrawString(SpriteBatch, SpriteFont, float, string, Vector2, Color, Color, Vector2, float)"/>
+        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale = 1f, float layerDepth = 0f)
+        {
+            DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, defaultBGColor, new Vector2(scale, scale), layerDepth);
+        }
+
         private static Texture2D _texture;
 
         /// <param name="batch">The <see cref="SpriteBatch"/> to use to draw the text.</param>
@@ -239,7 +253,7 @@ namespace FezGame.MultiplayerMod
         /// <include cref="RichTextRenderer"/>
         /// </remarks>
         /// <inheritdoc cref="RichTextRenderer"/>
-        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, Color defaultBGColor, float scale = 1f, float layerDepth = 0f)
+        public static void DrawString(SpriteBatch batch, SpriteFont defaultFont, float defaultFontScale, string text, Vector2 position, Color defaultColor, Color defaultBGColor, Vector2 scale, float layerDepth = 0f)
         {
             if (batch is null)
             {
@@ -269,27 +283,30 @@ namespace FezGame.MultiplayerMod
              * Because of this, it is very important that the font scale and values in List<FontData> are correct, and all fonts appear the same scale
              */
 
-            float lineheight = defaultFont.MeasureString("o").Y * defaultFontScale * scale;
+            float lineheight = defaultFont.MeasureString("o").Y * defaultFontScale * scale.Y;
 
             //Might have to tweak these values 
-            const float lineThickness_LineheightPercentage = 0.04f;
-            const float underlineOffset_LineheightPercentage = 0.95f;
-            const float overlineOffset_LineheightPercentage = -lineThickness_LineheightPercentage - 0.005f;
+            const float lineThickness_LineheightPercentage = 0.03f;
+            const float underlineOffset_LineheightPercentage = 1 - lineThickness_LineheightPercentage;
+            const float overlineOffset_LineheightPercentage = 0;// -lineThickness_LineheightPercentage - 0.005f;
             const float strikethroughOffset_LineheightPercentage = 0.50f;
-            const float doublelineOffsetOffset_LineheightPercentage = 0.10f;
+            const float doublelineOffsetOffset_LineheightPercentage = 0.01f;
 
             // figure out the vertical positions of where the underline and overline and strikethrough should go
             // Y position offsets
             float underlineOffset = lineheight * underlineOffset_LineheightPercentage;
             float overlineOffset = lineheight * overlineOffset_LineheightPercentage;
             float strikethroughOffset = lineheight * strikethroughOffset_LineheightPercentage;
-            float doublelineOffsetOffset = lineheight * doublelineOffsetOffset_LineheightPercentage;
-            float lineThickness = Math.Max(1f, lineheight * lineThickness_LineheightPercentage);
+            float scaledMinLineSize = Math.Max(1f, scale.Y);
+            float lineThickness = Math.Max(scaledMinLineSize, lineheight * lineThickness_LineheightPercentage);
+            float doublelineOffsetOffset = Math.Max(lineThickness + scaledMinLineSize, lineheight * doublelineOffsetOffset_LineheightPercentage);
 
-            _ = ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, (token, positionOffset) =>
+            _ = ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, scale, (token, positionOffset) =>
             {
                 FontData fontData = token.Style.FontData;
                 Color color = token.Style.Color;
+
+                Vector2 offsetPosition = position + positionOffset;
 
                 float letterSpacing = 1;//TODO
 
@@ -299,12 +316,12 @@ namespace FezGame.MultiplayerMod
                 Vector2 tokenSize = fontData.Font.MeasureString(token.Text) * fontData.Scale * scale;
                 float tokenWidth = tokenSize.X + letterSpacing;
 
-                batch.DrawString(fontData.Font, token.Text, position + positionOffset, color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
+                batch.DrawString(fontData.Font, token.Text, offsetPosition, color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
 
                 //Draw text decorations
                 if ((decoration & TextDecoration.Underline) != 0)
                 {
-                    Vector2 underlinePosition = positionOffset + underlineOffset * Vector2.UnitY;
+                    Vector2 underlinePosition = offsetPosition + underlineOffset * Vector2.UnitY;
                     // draw line with width of token starting at position underlinePosition
                     DrawLine(underlinePosition, tokenWidth, lineThickness, color);
                     if ((decoration & TextDecoration.DoubleUnderline) != 0)
@@ -316,13 +333,13 @@ namespace FezGame.MultiplayerMod
                 }
                 if ((decoration & TextDecoration.Strikethrough) != 0)
                 {
-                    Vector2 strikethroughPosition = positionOffset + strikethroughOffset * Vector2.UnitY;
+                    Vector2 strikethroughPosition = offsetPosition + strikethroughOffset * Vector2.UnitY;
                     // draw line with width of token starting at position strikethroughPosition
                     DrawLine(strikethroughPosition, tokenWidth, lineThickness, color);
                 }
                 if ((decoration & TextDecoration.Overline) != 0)
                 {
-                    Vector2 overlinePosition = positionOffset + overlineOffset * Vector2.UnitY;
+                    Vector2 overlinePosition = offsetPosition + overlineOffset * Vector2.UnitY;
                     // draw line with width of token starting at position overlinePosition
                     DrawLine(overlinePosition, tokenWidth, lineThickness, color);
                     if ((decoration & TextDecoration.DoubleOverline) != 0)
@@ -336,7 +353,7 @@ namespace FezGame.MultiplayerMod
                 {
                     // draw the outline of a box around the characters
                     float padding = lineThickness;
-                    Vector2 origin = positionOffset - new Vector2(padding + lineThickness, padding + lineThickness);
+                    Vector2 origin = offsetPosition - new Vector2(padding + lineThickness, padding + lineThickness);
                     float boxWidth = tokenSize.X + padding * 2 + lineThickness * 2;
                     float boxHeight = tokenSize.Y + padding * 2 + lineThickness * 2;
                     //top
@@ -359,25 +376,27 @@ namespace FezGame.MultiplayerMod
             });
         }
         //TODO add more tests
-        public static readonly string[] testStrings = {
-            "\x1B[50\x20\x68",//set line spacing
-            //"\x1B[31mThis is red text\x1B[0m and this is normal.",
-            //"\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
-            //"\x1B[31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
-            "Some text \x1B[32mGreen\x1B[0m, then some text \x1B[35Hello but this won't change.",
-            "Multifont test: [Y\u3042\u3044\xE9\u56DB\u5B89\uAFB8\uD658\uFF1FZ\u4E0AW]",
-            "Multifont test 2: [\u3046e\u56DB\uAFB8\u3044\u5B89\uD658]",
-            "Colored multifont test: [Y\x1B[31m\u3042\u3044\xE9\x1B[93m\u56DB\u5B89\x1B[96m\uAFB8\uD658\x1B[90m\uFF1FZ\x1B[0m\u4E0AW]",
-            //"dark: \x1B[30mBlack\x1B[0m, \x1B[31mRed\x1B[0m, \x1B[32mGreen\x1B[0m, \x1B[33mYellow\x1B[0m, \x1B[34mBlue\x1B[0m, \x1B[35mMagenta\x1B[0m, \x1B[36mCyan\x1B[0m, \x1B[37mWhite\x1B[0m.",
-            //"light: \x1B[90mBlack\x1B[0m, \x1B[91mRed\x1B[0m, \x1B[92mGreen\x1B[0m, \x1B[93mYellow\x1B[0m, \x1B[94mBlue\x1B[0m, \x1B[95mMagenta\x1B[0m, \x1B[96mCyan\x1B[0m, \x1B[97mWhite\x1B[0m.",
-            //"8bit colors: \x1B[38;5;237mGrayish\x1B[38;5;10mLime\x1B[38;5;213mPink\x1B[38;5;208mOrange.",
-            //"true bit colors: \x1B[38;2;255;0;255mMagenta.",
-            "\x1B[21;53mThis text has both double underlined and has an overline\x1B[0m",
-            "\x1B[21mdouble underlined\x1B[24m, \x1B[53moverlined\x1B[55m, \x1B[9mstrikethrough\x1B[29m",
-            "\x1B[63mdouble overline\x1B[55m, \x1B[9mstrikethrough\x1B[29m, \x1B[21mdouble underlined\x1B[24m",
-            "\x1B[63;9;21mThis text has all double overline, strikethrough, and double underline\x1B[0m",
-            "Decorated colored multifont test: [\x1B[63;9;21mY\x1B[31m\u3042\u3044\xE9\x1B[93m\u56DB\u5B89\x1B[96m\uAFB8\uD658\x1B[90m\uFF1FZ\x1B[38;2;255;0;255m\u4E0AW\x1B[0m]",
-            "\x1B[51mFramed\x1B[54m, \x1B[52mEncircled\x1B[54m, and \x1B[51;52mboth\x1B[54m\x1B[0m",
+        public static readonly Dictionary<int, string[]> testStrings = new Dictionary<int, string[]>() {
+            {1, new string[]{ "\x1B[10\x20\x68",//set line spacing
+                "\x1B[31mThis is red text\x1B[0m and this is normal.",
+                "\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
+                "\x1B[31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
+                "Some text \x1B[32mGreen\x1B[0m, then some text \x1B[35Hello but this won't change.",
+                "Multifont test: [\u3046e\u56DB\uAFB8\u3044\u5B89\uD658]",
+                "Colored multifont test: [Y\x1B[31m\u3042\u3044\xE9\x1B[93m\u56DB\u5B89\x1B[96m\uAFB8\uD658\x1B[90m\uFF1FZ\x1B[0m\u4E0AW]",
+                "dark: \x1B[30mBlack\x1B[0m, \x1B[31mRed\x1B[0m, \x1B[32mGreen\x1B[0m, \x1B[33mYellow\x1B[0m, \x1B[34mBlue\x1B[0m, \x1B[35mMagenta\x1B[0m, \x1B[36mCyan\x1B[0m, \x1B[37mWhite\x1B[0m.",
+                "light: \x1B[90mBlack\x1B[0m, \x1B[91mRed\x1B[0m, \x1B[92mGreen\x1B[0m, \x1B[93mYellow\x1B[0m, \x1B[94mBlue\x1B[0m, \x1B[95mMagenta\x1B[0m, \x1B[96mCyan\x1B[0m, \x1B[97mWhite\x1B[0m.",
+                "8bit colors: \x1B[38;5;237mGrayish\x1B[38;5;10mLime\x1B[38;5;213mPink\x1B[38;5;208mOrange.",
+                "true bit colors: \x1B[38;2;255;0;255mMagenta.",
+            }},
+            {2, new string[]{ "\x1B[10\x20\x68",//set line spacing
+                "\x1B[21;53mThis text has both double underlined and has an overline\x1B[0m",
+                "\x1B[21mdouble underlined\x1B[24m, \x1B[53moverlined\x1B[55m, \x1B[9mstrikethrough\x1B[29m",
+                "\x1B[63mdouble overline\x1B[55m, \x1B[9mstrikethrough\x1B[29m, \x1B[21mdouble underlined\x1B[24m",
+                "\x1B[63;9;21mThis text has all double overline, strikethrough, and double underline\x1B[0m",
+                "Decorated colored multifont test: [\x1B[63;9;21mY\x1B[31m\u3042\u3044\xE9\x1B[93m\u56DB\u5B89\x1B[96m\uAFB8\uD658\x1B[90m\uFF1FZ\x1B[38;2;255;0;255m\u4E0AW\x1B[0m]",
+                "\x1B[51mFramed\x1B[54m, \x1B[52mEncircled\x1B[54m, and \x1B[51;52mboth\x1B[54m\x1B[0m",
+            }}
         };
         private static readonly ushort DefaultFontWeight = 1;
         /// <summary>
@@ -391,7 +410,7 @@ namespace FezGame.MultiplayerMod
         /// </param>
         /// <inheritdoc cref="MeasureString(SpriteFont, float, string)"/>
         /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, float, float)"/>
-        private static Vector2 ProcessECMA48EscapeCodes(SpriteFont defaultFont, float defaultFontScale, string text, Color defaultColor, Color defaultBGColor, Action<TokenizedText, Vector2> onToken)
+        private static Vector2 ProcessECMA48EscapeCodes(SpriteFont defaultFont, float defaultFontScale, string text, Color defaultColor, Color defaultBGColor, Vector2 scale, Action<TokenizedText, Vector2> onToken)
         {
             /*
              * Note: currently, I think tokens are drawn with vertical-align: top
@@ -421,11 +440,11 @@ namespace FezGame.MultiplayerMod
                             Vector2 tokensize;
                             try
                             {
-                                tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale;
+                                tokensize = fontData.Font.MeasureString(token.Text.ToString()) * fontData.Scale * scale;
                             }
                             catch (Exception e)
                             {
-                                tokensize = fontData.Font.MeasureString("" + (fontData.Font.DefaultCharacter ?? ' ')) * fontData.Scale;
+                                tokensize = fontData.Font.MeasureString("" + (fontData.Font.DefaultCharacter ?? ' ')) * fontData.Scale * scale;
                                 System.Diagnostics.Debugger.Launch();
                             }
                             onToken(token, currentPositionOffset);
@@ -475,8 +494,11 @@ namespace FezGame.MultiplayerMod
                 if (c == '\x1B')//ANSI escape codes
                 {
                     //flush current token
-                    tokens.Add(new TokenizedText(currentToken, currentStyle));
-                    currentToken = "";
+                    if (!string.IsNullOrEmpty(currentToken))
+                    {
+                        tokens.Add(new TokenizedText(currentToken, currentStyle));
+                        currentToken = "";
+                    }
 
                     /*
                      * Note: 
@@ -645,7 +667,10 @@ namespace FezGame.MultiplayerMod
                 }
                 else
                 {
-                    tokens.Add(new TokenizedText(currentToken, currentStyle));
+                    if (!string.IsNullOrEmpty(currentToken))
+                    {
+                        tokens.Add(new TokenizedText(currentToken, currentStyle));
+                    }
                     currentToken = "" + c;
                     currentStyle.FontData = nextFont;
                 }
