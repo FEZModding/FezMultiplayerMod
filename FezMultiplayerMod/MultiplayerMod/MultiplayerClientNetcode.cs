@@ -31,7 +31,8 @@ namespace FezGame.MultiplayerMod
         public string MyPlayerName
         {
             get => MyAppearance.PlayerName;
-            set {
+            set
+            {
                 MyAppearance.PlayerName = value;
                 MyAppearanceChanged = true;
             }

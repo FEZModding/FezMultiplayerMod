@@ -142,7 +142,8 @@ namespace FezMultiplayerDedicatedServer
                     //Note: apparently tcpListener.AcceptTcpClient(); is so blocking, if it's in a Thread, it even blocks calls to that thread's .Abort() method 
                     //TcpClient client = tcpListener.AcceptTcpClient();
                     TcpClient client = await tcpListener.AcceptTcpClientAsync();
-                    new Thread(() => {
+                    new Thread(() =>
+                    {
                         try
                         {
                             IPEndPoint remoteEndpoint = (IPEndPoint)client.Client.RemoteEndPoint;
@@ -292,20 +293,22 @@ namespace FezMultiplayerDedicatedServer
                                 //get the requested PlayerAppearances from PlayerAppearances, and players that have recently joined
                                 return clientData.RequestedAppearances.Contains(p.Key) || p.Value.TimeSinceJoin < NewPlayerTimeSpan;
                             }
-                            
+
                             while (tcpClient.Connected && !disposing)
                             {
                                 if (Disconnecting)
                                 {
                                     break;
                                 }
-                                if(Players.TryGetValue(uuid, out ServerPlayerMetadata serverPlayerMetadata)){
+                                if (Players.TryGetValue(uuid, out ServerPlayerMetadata serverPlayerMetadata))
+                                {
                                     serverPlayerMetadata.NetworkSpeedUp = (long)Math.Round(SpeedUp.Average());//Note: does not produce a meaningful number for connections to loopback addresses
                                 }
                                 //if UnknownPlayerAppearanceGuids contains uuid, ask client to retransmit their PlayerAppearance
                                 bool requestAppearance = UnknownPlayerAppearanceGuids.ContainsKey(uuid);
                                 //repeat until the client disconnects or times out
-                                if(SpeedUp.Count>=100){
+                                if (SpeedUp.Count >= 100)
+                                {
                                     _ = SpeedUp.Dequeue();
                                 }
                                 SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),

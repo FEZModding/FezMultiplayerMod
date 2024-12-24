@@ -299,7 +299,8 @@ namespace FezSharedTools
             }
         }
 
-        public struct MiscClientData {
+        public struct MiscClientData
+        {
             public PlayerMetadata Metadata;
             public bool Disconnecting;
             public ICollection<Guid> RequestedAppearances;
@@ -346,7 +347,7 @@ namespace FezSharedTools
             for (int i = 0; i < requestPlayerAppearanceLength; ++i)
             {
                 Guid guid = reader.ReadGuid();
-                if(i < MiscClientData.MaxRequestedAppearancesSize)
+                if (i < MiscClientData.MaxRequestedAppearancesSize)
                 {
                     retval.RequestedAppearances.Add(guid);
                 }
