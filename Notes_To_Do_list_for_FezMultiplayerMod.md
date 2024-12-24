@@ -31,7 +31,7 @@
 
 - [x] Fix sometimes `foreach (PlayerMetadata m in Players.Values)` can throw `KeyNotFoundException`, even though `Players` is a `ConcurrentDictionary<Guid, PlayerMetadata>`; Best fix would probably be slap the whole foreach loop inside of a try-catch and simply catch and ignore the KeyNotFoundException
 
-- [ ] Add support for custom colors in player names; requires tokenizing the names. could also use the tokenized text to print characters that aren't supported by the current font, but are supported by other fonts.
+- [x] Add support for custom colors in player names; requires tokenizing the names. could also use the tokenized text to print characters that aren't supported by the current font, but are supported by other fonts.
 
 - [ ] Do all the `//TODO` comments that are in the code (continuous task)
 

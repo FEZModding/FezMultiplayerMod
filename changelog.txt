@@ -42,3 +42,9 @@ Extensive code refactoring
 Improved server command-line interface (CLI) 
 Now uses network byte order
 
+TBD
+Added support for colored player names via ANSI escape codes (note it currently only supports the raw "Escape" character with hex value 0x1B, i.e. it doesn't support "\e" or "\x1B" or "\u001B" or "\033")
+Added support for CJK characters in player names
+fixed "Connected players: " always on the screen
+countless bug fixes and improvements
+
