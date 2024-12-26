@@ -103,6 +103,10 @@ namespace FezGame.MultiplayerMod
             Instance = this;
             ServiceHelper.AddComponent(debugTextDrawer = new DebugTextDrawer(game, Instance), false);
 
+            SaveDataObserver saveDataObserver;
+            ServiceHelper.AddComponent(saveDataObserver = new SaveDataObserver(game));
+            saveDataObserver.OnSaveDataChanged += SaveDataObserver_OnSaveDataChanged;
+
             const string SettingsFilePath = "FezMultiplayerMod.ini";//TODO: probably should use an actual path instead of just the file name
             MultiplayerClientSettings settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerClientSettings());
             mp = new MultiplayerClient(settings);
@@ -111,9 +115,15 @@ namespace FezGame.MultiplayerMod
             mp.ConnectToServerAsync(settings.MainEndpoint);
 
             //TODO add a in-game menu to let players easily choose what server and name they want to use
-
+            
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
+        }
+
+        private void SaveDataObserver_OnSaveDataChanged(SaveData UpdatedSaveData, SaveDataChanges SaveDataChanges)
+        {
+            //TODO send SaveDataChanges to the server, wait until the update is sent to the server, then clear the changes
+            Console.WriteLine(SaveDataChanges);
         }
 
         private bool disposing = false;

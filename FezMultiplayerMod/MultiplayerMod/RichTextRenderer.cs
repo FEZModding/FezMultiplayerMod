@@ -10,7 +10,6 @@ using System.Text;
 
 namespace FezGame.MultiplayerMod
 {
-    //TODO Implement this
     /// <summary>
     /// Uses format codes to stylize, format, and display text.
     /// See ANSI escape codes or ECMA-48

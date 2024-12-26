@@ -75,6 +75,7 @@
       <Link>Shared.cs</Link>
     </Compile>
     <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="MultiplayerMod\SaveDataObserver.cs" />
     <Compile Include="MultiplayerMod\RichTextRenderer.cs" />
     <Compile Include="MultiplayerMod\MultiplayerClientNetcode.cs" />
     <Compile Include="MultiplayerMod\MultiplayerClient.cs" />
