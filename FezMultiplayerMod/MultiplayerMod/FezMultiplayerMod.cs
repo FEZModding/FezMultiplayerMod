@@ -120,7 +120,7 @@ namespace FezGame.MultiplayerMod
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
         }
 
-        private void SaveDataObserver_OnSaveDataChanged(SaveData UpdatedSaveData, SaveDataChanges SaveDataChanges)
+        private void SaveDataObserver_OnSaveDataChanged(SaveData UpdatedSaveData, SaveDataObserver.SaveDataChanges SaveDataChanges)
         {
             //TODO send SaveDataChanges to the server, wait until the update is sent to the server, then clear the changes
             Console.WriteLine(SaveDataChanges);
