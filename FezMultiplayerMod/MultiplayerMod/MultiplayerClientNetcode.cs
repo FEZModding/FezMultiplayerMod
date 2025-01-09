@@ -58,9 +58,14 @@ namespace FezGame.MultiplayerMod
 
         public void ConnectToServerAsync(IPEndPoint endpoint)
         {
+            if (disposed)
+            {
+                throw new ObjectDisposedException(this.GetType().Name);
+            }
             if (listenerThread != null && listenerThread.IsAlive)
             {
                 //TODO 
+                return;
             }
             listenerThread = new Thread(() =>
             {
@@ -85,7 +90,7 @@ namespace FezGame.MultiplayerMod
                         while (true)
                         {
                             ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
-                            if (!disposing)
+                            if (!disconnectRequested)
                             {
                                 ActiveLevelState? activeLevelState = null;
                                 if (SyncWorldState)
@@ -153,6 +158,21 @@ namespace FezGame.MultiplayerMod
             listenerThread.Start();
         }
 
+        /// <summary>
+        /// used to tell notify the listener thread to stop
+        /// </summary>
+        private volatile bool disconnectRequested = false;
+        public void Disconnect()
+        {
+            this.disconnectRequested = true;//let listener thread know it should disconnect
+            Thread.Sleep(1000);//try to wait for child threads to stop on their own
+            if (listenerThread != null && listenerThread.IsAlive)
+            {
+                listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
+            }
+            this.disconnectRequested = false;//reset for next use
+        }
+
         protected abstract SaveDataUpdate? GetSaveDataUpdate();
         protected abstract ActiveLevelState? GetCurrentLevelState();
 
@@ -160,10 +180,6 @@ namespace FezGame.MultiplayerMod
         // and stuff like "It technically works but is dangerous" and "always use an internal protected Dispose method" and "always call GC.SuppressFinalize(this) in the public Dispose method"
         // so I added all this extra stuff even though it technically already worked fine, so hopefully this works fine
         private bool disposed = false;
-        /// <summary>
-        /// used to tell notify the child threads to stop
-        /// </summary>
-        private volatile bool disposing = false;
         public void Dispose()
         {
             Dispose(true);
@@ -176,13 +192,7 @@ namespace FezGame.MultiplayerMod
                 if (disposing)
                 {
                     // Dispose managed resources here
-
-                    this.disposing = true;//let child threads know it's disposing time
-                    Thread.Sleep(1000);//try to wait for child threads to stop on their own
-                    if (listenerThread.IsAlive)
-                    {
-                        listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
-                    }
+                    Disconnect();
                 }
 
                 // Dispose unmanaged resources here
