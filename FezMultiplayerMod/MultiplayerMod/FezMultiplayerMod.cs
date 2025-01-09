@@ -123,7 +123,7 @@ namespace FezGame.MultiplayerMod
         private void SaveDataObserver_OnSaveDataChanged(SaveData UpdatedSaveData, SaveDataObserver.SaveDataChanges SaveDataChanges)
         {
             //TODO send SaveDataChanges to the server, wait until the update is sent to the server, then clear the changes
-            Console.WriteLine(SaveDataChanges);
+            System.Diagnostics.Debug.WriteLine(SaveDataChanges.ToString());
         }
 
         private bool disposing = false;

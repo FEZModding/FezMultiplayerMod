@@ -173,6 +173,11 @@ namespace FezGame.MultiplayerMod
                 }
             }
 
+            public override string ToString()
+            {
+                return string.Join(Environment.NewLine, Changes);
+            }
+
             public class ChangeInfo
             {
                 public readonly string ContainerIdentifier;
@@ -188,6 +193,11 @@ namespace FezGame.MultiplayerMod
                     FieldType = fieldType;
                     CurrentVal = currentVal;
                     OldVal = oldVal;
+                }
+
+                public override string ToString()
+                {
+                    return $"(Container: {ContainerIdentifier}, FieldName: {FieldName}, FieldType: {FieldType}, CurrentVal: {CurrentVal}, OldVal: {OldVal})";
                 }
             }
         }
