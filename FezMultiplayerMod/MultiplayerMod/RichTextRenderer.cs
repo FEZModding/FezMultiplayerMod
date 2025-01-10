@@ -426,13 +426,14 @@ namespace FezGame.MultiplayerMod
 
             float defaultLineSpacing = defaultFontData.Font.LineSpacing * defaultFontData.Scale;
             float currentLineSpacing = defaultLineSpacing;
+            SizeUnit sizeUnit = SizeUnit.Character;
 
             for (int i = 0; i < lines.Length; ++i)
             {
                 line = lines[i];
                 Vector2 linesize = Vector2.Zero;
                 TokenizeChars(line, in defaultFontData, in defaultColor, in defaultBGColor, in defaultLineSpacing,
-                        currentStyle, ref currentLineSpacing
+                        currentStyle, ref currentLineSpacing, ref sizeUnit
                         ).ForEach((TokenizedText token) =>
                         {
                             FontData fontData = token.Style.FontData;
@@ -465,6 +466,11 @@ namespace FezGame.MultiplayerMod
             }
             return size;
         }
+        private enum SizeUnit
+        {
+            Character = 0,
+            Pixel = 7
+        }
         /// <summary>
         /// Parses all ECMA-48 escape codes in the provided <paramref name="text"/>,
         /// returning a <see cref="List{TokenizedText}"/> of <see cref="TokenizedText"/> objects containing information on the presentation data and text for each token.
@@ -481,7 +487,7 @@ namespace FezGame.MultiplayerMod
         /// <param name="currentLineSpacing">The current line spacing to use for the tokens on this and subsequent lines. </param>
         /// <returns>A <see cref="List{TokenizedText}"/> of <see cref="TokenizedText"/> objects containing information on the presentation data and text for each token.</returns>
         private static List<TokenizedText> TokenizeChars(string text, in FontData defaultFontData, in Color defaultColor, in Color defaultBGColor, in float defaultLineSpacing,
-                TokenStyle currentStyle, ref float currentLineSpacing)
+                TokenStyle currentStyle, ref float currentLineSpacing, ref SizeUnit sizeUnit)
         {
             List<TokenizedText> tokens = new List<TokenizedText>();
             string currentToken = "";
@@ -501,7 +507,7 @@ namespace FezGame.MultiplayerMod
 
                     /*
                      * Note: 
-                     * This code only handles Presentation control functions that I (Jenna Sloan) deemed possible to implement in the XNA framework.
+                     * This code only handles Presentation control functions that I (Jenna Sloan) deemed possible to reasonably implement in the XNA framework.
                      * As such, it does not support:
                      *     Delimiters,
                      *     Introducers,
@@ -515,10 +521,14 @@ namespace FezGame.MultiplayerMod
                      *     any codes that require areas,
                      *     Mode setting,
                      *     Transmission control functions,
-                     *     Miscellaneous control functions
+                     *     Miscellaneous control functions,
+                     *     and codes that use absolute sizes (e.g., mm ) (mainly because that would be confusing with DrawString's `scale` parameter)
                      * with the exception of PRIVATE USE ONE and PRIVATE USE TWO, which may be used for something at a later date.
                      * 
                      * Anyways, I manually went through all the escape codes and picked out ones that I though would fit with XNA's DrawString.
+                     * I thought about copying over the specifications from ECMA-48, but they're so verbose and I don't want it to clutter the code.
+                     * ECMA-48 does a great job describing what each code does and how they interact with each other,
+                     *   so just reference it to get an idea of how the code below should function.
                      */
 
                     if (i + 1 < text.Length)
@@ -553,7 +563,7 @@ namespace FezGame.MultiplayerMod
                                      * Note in ECMA-48 the "Representation" text is in a format where 02/00 is character \x20, 04/11 is \x4B, 04/15 is \x4F, etc.
                                     **/
                                     //TODO support all these empty switch cases?
-                                    //TODO change these hex codes to their corresponding ASCII character
+                                    //TODO change these hex codes to their corresponding ASCII character?
                                     case '\x42'://GSM - GRAPHIC SIZE MODIFICATION
                                         break;
                                     case '\x43'://GSS - GRAPHIC SIZE SELECTION
@@ -562,20 +572,27 @@ namespace FezGame.MultiplayerMod
                                         break;
                                     case '\x45'://TSS - THIN SPACE SPECIFICATION
                                         break;
-                                    case '\x46'://JFY - JUSTIFY
-                                        break;
                                     case '\x47'://SPI - SPACING INCREMENT
                                         break;
-                                    case '\x48'://QUAD - QUAD
-                                        break;
+
                                     case '\x49'://SSU - SELECT SIZE UNIT
-                                        break;
-                                    case '\x4A'://PFS - PAGE FORMAT SELECTION
-                                        break;
-                                    case '\x4B'://SHS - SELECT CHARACTER SPACING
-                                        break;
-                                    case '\x4C'://SVS - SELECT LINE SPACING
-                                        //TODO implement this
+                                        if (int.TryParse(parameters, out int newSizeUnit))
+                                        {
+                                            switch(newSizeUnit)
+                                            {
+                                            case 7:
+                                                sizeUnit = SizeUnit.Pixel;
+                                                break;
+                                            case 0:
+                                            default:
+                                                sizeUnit = SizeUnit.Character;
+                                                break;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            sizeUnit = SizeUnit.Character;
+                                        }
                                         break;
 
                                     case '\x53'://SPD - SELECT PRESENTATION DIRECTIONS
@@ -589,9 +606,8 @@ namespace FezGame.MultiplayerMod
                                         break;
                                     case '\x5D'://SAPV - SELECT ALTERNATIVE PRESENTATION VARIANTS
                                         break;
-                                    case '\x5E'://STAB - SELECTIVE TABULATION
-                                        break;
                                     case '\x5F'://GCC - GRAPHIC CHARACTER COMBINATION
+                                        //Maybe could be used to display controller glyphs?
                                         break;
 
                                     case '\x65'://SCO - SELECT CHARACTER ORIENTATION
@@ -604,11 +620,21 @@ namespace FezGame.MultiplayerMod
                                         //Set to a percentage of the normal line spacing
                                         if (float.TryParse(parameters, out float newLineSpacing))
                                         {
-                                            currentLineSpacing = defaultLineSpacing * (newLineSpacing / 100);
+                                            switch (sizeUnit)
+                                            {
+                                            case SizeUnit.Character:
+                                                currentLineSpacing = defaultLineSpacing * (newLineSpacing / 100);
+                                                break;
+                                            case SizeUnit.Pixel:
+                                                currentLineSpacing = newLineSpacing;
+                                                break;
+                                            default:
+                                                break;
+                                            }
                                         }
                                         else
                                         {
-                                            currentLineSpacing = defaultLineSpacing;
+                                            //currentLineSpacing = defaultLineSpacing;
                                         }
                                         break;
 
@@ -647,7 +673,7 @@ namespace FezGame.MultiplayerMod
                                 }
                                 // skip to the next character
                                 i = i_temp;
-                                continue;
+                                continue;//this continue jumps all the way back up to that for loop that iterates over the characters
                             }
                             break;
                         //ESC codes
@@ -796,7 +822,9 @@ namespace FezGame.MultiplayerMod
                     case 9: // Strikethrough
                         currentStyle.Decoration |= TextDecoration.Strikethrough;
                         break;
+                    
                     //cases 10 to 20 are fonts
+
                     case 21: // Double-underline
                         currentStyle.Decoration |= TextDecoration.DoubleUnderline;
                         break;
@@ -844,8 +872,9 @@ namespace FezGame.MultiplayerMod
                             currentStyle.Color = c;
                             break;
                         }
-                    case 39: currentStyle.Color = defaultColor; break;
+                    case 39: currentStyle.Color = defaultColor; break; // Reset color
 
+                    // cases 40 to 49 are for backgrounds, in the same order as 30 to 39
                     case 40: currentStyle.BackgroundColor = Color.Black; break;   // Dark Black
                     case 41: currentStyle.BackgroundColor = Color.Maroon; break;  // Dark Red
                     case 42: currentStyle.BackgroundColor = Color.Green; break;   // Dark Green
@@ -862,9 +891,8 @@ namespace FezGame.MultiplayerMod
                             currentStyle.BackgroundColor = c;
                             break;
                         }
-                    case 49: currentStyle.BackgroundColor = defaultBGColor; break;
+                    case 49: currentStyle.BackgroundColor = defaultBGColor; break; // Reset color
 
-                    // cases 40 to 49 are for backgrounds, in the same order as 30 to 39
                     case 50: // Cancel proportional spacing
                         //Not supporting this
                         break;
@@ -883,7 +911,9 @@ namespace FezGame.MultiplayerMod
                     case 55: // Not overlined
                         currentStyle.Decoration &= ~TextDecoration.Overline;
                         break;
+
                     // cases 56 to 59 are not defined
+
                     case 60: // ideogram underline or right side line
                         currentStyle.Decoration |= TextDecoration.Underline;
                         break;
@@ -902,7 +932,9 @@ namespace FezGame.MultiplayerMod
                     case 65: // cancels the effect of the rendition aspects established by parameter values 60 to 64
                         currentStyle.Decoration &= ~(TextDecoration.Underline | TextDecoration.DoubleUnderline | TextDecoration.Overline | TextDecoration.DoubleOverline);
                         break;
-                    //nothing defined for 
+
+                    //nothing defined for 66 to 89
+
                     // Bright colors
                     case 90: currentStyle.Color = Color.Gray; break;    // Bright Black (Gray)
                     case 91: currentStyle.Color = Color.Red; break;     // Bright Red
@@ -912,7 +944,18 @@ namespace FezGame.MultiplayerMod
                     case 95: currentStyle.Color = Color.Magenta; break; // Bright Magenta
                     case 96: currentStyle.Color = Color.Cyan; break;    // Bright Cyan
                     case 97: currentStyle.Color = Color.White; break;   // Bright White
+
+                    //nothing defined for 98 to 99
+
                     // cases 100 to 107 are for backgrounds, in the same order as 90 to 97
+                    case 100: currentStyle.Color = Color.Gray; break;    // Bright Black (Gray)
+                    case 101: currentStyle.Color = Color.Red; break;     // Bright Red
+                    case 102: currentStyle.Color = Color.Lime; break;    // Bright Green
+                    case 103: currentStyle.Color = Color.Yellow; break;  // Bright Yellow
+                    case 104: currentStyle.Color = Color.Blue; break;    // Bright Blue
+                    case 105: currentStyle.Color = Color.Magenta; break; // Bright Magenta
+                    case 106: currentStyle.Color = Color.Cyan; break;    // Bright Cyan
+                    case 107: currentStyle.Color = Color.White; break;   // Bright White
 
                     //nothing defined after 107
 
