@@ -56,6 +56,16 @@ namespace FezGame.MultiplayerMod
                 mod.drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 mod.drawer.DrawString(mod.FontManager.Big, Text, Vector2.Zero, Color, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
                 mod.drawer.End();
+
+#if DEBUG
+                mod.drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                if (RichTextRenderer.testStrings.TryGetValue(mod.ShownFontTest, out string[] tests))
+                {
+                    RichTextRenderer.DrawString(mod.drawer, mod.FontManager, String.Join("\n", tests), new Vector2(50, 100), Color.White, Color.Transparent, mod.ShownFontTestScale);
+                }
+                mod.drawer.End();
+#endif
+
             }
         }
 
@@ -115,7 +125,7 @@ namespace FezGame.MultiplayerMod
             ServerListMenu serverListMenu;
             ServiceHelper.AddComponent(serverListMenu = new ServerListMenu(game));
 
-            //mp.ConnectToServerAsync(settings.MainEndpoint);
+            mp.ConnectToServerAsync(settings.MainEndpoint);
 
             //TODO add a in-game menu to let players easily choose what server and name they want to use
 
@@ -281,12 +291,6 @@ namespace FezGame.MultiplayerMod
             PlayerManager.CanRotate = true;
             LevelManager.Flat = false;
             GameState.SaveData.HasFPView = true;
-            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-            if (RichTextRenderer.testStrings.TryGetValue(ShownFontTest, out string[] tests))
-            {
-                RichTextRenderer.DrawString(drawer, FontManager, String.Join("\n", tests), new Vector2(50, 100), Color.White, Color.Transparent, ShownFontTestScale);
-            }
-            drawer.End();
 #endif
 
             string s = "";

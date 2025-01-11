@@ -112,8 +112,8 @@ namespace FezGame.MultiplayerMod
         private static readonly TimeSpan UpdateInterval = TimeSpan.FromSeconds(60);
         private static TimeSpan SinceLastUpdateList = UpdateInterval;
 
-        private bool hasFocus = true;
-        private int currentIndex = 0;
+        private static bool hasFocus = true;
+        private static int currentIndex = 0;
         public override void Update(GameTime gameTime)
         {
             if(!ServiceHelper.FirstLoadDone)
