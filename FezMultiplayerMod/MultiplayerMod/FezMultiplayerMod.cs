@@ -112,10 +112,13 @@ namespace FezGame.MultiplayerMod
             mp = new MultiplayerClient(settings);
             IniTools.WriteSettingsFile(SettingsFilePath, settings);
 
-            mp.ConnectToServerAsync(settings.MainEndpoint);
+            ServerListMenu serverListMenu;
+            ServiceHelper.AddComponent(serverListMenu = new ServerListMenu(game));
+
+            //mp.ConnectToServerAsync(settings.MainEndpoint);
 
             //TODO add a in-game menu to let players easily choose what server and name they want to use
-            
+
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
         }

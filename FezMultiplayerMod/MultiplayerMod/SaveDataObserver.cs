@@ -13,7 +13,7 @@ using System.Text;
 
 namespace FezGame.MultiplayerMod
 {
-    public sealed class SaveDataObserver : GameComponent
+    internal sealed class SaveDataObserver : GameComponent
     {
         private IGameStateManager GameState { get; set; }
         private IPlayerManager PM { get; set; }
