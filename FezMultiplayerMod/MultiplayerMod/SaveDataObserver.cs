@@ -38,6 +38,7 @@ namespace FezGame.MultiplayerMod
                 PM = ServiceHelper.Get<IPlayerManager>();
             });
         }
+        private static readonly SaveDataChanges newChanges = new SaveDataChanges();
         public override void Update(GameTime gameTime)
         {
             //check a save file is actually loaded 
@@ -58,7 +59,7 @@ namespace FezGame.MultiplayerMod
                     //check the player actually exists
                     && PM.CanControl && PM.Action != ActionType.None && !PM.Hidden)
             {
-                SaveDataChanges newChanges = new SaveDataChanges();
+                newChanges.Changes.Clear();
                 CheckType(newChanges, typeof(SaveData), "SaveData", CurrentSaveData, OldSaveData);
 
                 //update old data
@@ -118,10 +119,10 @@ namespace FezGame.MultiplayerMod
                     HashSet<object> oldVal_hashset = new HashSet<object>(((IList)oldVal).Cast<object>());
 
                     // Find items in currentVal that are not in oldVal
-                    var addedVals = currentVal_hashset.Except(oldVal_hashset).ToList();
+                    List<object> addedVals = currentVal_hashset.Except(oldVal_hashset).ToList();
 
                     // Find items in list2 that are not in list1
-                    var removedVals = oldVal_hashset.Except(currentVal_hashset).ToList();
+                    List<object> removedVals = oldVal_hashset.Except(currentVal_hashset).ToList();
 
                     if (addedVals.Count > 0 || removedVals.Count > 0)
                     {
@@ -156,30 +157,36 @@ namespace FezGame.MultiplayerMod
                     HashSet<object> oldVal_dictKeys = new HashSet<object>(oldVal_dict.Keys.Cast<object>());
 
                     // Find keys in currentVal_dict that are not in oldVal_dict
-                    var onlyIncurrentVal_dictKeys = currentVal_dictKeys.Except(oldVal_dictKeys).ToList();
-                    var onlyIncurrentVal_dictValues = onlyIncurrentVal_dictKeys.Select(key => currentVal_dict[key]).ToList();
+                    List<object> onlyIncurrentVal_dictKeys = currentVal_dictKeys.Except(oldVal_dictKeys).ToList();
 
                     // Find keys in oldVal_dict that are not in currentVal_dict
-                    var onlyInoldVal_dictKeys = oldVal_dictKeys.Except(currentVal_dictKeys).ToList();
-                    var onlyInoldVal_dictValues = onlyInoldVal_dictKeys.Select(key => oldVal_dict[key]).ToList();
+                    List<object> onlyInoldVal_dictKeys = oldVal_dictKeys.Except(currentVal_dictKeys).ToList();
 
-                    // For keys that are present in both, check for value differences
-                    var sharedKeys = currentVal_dictKeys.Intersect(oldVal_dictKeys).ToList();
-                    foreach (var key in sharedKeys)
+                    onlyIncurrentVal_dictKeys.ForEach(k =>
                     {
-                        var value1 = currentVal_dict[key];
-                        var value2 = oldVal_dict[key];
-                        string containerID = containerIdentifier + $"[{key.ToString().Replace("[","%5B").Replace("]","%5D")}]";
+                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name + $"[{k.ToString().Replace("[", "%5B").Replace("]", "%5D")}]";
+                        object val = currentVal_dict[k];
+                        changes.Add(containerID, val.GetType(), val, null);
+                    });
+                    onlyInoldVal_dictKeys.ForEach(k =>
+                    {
+                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name + $"[{k.ToString().Replace("[", "%5B").Replace("]", "%5D")}]";
+                        object val = oldVal_dict[k];
+                        changes.Add(containerID, val.GetType(), null, val);
+                    });
+                    // For keys that are present in both, check for value differences
+                    List<object> sharedKeys = currentVal_dictKeys.Intersect(oldVal_dictKeys).ToList();
+                    foreach (object key in sharedKeys)
+                    {
+                        object value1 = currentVal_dict[key];
+                        object value2 = oldVal_dict[key];
+                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name + $"[{key.ToString().Replace("[","%5B").Replace("]","%5D")}]";
                         void ComparePrimitive()
                         {
                             if (!Equals(value1, value2))
                             {
-                                string msg = $"Key '{key}' has different values: '{value1}' in currentVal_dict and '{value2}' in oldVal_dict";
-                                Console.WriteLine(msg);
-                                System.Diagnostics.Debug.WriteLine(msg);
-                                System.Diagnostics.Debugger.Break();
                                 // add changes to changes
-                                changes.Add(containerID, field, value1, value2);
+                                changes.Add(containerID, value1.GetType(), value1, value2);
                             }
                         }
                         if (fieldType.IsGenericType)
@@ -244,6 +251,18 @@ namespace FezGame.MultiplayerMod
                 else
                 {
                     Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, field.Name, field.FieldType, currentVal, oldVal));
+                }
+            }
+            internal void Add(string uniqueIdentifier, Type type, object currentVal, object oldVal)
+            {
+                //Note this collection should only have a single entry per unique containerIdentifier and field combo
+                if (Changes.TryGetValue(uniqueIdentifier, out ChangeInfo change))
+                {
+                    Changes.Add(uniqueIdentifier, new ChangeInfo(uniqueIdentifier, null, type, currentVal, change.OldVal));
+                }
+                else
+                {
+                    Changes.Add(uniqueIdentifier, new ChangeInfo(uniqueIdentifier, null, type, currentVal, oldVal));
                 }
             }
 
