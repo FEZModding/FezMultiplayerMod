@@ -15,6 +15,54 @@ namespace FezGame.MultiplayerMod
 {
     internal sealed class SaveDataObserver : GameComponent
     {
+        public class SaveDataChanges
+        {
+            public bool HasChanges => Changes.Any();
+
+            //Note this collection should only have a single entry per unique containerIdentifier and field combo
+            public readonly Dictionary<string, ChangeInfo> Changes = new Dictionary<string, ChangeInfo>();
+
+            internal void Add(string containerIdentifier, string key, object currentVal, object oldVal)
+            {
+                //Note this collection should only have a single entry per unique containerIdentifier and field combo
+                string uniqueIdentifier = containerIdentifier + IDENTIFIER_SEPARATOR + key;
+                if (Changes.TryGetValue(uniqueIdentifier, out ChangeInfo change))
+                {
+                    Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, key, currentVal, change.OldVal));
+                }
+                else
+                {
+                    Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, key, currentVal, oldVal));
+                }
+            }
+
+            public override string ToString()
+            {
+                return string.Join(Environment.NewLine, Changes);
+            }
+
+            public class ChangeInfo
+            {
+                public readonly string ContainerIdentifier;
+                public readonly string Key;
+                public readonly object NewVal;
+                public readonly object OldVal;
+
+                public ChangeInfo(string containerIdentifier, string fieldName, object currentVal, object oldVal)
+                {
+                    ContainerIdentifier = containerIdentifier;
+                    Key = fieldName;
+                    NewVal = currentVal;
+                    OldVal = oldVal;
+                }
+
+                public override string ToString()
+                {
+                    return $"(Container: {ContainerIdentifier}, Key: {Key}, CurrentVal: {NewVal}, OldVal: {OldVal})";
+                }
+            }
+        }
+
         private IGameStateManager GameState { get; set; }
         private IPlayerManager PM { get; set; }
 
@@ -60,6 +108,12 @@ namespace FezGame.MultiplayerMod
                     && PM.CanControl && PM.Action != ActionType.None && !PM.Hidden)
             {
                 newChanges.Changes.Clear();
+
+                /*
+                 * Honestly, instead of using reflection, it would probably be faster and more memory efficient
+                 * to explicitly check every field in SaveData, but I don't want to code that,
+                 * and it'd have to be updated if the save file format ever changes
+                 */
                 CheckType(newChanges, typeof(SaveData), "SaveData", CurrentSaveData, OldSaveData);
 
                 //update old data
@@ -93,7 +147,7 @@ namespace FezGame.MultiplayerMod
                 if (!object.Equals(currentVal, oldVal))
                 {
                     //value changed
-                    changes.Add(containerIdentifier, field, currentVal, oldVal);
+                    changes.Add(containerIdentifier, field.Name, currentVal, oldVal);
                 }
             }
             else
@@ -103,7 +157,7 @@ namespace FezGame.MultiplayerMod
                     if (!string.Equals((string)currentVal, (string)oldVal, StringComparison.Ordinal))
                     {
                         //value changed
-                        changes.Add(containerIdentifier, field, currentVal, oldVal);
+                        changes.Add(containerIdentifier, field.Name, currentVal, oldVal);
                     }
                 }
                 // handle collections like Lists
@@ -114,7 +168,6 @@ namespace FezGame.MultiplayerMod
                     //Note: the only List fields in WinConditions is of value type List<int>
                     //This means none of the fields in SaveData or the types it contains have a List of non-value types
 
-                    Console.Write(fieldType);
                     HashSet<object> currentVal_hashset = new HashSet<object>(((IList)currentVal).Cast<object>());
                     HashSet<object> oldVal_hashset = new HashSet<object>(((IList)oldVal).Cast<object>());
 
@@ -129,14 +182,12 @@ namespace FezGame.MultiplayerMod
                         // add changes to changes
                         addedVals.ForEach(addedVal =>
                         {
-                            changes.Add(containerIdentifier, field, addedVal, null);
+                            changes.Add(containerIdentifier, field.Name, addedVal, null);
                         });
                         removedVals.ForEach(removedVal =>
                         {
                             //TODO? idk if this ever actually happens, but should probably implement it somehow
-                            changes.Add(containerIdentifier, field, null, oldVal);
-                            System.Diagnostics.Debugger.Launch();
-                            System.Diagnostics.Debugger.Break();
+                            changes.Add(containerIdentifier, field.Name, null, oldVal);
                         });
                     }
                 }
@@ -145,8 +196,6 @@ namespace FezGame.MultiplayerMod
                 {
                     //Note: SaveData contains fields of types Dictionary<string, bool> and Dictionary<string, LevelSaveData>
                     //Note: LevelSaveData contains fields of types Dictionary<int, int>
-
-                    Console.Write(fieldType);
 
                     IDictionary currentVal_dict = (IDictionary)currentVal;
                     IDictionary oldVal_dict = (IDictionary)oldVal;
@@ -164,15 +213,15 @@ namespace FezGame.MultiplayerMod
 
                     onlyIncurrentVal_dictKeys.ForEach(k =>
                     {
-                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name + $"[{k.ToString().Replace("[", "%5B").Replace("]", "%5D")}]";
+                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name + "[" + k.ToString() + "]";
                         object val = currentVal_dict[k];
-                        changes.Add(containerID, val.GetType(), val, null);
+                        changes.Add(containerID, k.ToString(), val, null);
                     });
                     onlyInoldVal_dictKeys.ForEach(k =>
                     {
-                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name + $"[{k.ToString().Replace("[", "%5B").Replace("]", "%5D")}]";
+                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name + "[" + k.ToString() + "]";
                         object val = oldVal_dict[k];
-                        changes.Add(containerID, val.GetType(), null, val);
+                        changes.Add(containerID, k.ToString(), null, val);
                     });
                     // For keys that are present in both, check for value differences
                     List<object> sharedKeys = currentVal_dictKeys.Intersect(oldVal_dictKeys).ToList();
@@ -180,13 +229,14 @@ namespace FezGame.MultiplayerMod
                     {
                         object value1 = currentVal_dict[key];
                         object value2 = oldVal_dict[key];
-                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name + $"[{key.ToString().Replace("[","%5B").Replace("]","%5D")}]";
+                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name;
+                        string containerID_withKey = containerID + "[" + key.ToString() + "]";
                         void ComparePrimitive()
                         {
                             if (!Equals(value1, value2))
                             {
                                 // add changes to changes
-                                changes.Add(containerID, value1.GetType(), value1, value2);
+                                changes.Add(containerID, ""+key, value1, value2);
                             }
                         }
                         if (fieldType.IsGenericType)
@@ -199,7 +249,7 @@ namespace FezGame.MultiplayerMod
                             else
                             {
                                 // compare values using CheckType
-                                CheckType(changes, valueType, containerID, value1, value2);
+                                CheckType(changes, valueType, containerID_withKey, value1, value2);
                             }
                         }
                         else if (!Equals(value1, value2))
@@ -211,8 +261,7 @@ namespace FezGame.MultiplayerMod
                 // handle collections that are neither List nor Dictionary
                 else if (typeof(IEnumerable).IsAssignableFrom(fieldType))
                 {
-                    Console.Write(fieldType);
-                    System.Diagnostics.Debug.WriteLine(fieldType);
+                    Console.WriteLine(fieldType);
                     System.Diagnostics.Debugger.Launch();
                     //TODO if this happens, handle the unhandled enumerable type
                 }
@@ -231,67 +280,6 @@ namespace FezGame.MultiplayerMod
             foreach (FieldInfo field in fields)
             {
                 CheckField(changes, containerIdentifier, field, currentObject, oldObject);
-            }
-        }
-        public class SaveDataChanges
-        {
-            public bool HasChanges => Changes.Any();
-
-            //Note this collection should only have a single entry per unique containerIdentifier and field combo
-            public readonly Dictionary<string, ChangeInfo> Changes = new Dictionary<string, ChangeInfo>();
-
-            internal void Add(string containerIdentifier, FieldInfo field, object currentVal, object oldVal)
-            {
-                //Note this collection should only have a single entry per unique containerIdentifier and field combo
-                string uniqueIdentifier = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name;
-                if (Changes.TryGetValue(uniqueIdentifier, out ChangeInfo change))
-                {
-                    Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, field.Name, field.FieldType, currentVal, change.OldVal));
-                }
-                else
-                {
-                    Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, field.Name, field.FieldType, currentVal, oldVal));
-                }
-            }
-            internal void Add(string uniqueIdentifier, Type type, object currentVal, object oldVal)
-            {
-                //Note this collection should only have a single entry per unique containerIdentifier and field combo
-                if (Changes.TryGetValue(uniqueIdentifier, out ChangeInfo change))
-                {
-                    Changes.Add(uniqueIdentifier, new ChangeInfo(uniqueIdentifier, null, type, currentVal, change.OldVal));
-                }
-                else
-                {
-                    Changes.Add(uniqueIdentifier, new ChangeInfo(uniqueIdentifier, null, type, currentVal, oldVal));
-                }
-            }
-
-            public override string ToString()
-            {
-                return string.Join(Environment.NewLine, Changes);
-            }
-
-            public class ChangeInfo
-            {
-                public readonly string ContainerIdentifier;
-                public readonly string FieldName;
-                public readonly Type FieldType;
-                public readonly object CurrentVal;
-                public readonly object OldVal;
-
-                public ChangeInfo(string containerIdentifier, string fieldName, Type fieldType, object currentVal, object oldVal)
-                {
-                    ContainerIdentifier = containerIdentifier;
-                    FieldName = fieldName;
-                    FieldType = fieldType;
-                    CurrentVal = currentVal;
-                    OldVal = oldVal;
-                }
-
-                public override string ToString()
-                {
-                    return $"(Container: {ContainerIdentifier}, FieldName: {FieldName}, FieldType: {FieldType}, CurrentVal: {CurrentVal}, OldVal: {OldVal})";
-                }
             }
         }
     }
