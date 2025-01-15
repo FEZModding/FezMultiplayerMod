@@ -238,6 +238,12 @@ namespace FezGame.MultiplayerMod
                 //TODO
                 throw e;
             }
+            catch (System.Net.Sockets.SocketException e)
+            {
+                //Connection refused
+                //TODO
+                throw e;
+            }
             catch (Exception e)
             {
 #if DEBUG
