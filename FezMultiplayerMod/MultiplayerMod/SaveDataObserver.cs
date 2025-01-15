@@ -273,9 +273,15 @@ namespace FezGame.MultiplayerMod
                 }
             }
         }
+        private static Dictionary<Type, FieldInfo[]> cachedTypeFieldInfoMap = new Dictionary<Type, FieldInfo[]>();
         private static void CheckType(SaveDataChanges changes, Type containingType, string containerIdentifier, object currentObject, object oldObject)
         {
-            FieldInfo[] fields = containingType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+            FieldInfo[] fields;
+            if (!cachedTypeFieldInfoMap.TryGetValue(containingType, out fields))
+            {
+                fields = containingType.GetFields(BindingFlags.Public | BindingFlags.Instance);
+                cachedTypeFieldInfoMap.Add(containingType, fields);
+            }
 
             foreach (FieldInfo field in fields)
             {
