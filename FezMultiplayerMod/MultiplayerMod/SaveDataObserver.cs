@@ -217,17 +217,18 @@ namespace FezGame.MultiplayerMod
                     // Find keys in oldVal_dict that are not in currentVal_dict
                     List<object> onlyInoldVal_dictKeys = oldVal_dictKeys.Except(currentVal_dictKeys).ToList();
 
+                    string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name;
                     onlyIncurrentVal_dictKeys.ForEach(k =>
                     {
-                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name + "[" + k.ToString() + "]";
+                        string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + k.ToString();
                         object val = currentVal_dict[k];
-                        changes.Add(containerID, k.ToString(), val, null);
+                        changes.Add(containerID_withKey, k.ToString(), val, null);
                     });
                     onlyInoldVal_dictKeys.ForEach(k =>
                     {
-                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name + "[" + k.ToString() + "]";
+                        string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + k.ToString();
                         object val = oldVal_dict[k];
-                        changes.Add(containerID, k.ToString(), null, val);
+                        changes.Add(containerID_withKey, k.ToString(), null, val);
                     });
                     // For keys that are present in both, check for value differences
                     List<object> sharedKeys = currentVal_dictKeys.Intersect(oldVal_dictKeys).ToList();
@@ -235,8 +236,7 @@ namespace FezGame.MultiplayerMod
                     {
                         object value1 = currentVal_dict[key];
                         object value2 = oldVal_dict[key];
-                        string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name;
-                        string containerID_withKey = containerID + "[" + key.ToString() + "]";
+                        string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + key.ToString();
                         void ComparePrimitive()
                         {
                             if (!Equals(value1, value2))
