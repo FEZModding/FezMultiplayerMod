@@ -747,6 +747,25 @@ namespace FezGame.MultiplayerMod
         {
             return font.Characters.Contains(ch);
         }
+        private static readonly IList<Color> ColorTable = Array.AsReadOnly(new Color[]{
+            Color.Black,   // Dark Black
+            Color.Maroon,  // Dark Red
+            Color.Green,   // Dark Green
+            Color.Olive,   // Dark Yellow
+            Color.Navy,    // Dark Blue
+            Color.Purple,  // Dark Magenta
+            Color.Teal,    // Dark Cyan
+            Color.Silver,  // Dark White
+
+            Color.Gray,    // Bright Black (Gray)
+            Color.Red,     // Bright Red
+            Color.Lime,    // Bright Green
+            Color.Yellow,  // Bright Yellow
+            Color.Blue,    // Bright Blue
+            Color.Magenta, // Bright Magenta
+            Color.Cyan,    // Bright Cyan
+            Color.White,   // Bright White
+        });
         private static void ParseSGREscape(string parameters, FontData defaultFontData, Color defaultColor, Color defaultBGColor,
                 TokenStyle currentStyle)
         {
@@ -856,14 +875,14 @@ namespace FezGame.MultiplayerMod
                     // Using Windows XP Console colors
                     // Note these are the same as the first 16 colors from TryGetColorFrom8BitIndex
                     // Standard colors
-                    case 30: currentStyle.Color = Color.Black; break;   // Dark Black
-                    case 31: currentStyle.Color = Color.Maroon; break;  // Dark Red
-                    case 32: currentStyle.Color = Color.Green; break;   // Dark Green
-                    case 33: currentStyle.Color = Color.Olive; break;   // Dark Yellow
-                    case 34: currentStyle.Color = Color.Navy; break;    // Dark Blue
-                    case 35: currentStyle.Color = Color.Purple; break;  // Dark Magenta
-                    case 36: currentStyle.Color = Color.Teal; break;    // Dark Cyan
-                    case 37: currentStyle.Color = Color.Silver; break;  // Dark White
+                    case 30: currentStyle.Color = ColorTable[0]; break; // Dark Black
+                    case 31: currentStyle.Color = ColorTable[1]; break; // Dark Red
+                    case 32: currentStyle.Color = ColorTable[2]; break; // Dark Green
+                    case 33: currentStyle.Color = ColorTable[3]; break; // Dark Yellow
+                    case 34: currentStyle.Color = ColorTable[4]; break; // Dark Blue
+                    case 35: currentStyle.Color = ColorTable[5]; break; // Dark Magenta
+                    case 36: currentStyle.Color = ColorTable[6]; break; // Dark Cyan
+                    case 37: currentStyle.Color = ColorTable[7]; break; // Dark White
 
                     case 38: // Start of 8-bit or true color
                         {
@@ -875,14 +894,14 @@ namespace FezGame.MultiplayerMod
                     case 39: currentStyle.Color = defaultColor; break; // Reset color
 
                     // cases 40 to 49 are for backgrounds, in the same order as 30 to 39
-                    case 40: currentStyle.BackgroundColor = Color.Black; break;   // Dark Black
-                    case 41: currentStyle.BackgroundColor = Color.Maroon; break;  // Dark Red
-                    case 42: currentStyle.BackgroundColor = Color.Green; break;   // Dark Green
-                    case 43: currentStyle.BackgroundColor = Color.Olive; break;   // Dark Yellow
-                    case 44: currentStyle.BackgroundColor = Color.Navy; break;    // Dark Blue
-                    case 45: currentStyle.BackgroundColor = Color.Purple; break;  // Dark Magenta
-                    case 46: currentStyle.BackgroundColor = Color.Teal; break;    // Dark Cyan
-                    case 47: currentStyle.BackgroundColor = Color.Silver; break;  // Dark White
+                    case 40: currentStyle.BackgroundColor = ColorTable[0]; break; // Dark Black
+                    case 41: currentStyle.BackgroundColor = ColorTable[1]; break; // Dark Red
+                    case 42: currentStyle.BackgroundColor = ColorTable[2]; break; // Dark Green
+                    case 43: currentStyle.BackgroundColor = ColorTable[3]; break; // Dark Yellow
+                    case 44: currentStyle.BackgroundColor = ColorTable[4]; break; // Dark Blue
+                    case 45: currentStyle.BackgroundColor = ColorTable[5]; break; // Dark Magenta
+                    case 46: currentStyle.BackgroundColor = ColorTable[6]; break; // Dark Cyan
+                    case 47: currentStyle.BackgroundColor = ColorTable[7]; break; // Dark White
 
                     case 48: // Start of 8-bit or true color
                         {
@@ -936,26 +955,26 @@ namespace FezGame.MultiplayerMod
                     //nothing defined for 66 to 89
 
                     // Bright colors
-                    case 90: currentStyle.Color = Color.Gray; break;    // Bright Black (Gray)
-                    case 91: currentStyle.Color = Color.Red; break;     // Bright Red
-                    case 92: currentStyle.Color = Color.Lime; break;    // Bright Green
-                    case 93: currentStyle.Color = Color.Yellow; break;  // Bright Yellow
-                    case 94: currentStyle.Color = Color.Blue; break;    // Bright Blue
-                    case 95: currentStyle.Color = Color.Magenta; break; // Bright Magenta
-                    case 96: currentStyle.Color = Color.Cyan; break;    // Bright Cyan
-                    case 97: currentStyle.Color = Color.White; break;   // Bright White
+                    case 90: currentStyle.Color = ColorTable[8]; break;  // Bright Black (Gray)
+                    case 91: currentStyle.Color = ColorTable[9]; break;  // Bright Red
+                    case 92: currentStyle.Color = ColorTable[10]; break; // Bright Green
+                    case 93: currentStyle.Color = ColorTable[11]; break; // Bright Yellow
+                    case 94: currentStyle.Color = ColorTable[12]; break; // Bright Blue
+                    case 95: currentStyle.Color = ColorTable[13]; break; // Bright Magenta
+                    case 96: currentStyle.Color = ColorTable[14]; break; // Bright Cyan
+                    case 97: currentStyle.Color = ColorTable[15]; break; // Bright White
 
                     //nothing defined for 98 to 99
 
                     // cases 100 to 107 are for backgrounds, in the same order as 90 to 97
-                    case 100: currentStyle.Color = Color.Gray; break;    // Bright Black (Gray)
-                    case 101: currentStyle.Color = Color.Red; break;     // Bright Red
-                    case 102: currentStyle.Color = Color.Lime; break;    // Bright Green
-                    case 103: currentStyle.Color = Color.Yellow; break;  // Bright Yellow
-                    case 104: currentStyle.Color = Color.Blue; break;    // Bright Blue
-                    case 105: currentStyle.Color = Color.Magenta; break; // Bright Magenta
-                    case 106: currentStyle.Color = Color.Cyan; break;    // Bright Cyan
-                    case 107: currentStyle.Color = Color.White; break;   // Bright White
+                    case 100: currentStyle.Color = ColorTable[8]; break;  // Bright Black (Gray)
+                    case 101: currentStyle.Color = ColorTable[9]; break;  // Bright Red
+                    case 102: currentStyle.Color = ColorTable[10]; break; // Bright Green
+                    case 103: currentStyle.Color = ColorTable[11]; break; // Bright Yellow
+                    case 104: currentStyle.Color = ColorTable[12]; break; // Bright Blue
+                    case 105: currentStyle.Color = ColorTable[13]; break; // Bright Magenta
+                    case 106: currentStyle.Color = ColorTable[14]; break; // Bright Cyan
+                    case 107: currentStyle.Color = ColorTable[15]; break; // Bright White
 
                     //nothing defined after 107
 
@@ -979,45 +998,29 @@ namespace FezGame.MultiplayerMod
                 color = Color.Transparent; // or any default color
                 return false; // Indicate failure
             }
-            switch (index)
+            if (index >= 0 && index < 16)
             {
-            //The first 16 colors are the same as the "Standard colors" and "Bright colors" 
-            case 0: color = Color.Black; return true;
-            case 1: color = Color.Maroon; return true;
-            case 2: color = Color.Green; return true;
-            case 3: color = Color.Olive; return true;
-            case 4: color = Color.Navy; return true;
-            case 5: color = Color.Purple; return true;
-            case 6: color = Color.Teal; return true;
-            case 7: color = Color.Silver; return true;
-            case 8: color = Color.Gray; return true;
-            case 9: color = Color.Red; return true;
-            case 10: color = Color.Lime; return true;
-            case 11: color = Color.Yellow; return true;
-            case 12: color = Color.Blue; return true;
-            case 13: color = Color.Magenta; return true;
-            case 14: color = Color.Cyan; return true;
-            case 15: color = Color.White; return true;
-            default:
-                {
-                    if (index >= 16 && index < 232)
-                    {
-                        // 6x6x6 Color Cube
-                        int rgbIndex = index - 16;
-                        int r = (rgbIndex / 36) * 51; // Scale 0 to 255 for Red
-                        int g = ((rgbIndex / 6) % 6) * 51; // Scale 0 to 255 for Green
-                        int b = (rgbIndex % 6) * 51; // Scale 0 to 255 for Blue
-                        color = new Color(r, g, b);
-                        return true;
-                    }
-                    else // 232-255 are grayscale
-                    {
-                        int grayValue = ((index - 232) * 10) + 8; // Scale to 0-255
-                        color = new Color(grayValue, grayValue, grayValue);
-                        return true;
-                    }
-                }
+                //The first 16 colors are the same as the "Standard colors" and "Bright colors" 
+                color = ColorTable[index];
+                return true;
             }
+            if (index >= 16 && index < 232)
+            {
+                // 6x6x6 Color Cube
+                int rgbIndex = index - 16;
+                int r = (rgbIndex / 36) * 51; // Scale 0 to 255 for Red
+                int g = ((rgbIndex / 6) % 6) * 51; // Scale 0 to 255 for Green
+                int b = (rgbIndex % 6) * 51; // Scale 0 to 255 for Blue
+                color = new Color(r, g, b);
+                return true;
+            }
+            else // 232-255 are grayscale
+            {
+                int grayValue = ((index - 232) * 10) + 8; // Scale to 0-255
+                color = new Color(grayValue, grayValue, grayValue);
+                return true;
+            }
+
         }
     }
 }
