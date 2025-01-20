@@ -61,13 +61,17 @@ namespace FezGame.MultiplayerMod
         private sealed class TokenStyle
         {
             /// <summary>
-            /// The color to use for this token
+            /// The color to use for the text of this token
             /// </summary>
             public Color Color { get; set; }
             /// <summary>
-            /// The color to use for this token
+            /// The color to use for the background of this token
             /// </summary>
             public Color BackgroundColor { get; set; }
+            /// <summary>
+            /// The color to use for the <see cref="Decoration"/> of this token.
+            /// </summary>
+            public Color? DecorationColor { get; set; }
             /// <summary>
             /// The font to use for this token
             /// </summary>
@@ -88,14 +92,15 @@ namespace FezGame.MultiplayerMod
             /// </summary>
             public float ObliqueAngle { get; set; }
 
-            public TokenStyle(Color color, Color backgroundColor, FontData fontdata, TextDecoration decoration, ushort weight, float slantAngle)
+            public TokenStyle(Color color, Color backgroundColor, Color? decorationColor, FontData fontdata, TextDecoration decoration, ushort weight, float slantAngle)
             {
-                Color = color;
-                BackgroundColor = backgroundColor;
-                FontData = fontdata;
-                Decoration = decoration;
-                FontWeight = weight;
-                ObliqueAngle = slantAngle;
+                this.Color = color;
+                this.BackgroundColor = backgroundColor;
+                this.DecorationColor = decorationColor;
+                this.FontData = fontdata;
+                this.Decoration = decoration;
+                this.FontWeight = weight;
+                this.ObliqueAngle = slantAngle;
             }
 
             public TokenStyle Clone()
@@ -303,7 +308,9 @@ namespace FezGame.MultiplayerMod
             _ = ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, scale, (token, positionOffset) =>
             {
                 FontData fontData = token.Style.FontData;
-                Color color = token.Style.Color;
+                Color textColor = token.Style.Color;
+                Color backgroundColor = token.Style.BackgroundColor;
+                Color decorationColor = token.Style.DecorationColor ?? textColor;
 
                 Vector2 offsetPosition = position + positionOffset;
 
@@ -315,37 +322,37 @@ namespace FezGame.MultiplayerMod
                 Vector2 tokenSize = fontData.Font.MeasureString(token.Text) * fontData.Scale * scale;
                 float tokenWidth = tokenSize.X + letterSpacing;
 
-                batch.DrawString(fontData.Font, token.Text, offsetPosition, color, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
+                batch.DrawString(fontData.Font, token.Text, offsetPosition, textColor, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
 
                 //Draw text decorations
                 if ((decoration & TextDecoration.Underline) != 0)
                 {
                     Vector2 underlinePosition = offsetPosition + underlineOffset * Vector2.UnitY;
                     // draw line with width of token starting at position underlinePosition
-                    DrawLine(underlinePosition, tokenWidth, lineThickness, color);
+                    DrawLine(underlinePosition, tokenWidth, lineThickness, decorationColor);
                     if ((decoration & TextDecoration.DoubleUnderline) != 0)
                     {
                         underlinePosition += doublelineOffsetOffset * Vector2.UnitY;
                         // draw line with width of token starting at position underlinePosition
-                        DrawLine(underlinePosition, tokenWidth, lineThickness, color);
+                        DrawLine(underlinePosition, tokenWidth, lineThickness, decorationColor);
                     }
                 }
                 if ((decoration & TextDecoration.Strikethrough) != 0)
                 {
                     Vector2 strikethroughPosition = offsetPosition + strikethroughOffset * Vector2.UnitY;
                     // draw line with width of token starting at position strikethroughPosition
-                    DrawLine(strikethroughPosition, tokenWidth, lineThickness, color);
+                    DrawLine(strikethroughPosition, tokenWidth, lineThickness, decorationColor);
                 }
                 if ((decoration & TextDecoration.Overline) != 0)
                 {
                     Vector2 overlinePosition = offsetPosition + overlineOffset * Vector2.UnitY;
                     // draw line with width of token starting at position overlinePosition
-                    DrawLine(overlinePosition, tokenWidth, lineThickness, color);
+                    DrawLine(overlinePosition, tokenWidth, lineThickness, decorationColor);
                     if ((decoration & TextDecoration.DoubleOverline) != 0)
                     {
                         overlinePosition -= doublelineOffsetOffset * Vector2.UnitY;
                         // draw line with width of token starting at position overlinePosition
-                        DrawLine(overlinePosition, tokenWidth, lineThickness, color);
+                        DrawLine(overlinePosition, tokenWidth, lineThickness, decorationColor);
                     }
                 }
                 if ((decoration & TextDecoration.Framed) != 0)
@@ -356,13 +363,13 @@ namespace FezGame.MultiplayerMod
                     float boxWidth = tokenSize.X + padding * 2 + lineThickness * 2;
                     float boxHeight = tokenSize.Y + padding * 2 + lineThickness * 2;
                     //top
-                    DrawLine(origin, boxWidth, lineThickness, color);
+                    DrawLine(origin, boxWidth, lineThickness, decorationColor);
                     //left
-                    DrawLine(origin, lineThickness, boxHeight, color);
+                    DrawLine(origin, lineThickness, boxHeight, decorationColor);
                     //bottom
-                    DrawLine(origin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, color);
+                    DrawLine(origin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, decorationColor);
                     //right
-                    DrawLine(origin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, color);
+                    DrawLine(origin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
                 }
                 if ((decoration & TextDecoration.Encircled) != 0)
                 {
@@ -422,7 +429,7 @@ namespace FezGame.MultiplayerMod
             FontData defaultFontData = new FontData(defaultFont, defaultFontScale);
             string[] lines = text.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
             string line;
-            TokenStyle currentStyle = new TokenStyle(defaultColor, Color.Transparent, defaultFontData, TextDecoration.None, DefaultFontWeight, 0f);
+            TokenStyle currentStyle = new TokenStyle(defaultColor, Color.Transparent, null, defaultFontData, TextDecoration.None, DefaultFontWeight, 0f);
 
             float defaultLineSpacing = defaultFontData.Font.LineSpacing * defaultFontData.Scale;
             float currentLineSpacing = defaultLineSpacing;
@@ -771,10 +778,9 @@ namespace FezGame.MultiplayerMod
         {
             var codes = parameters.Split(';');
 
-
             for (int i = 0; i < codes.Length; i++)
             {
-                void GetTrueColor(ref Color color)
+                Color GetTrueColor(Color color)
                 {
                     if (i + 1 < codes.Length && int.TryParse(codes[i + 1], out int colorType))
                     {
@@ -782,11 +788,11 @@ namespace FezGame.MultiplayerMod
                         {
                             if (i + 2 < codes.Length && int.TryParse(codes[i + 2], out int colorIndex))
                             {
+                                i += 2; // Skip the next two parameters
                                 if (TryGetColorFrom8BitIndex(colorIndex, out Color newColor))
                                 {
-                                    color = newColor;
+                                    return color = newColor;
                                 };
-                                i += 2; // Skip the next two parameters
                             }
                         }
                         else if (colorType == 2) // 24-bit true color
@@ -796,11 +802,12 @@ namespace FezGame.MultiplayerMod
                                 int.TryParse(codes[i + 3], out int g) &&
                                 int.TryParse(codes[i + 4], out int b))
                             {
-                                color = new Color(MathHelper.Clamp(r, 0, 255) / 255f, MathHelper.Clamp(g, 0, 255) / 255f, MathHelper.Clamp(b, 0, 255) / 255f);
                                 i += 4; // Skip the next four parameters
+                                return new Color(MathHelper.Clamp(r, 0, 255) / 255f, MathHelper.Clamp(g, 0, 255) / 255f, MathHelper.Clamp(b, 0, 255) / 255f);
                             }
                         }
                     }
+                    return color;
                 }
                 if (int.TryParse(codes[i], out int codeValue))
                 {
@@ -810,6 +817,7 @@ namespace FezGame.MultiplayerMod
                         currentStyle.FontData = defaultFontData; // Reset to default font
                         currentStyle.Color = defaultColor; // Reset to default color
                         currentStyle.BackgroundColor = defaultBGColor; // Reset to default color
+                        currentStyle.DecorationColor = null; // Reset to default color
                         currentStyle.Decoration = TextDecoration.None;
                         currentStyle.FontWeight = DefaultFontWeight;
                         currentStyle.ObliqueAngle = 0f;
@@ -885,12 +893,8 @@ namespace FezGame.MultiplayerMod
                     case 37: currentStyle.Color = ColorTable[7]; break; // Dark White
 
                     case 38: // Start of 8-bit or true color
-                        {
-                            Color c = currentStyle.Color;
-                            GetTrueColor(ref c);
-                            currentStyle.Color = c;
+                            currentStyle.Color = GetTrueColor(currentStyle.Color);
                             break;
-                        }
                     case 39: currentStyle.Color = defaultColor; break; // Reset color
 
                     // cases 40 to 49 are for backgrounds, in the same order as 30 to 39
@@ -904,12 +908,8 @@ namespace FezGame.MultiplayerMod
                     case 47: currentStyle.BackgroundColor = ColorTable[7]; break; // Dark White
 
                     case 48: // Start of 8-bit or true color
-                        {
-                            Color c = currentStyle.BackgroundColor;
-                            GetTrueColor(ref c);
-                            currentStyle.BackgroundColor = c;
+                            currentStyle.BackgroundColor = GetTrueColor(currentStyle.BackgroundColor);
                             break;
-                        }
                     case 49: currentStyle.BackgroundColor = defaultBGColor; break; // Reset color
 
                     case 50: // Cancel proportional spacing
