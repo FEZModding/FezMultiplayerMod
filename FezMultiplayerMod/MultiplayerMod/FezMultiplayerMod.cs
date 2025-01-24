@@ -122,8 +122,8 @@ namespace FezGame.MultiplayerMod
             mp = new MultiplayerClient(settings);
             IniTools.WriteSettingsFile(SettingsFilePath, settings);
 
-            ServerListMenu serverListMenu;
-            ServiceHelper.AddComponent(serverListMenu = new ServerListMenu(game));
+            //ServerListMenu serverListMenu;
+            //ServiceHelper.AddComponent(serverListMenu = new ServerListMenu(game));
 
             mp.ConnectToServerAsync(settings.MainEndpoint);
 
@@ -322,8 +322,9 @@ namespace FezGame.MultiplayerMod
                 debugTextDrawer.Color = Color.Red;
                 s += $"{mp.ErrorMessage}\n";
             }
-            if (mp.Listening)
+            switch (mp.ActiveConnectionState)
             {
+            case ConnectionState.Connected:
                 if (ShowDebugInfo)
                 {
                     s += $"Connected players: \n";
@@ -368,10 +369,13 @@ namespace FezGame.MultiplayerMod
                 {
                 }
                 drawer.End();
-            }
-            else
-            {
+                break;
+            case ConnectionState.Connecting:
+                s += "Connecting to "+mp.RemoteEndpoint;
+                break;
+            case ConnectionState.Disconnected:
                 s += "Not connected";
+                break;
             }
             debugTextDrawer.Text = s;
         }

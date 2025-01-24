@@ -15,19 +15,51 @@ using FezSharedTools;
 
 namespace FezGame.MultiplayerMod
 {
+    public enum ConnectionState
+    {
+        Disconnected,
+        Connecting,
+        Connected
+    }
     public abstract class MultiplayerClientNetcode : SharedNetcode<PlayerMetadata>, IDisposable
     {
 
         private Thread listenerThread;
 
+        public ConnectionState ActiveConnectionState
+        {
+            get
+            {
+                //I think this looks nicer than a long sequence of ternary operators 
+                if (listening)
+                {
+                    return ConnectionState.Connected;
+                }
+                else if (listenerThread != null && listenerThread.IsAlive)
+                {
+                    return ConnectionState.Connecting;
+                }
+                else 
+                {
+                    return ConnectionState.Disconnected;
+                }
+            }
+        }
+
+        public IPEndPoint RemoteEndpoint = null;
+
         public Guid MyUuid { get; private set; }
         public volatile PlayerMetadata MyPlayerMetadata = null;
+
         public override ConcurrentDictionary<Guid, PlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, PlayerMetadata>();
+
         private volatile bool listening;
-        public bool Listening { get => listening; }
+
         public PlayerAppearance MyAppearance;
         private volatile bool MyAppearanceChanged = false;
+
         public volatile uint ConnectionLatencyUp = 0;
+
         public string MyPlayerName
         {
             get => MyAppearance.PlayerName;
@@ -40,6 +72,10 @@ namespace FezGame.MultiplayerMod
 
 
         public volatile bool SyncWorldState;
+        /// <summary>
+        /// The amount of time, in ticks, to retry reconnecting to the server if the connection is somehow lost
+        /// </summary>
+        private static readonly long reconnectTimeout = TimeSpan.FromSeconds(10).Ticks;
 
         public event Action OnUpdate = () => { };
         public event Action OnDispose = () => { };
@@ -62,11 +98,12 @@ namespace FezGame.MultiplayerMod
             {
                 throw new ObjectDisposedException(this.GetType().Name);
             }
-            if (listenerThread != null && listenerThread.IsAlive)
+            if ((listenerThread != null && listenerThread.IsAlive) || (RemoteEndpoint != null))
             {
-                //TODO 
+                //TODO already connected to somewhere
                 return;
             }
+            RemoteEndpoint = endpoint;
             listenerThread = new Thread(() =>
             {
                 void ConnectToServerInternal(out bool ConnectionSucessful)
@@ -103,16 +140,18 @@ namespace FezGame.MultiplayerMod
                                 {
                                     saveDataUpdate = GetSaveDataUpdate();
                                 }
-                                //TODO transmit MyAppearance whenever its value changes 
+                                //transmit MyAppearance whenever its value changes 
                                 PlayerAppearance? appearance = null;
                                 if (retransmitAppearanceRequested || MyAppearanceChanged)
                                 {
                                     appearance = MyAppearance;
+                                    MyAppearanceChanged = false;
                                 }
                                 ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false);
                             }
                             else
                             {
+                                //tell the server we're disconnecting
                                 WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, new List<Guid>(0), true);
                                 break;
                             }
@@ -123,37 +162,48 @@ namespace FezGame.MultiplayerMod
                         tcpClient.Close();
                     }
                 }
-                bool WasSucessfullyConnected = false;
-                try
+                bool wasSuccessfullyConnected = false;
+                long? disconnectTime = null;
+                while (true) // Infinite loop will allow us to retry connection
                 {
-                    ConnectToServerInternal(out WasSucessfullyConnected);
-                }
-                //catch (EndOfStreamException e)
-                //{
-                //    FatalException = e;
-                //}
-                catch (IOException e)//Connection failed, data read error, connection terminated by server, etc.
-                {
-                    if (WasSucessfullyConnected)
+                    try
                     {
-                        //retry connection
-                        ConnectToServerInternal(out WasSucessfullyConnected);
-                        //TODO retry connection multiple times?
-                        FatalException = e;
+                        ConnectToServerInternal(out wasSuccessfullyConnected);
+                        if (wasSuccessfullyConnected)
+                        {
+                            break; // Successfully connected
+                        }
                     }
-                    else
+                    //catch (EndOfStreamException e)
+                    //{
+                    //    FatalException = e;
+                    //}
+                    catch (Exception e)//Connection failed, data read error, connection terminated by server, etc.
                     {
-                        FatalException = e;
+                        //TODO this does not properly handle scenarios where the connection is successful but an error occurs consistently after the initial connection.
+                        if (wasSuccessfullyConnected)
+                        {
+                            disconnectTime = DateTime.UtcNow.Ticks;
+                        }
+                        else if (DateTime.UtcNow.Ticks - disconnectTime > reconnectTimeout)
+                        {
+                            //reconnection failed
+                            FatalException = e; // Record the fatal exception on failed connection attempts
+                            break; // Exit the loop on persistent failures
+                        }
+                        else if (disconnectTime == null && !wasSuccessfullyConnected)
+                        {
+                            FatalException = e; // Record the fatal exception on failed connection attempts
+                            break; // Exit the loop on persistent failures
+                        }
+                        // If previously connected, just retry
+                    }
+                    finally
+                    {
+                        listening = false;
                     }
                 }
-                catch (Exception e)// Note: VersionMismatchException and InvalidDataException also get caught here
-                {
-                    FatalException = e;
-                }
-                finally
-                {
-                    listening = false;
-                }
+                RemoteEndpoint = null;
             });
             listenerThread.Start();
         }
