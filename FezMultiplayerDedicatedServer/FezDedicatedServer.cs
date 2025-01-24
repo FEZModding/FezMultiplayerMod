@@ -49,6 +49,7 @@ namespace FezMultiplayerDedicatedServer
             //Note: gotta keep the program busy otherwise it'll close
 
             //TODO make the CLI better; see https://learn.microsoft.com/en-us/dotnet/api/system.console , particularly Console.CursorTop and Console.CursorLeft
+            //I want a nice animated one that automatically updates what it writes on the screen
 
             try
             {
@@ -73,7 +74,7 @@ namespace FezMultiplayerDedicatedServer
                             {
                                 MultiplayerServer.ServerPlayerMetadata p = kvpair.Value;
                                 count++;
-                                s += $"{kvpair.Key}: {server.GetPlayerName(p.Uuid)}, "// + p.Uuid + ", "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
+                                s += $"{kvpair.Key}: {server.GetPlayerName(p.Uuid) + "\x1B[0m"}, "// + p.Uuid + ", "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
                                     + $"{p.TimeSinceJoin}, "
                                     + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
                                     + $"{p.Action}, {p.CameraViewpoint}, "
