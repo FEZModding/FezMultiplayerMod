@@ -24,19 +24,19 @@ namespace FezMultiplayerDedicatedServer
         [Serializable]
         public class ServerPlayerMetadata : PlayerMetadata
         {
-            public TcpClient tcpClient;
+            public Socket client;
             public readonly DateTime joinTime = DateTime.UtcNow;
             public TimeSpan TimeSinceJoin => DateTime.UtcNow - joinTime;
             public long NetworkSpeedUp = 0;
 
-            public ServerPlayerMetadata(TcpClient tcpClient, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
+            public ServerPlayerMetadata(Socket client, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             : base(Uuid, CurrentLevelName, Position, CameraViewpoint, Action, AnimFrame, LookingDirection, LastUpdateTimestamp)
             {
-                this.tcpClient = tcpClient;
+                this.client = client;
             }
         }
 
-        private readonly TcpListener tcpListener;
+        private readonly Socket listenerSocket;
         private readonly Task listenerTask;
         private readonly Task timeoutTask;
         private readonly int listenPort;
@@ -48,8 +48,8 @@ namespace FezMultiplayerDedicatedServer
 
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
-        private IEnumerable<TcpClient> ConnectedClients => Players.Select(p => p.Value.tcpClient);
-        public EndPoint LocalEndPoint => tcpListener?.LocalEndpoint;
+        private IEnumerable<Socket> ConnectedClients => Players.Select(p => p.Value.client);
+        public EndPoint LocalEndPoint => listenerSocket?.LocalEndPoint;
 
         public event Action OnUpdate = () => { };
         public event Action OnDispose = () => { };
@@ -76,8 +76,15 @@ namespace FezMultiplayerDedicatedServer
             {
                 try
                 {
-                    tcpListener = new TcpListener(IPAddress.Any, listenPort);
-                    tcpListener.Start();
+                    // Create a listener socket that can accept both IPv4 and IPv6 connections
+                    listenerSocket = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
+
+                    // Set the socket to accept both IPv4 and IPv6 connections
+                    listenerSocket.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, false);
+
+                    // Bind the socket to any address and the specified port
+                    listenerSocket.Bind(new IPEndPoint(IPAddress.IPv6Any, listenPort));
+                    listenerSocket.Listen(10); // Listen for incoming connections, with a specified backlog
                     initializing = false;
                 }
                 catch (Exception e)
@@ -117,11 +124,11 @@ namespace FezMultiplayerDedicatedServer
                             Thread.Sleep(1000);
                             if (p.Key.Equals(Guid.Empty))
                             {
-                                p.Value.tcpClient.Close();
+                                p.Value.client.Close();
                                 ProcessDisconnectInternal(p.Key);
                             }
                         }
-                        if (!p.Value.tcpClient.Connected)
+                        if (!p.Value.client.Connected)
                         {
                             ProcessDisconnectInternal(p.Key);
                         }
@@ -141,18 +148,17 @@ namespace FezMultiplayerDedicatedServer
                     //Note: AcceptTcpClient blocks until a connection is made
                     //Note: apparently tcpListener.AcceptTcpClient(); is so blocking, if it's in a Thread, it even blocks calls to that thread's .Abort() method 
                     //TcpClient client = tcpListener.AcceptTcpClient();
-                    TcpClient client = await tcpListener.AcceptTcpClientAsync();
+                    Socket client = await Task.Factory.StartNew(() => listenerSocket.Accept());
                     new Thread(() =>
                     {
                         try
                         {
-                            IPEndPoint remoteEndpoint = (IPEndPoint)client.Client.RemoteEndPoint;
+                            IPEndPoint remoteEndpoint = (IPEndPoint)client.RemoteEndPoint;
                             if (BlockList.Contains(remoteEndpoint.Address)
                                 || (useAllowList && !AllowList.Contains(remoteEndpoint.Address))
                                     )
                             {
-                                client.Client.Shutdown(SocketShutdown.Both);
-                                //client.Client.Close();
+                                client.Shutdown(SocketShutdown.Both);
                                 client.Close();
                                 return;
                             }
@@ -198,11 +204,15 @@ namespace FezMultiplayerDedicatedServer
                     this.disposing = true;//let child threads know it's disposing time
                     OnDispose();
                     Thread.Sleep(1000);//try to wait for child threads to stop on their own
-                    foreach (TcpClient client in ConnectedClients)
+
+                    listenerSocket.Shutdown(SocketShutdown.Both);
+                    foreach (Socket client in ConnectedClients)
                     {
                         client.Close();
+                        client.Dispose();
                     }
-                    tcpListener.Stop();
+                    listenerSocket.Close();
+                    listenerSocket.Dispose();
                 }
 
                 // Dispose unmanaged resources here
@@ -240,19 +250,18 @@ namespace FezMultiplayerDedicatedServer
         }
 
         private static readonly TimeSpan NewPlayerTimeSpan = TimeSpan.FromSeconds(1);
-        private void OnNewClientConnect(TcpClient tcpClient)
+        private void OnNewClientConnect(Socket client)
         {
             Guid uuid = Guid.NewGuid();
             try
             {
-                Console.WriteLine($"Incoming connection from {tcpClient.Client.RemoteEndPoint}...");
-                using (NetworkStream stream = tcpClient.GetStream())
+                Console.WriteLine($"Incoming connection from {client.RemoteEndPoint}...");
+                using (NetworkStream stream = new NetworkStream(client))
                 {
                     stream.ReadTimeout = overduetimeout;
                     stream.WriteTimeout = overduetimeout;
-                    using (NetworkStream tcpStream = tcpClient.GetStream())
-                    using (BinaryNetworkReader reader = new BinaryNetworkReader(tcpStream))
-                    using (BinaryNetworkWriter writer = new BinaryNetworkWriter(tcpStream))
+                    using (BinaryNetworkReader reader = new BinaryNetworkReader(stream))
+                    using (BinaryNetworkWriter writer = new BinaryNetworkWriter(stream))
                     {
                         try
                         {
@@ -269,12 +278,12 @@ namespace FezMultiplayerDedicatedServer
 
                             ServerPlayerMetadata addValueFactory(Guid guid)
                             {
-                                return new ServerPlayerMetadata(tcpClient, uuid, playerMetadata.CurrentLevelName, playerMetadata.Position, playerMetadata.CameraViewpoint,
+                                return new ServerPlayerMetadata(client, uuid, playerMetadata.CurrentLevelName, playerMetadata.Position, playerMetadata.CameraViewpoint,
                                             playerMetadata.Action, playerMetadata.AnimFrame, playerMetadata.LookingDirection, playerMetadata.LastUpdateTimestamp);
                             }
                             ServerPlayerMetadata updateValueFactory(Guid guid, ServerPlayerMetadata currentval)
                             {
-                                currentval.tcpClient = tcpClient;
+                                currentval.client = client;
                                 //Note: the value of playerMetadata.Uuid received from the client is never used
                                 //We use the Guid that we assigned instead, for security reasons. 
                                 currentval.Uuid = guid;
@@ -286,7 +295,7 @@ namespace FezMultiplayerDedicatedServer
                             }
 
                             Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
-                            Console.WriteLine($"Player connected from {tcpClient.Client.RemoteEndPoint}. Assigned uuid {uuid}.");
+                            Console.WriteLine($"Player connected from {client.RemoteEndPoint}. Assigned uuid {uuid}.");
 
                             bool PlayerAppearancesFilter(KeyValuePair<Guid, ServerPlayerMetadata> p)
                             {
@@ -294,7 +303,7 @@ namespace FezMultiplayerDedicatedServer
                                 return clientData.RequestedAppearances.Contains(p.Key) || p.Value.TimeSinceJoin < NewPlayerTimeSpan;
                             }
 
-                            while (tcpClient.Connected && !disposing)
+                            while (client.Connected && !disposing)
                             {
                                 if (Disconnecting)
                                 {
@@ -330,7 +339,7 @@ namespace FezMultiplayerDedicatedServer
                         {
                             reader.Close();
                             writer.Close();
-                            tcpStream.Close();
+                            stream.Close();
                         }
                     }
                 }
@@ -345,8 +354,8 @@ namespace FezMultiplayerDedicatedServer
                 long disconnectTime = DateTime.UtcNow.Ticks;
                 DisconnectedPlayers.AddOrUpdate(uuid, disconnectTime, (puid, oldTime) => disconnectTime);
                 ProcessDisconnect(uuid);
-                tcpClient.Close();
-                tcpClient.Dispose();
+                client.Close();
+                client.Dispose();
             }
         }
 

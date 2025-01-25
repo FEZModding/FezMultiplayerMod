@@ -242,6 +242,13 @@ namespace FezGame.MultiplayerMod
             {
                 //Connection refused
                 //TODO
+#if DEBUG
+                if (!System.Diagnostics.Debugger.IsAttached)
+                {
+                    System.Diagnostics.Debugger.Launch();
+                }
+                System.Diagnostics.Debugger.Break();
+#endif
                 throw e;
             }
             catch (Exception e)

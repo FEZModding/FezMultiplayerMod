@@ -109,7 +109,7 @@ namespace FezGame.MultiplayerMod
                 void ConnectToServerInternal(out bool ConnectionSucessful)
                 {
                     ConnectionSucessful = false;
-                    TcpClient tcpClient = new TcpClient(AddressFamily.InterNetwork);
+                    TcpClient tcpClient = new TcpClient(endpoint.AddressFamily);
                     tcpClient.Connect(endpoint);
                     listening = true;
                     while (MyPlayerMetadata == null)

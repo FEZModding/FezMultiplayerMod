@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Net.NetworkInformation;
 using System.Timers;
 using System.Linq;
+using System.Net;
 
 namespace FezMultiplayerDedicatedServer
 {
@@ -158,8 +159,39 @@ namespace FezMultiplayerDedicatedServer
             }
             server.Dispose();
         }
+        private class IPAddressComparer : IComparer<IPAddress>
+        {
+            public int Compare(IPAddress addr1, IPAddress addr2)
+            {
+                if(addr1.AddressFamily != addr2.AddressFamily)
+                {
+                    return addr1.AddressFamily - addr2.AddressFamily;
+                }
+                byte[] addr1bytes = addr1.GetAddressBytes();
+                byte[] addr2bytes = addr2.GetAddressBytes();
+                if (addr1bytes.Length != addr2bytes.Length)
+                {
+                    throw new Exception($"Address byte length mismatch ({addr1bytes.Length} vs {addr2bytes.Length})");
+                }
+                for (int i = 0; i < addr1bytes.Length; ++i)
+                {
+                    int c = (int)addr1bytes[i] - (int)addr2bytes[i];
+                    if (c != 0)
+                    {
+                        return c;
+                    }
+                }
+                return 0;
+            }
+        };
+        private static IPAddressComparer AddressComparer = new IPAddressComparer();
+        private const bool HIDE_LOOPBACK_ADDRS = true;
+        private const bool HIDE_V6LINK_LOCAL = false;
         private static void GetLocalIPAddresses()
         {
+            List<IPAddress> myIpAddresses = new List<IPAddress>();
+            List<IPAddress> loopbackAddresses = new List<IPAddress>();
+
             // Get all network interfaces on the machine
             NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
             foreach (NetworkInterface networkInterface in networkInterfaces)
@@ -168,20 +200,56 @@ namespace FezMultiplayerDedicatedServer
                 if (networkInterface.OperationalStatus == OperationalStatus.Up)
                 {
                     // Get the IP properties of the network interface
-                    var ipProperties = networkInterface.GetIPProperties();
+                    var unicastAddresses = networkInterface.GetIPProperties().UnicastAddresses;
 
-                    // Iterate through each unicast address in the IP properties
-                    foreach (var unicastAddress in ipProperties.UnicastAddresses)
+                    // Add each unicast address to myIpAddresses
+                    foreach (var unicastAddress in unicastAddresses)
                     {
                         var addr = unicastAddress.Address;
-                        // Make sure we have an IPv4 address
-                        if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork
-                            && !addr.Equals(System.Net.IPAddress.Loopback))
+                        if (IPAddress.IsLoopback(addr))
                         {
-                            Console.WriteLine($"IP Address: {addr}");
+                            loopbackAddresses.Add(addr);
                         }
-                    }
+                        if ((!HIDE_V6LINK_LOCAL || !addr.IsIPv6LinkLocal)
+                                && (!HIDE_LOOPBACK_ADDRS || !IPAddress.IsLoopback(addr)))
+                        {
+                            myIpAddresses.Add(addr);
+                        }
+                    };
                 }
+            }
+            IEnumerable<string> IPAddressListToOrderedStrings(List<IPAddress> list)
+            {
+                return list.OrderBy(addr => addr, AddressComparer)
+                        .Select(addr =>
+                        {
+                            if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+                            {
+                                return "[" + addr.ToString() + "]";
+                            }
+                            else
+                            {
+                                return addr.ToString();
+                            }
+                        });
+            }
+            void WriteListeningText(string addrType, List<IPAddress> addresses)
+            {
+                IEnumerable<string> ipStrings = IPAddressListToOrderedStrings(addresses);
+                Console.WriteLine($"Listening on {addrType} address{(myIpAddresses.Count() == 1 ? "" : "es")}: {string.Join(", ", ipStrings)}");
+            }
+            if (myIpAddresses.Count() > 0)
+            {
+                WriteListeningText("Local IP", myIpAddresses);
+            }
+            else if (loopbackAddresses.Count() > 0)
+            {
+                //They should at least have loopback addresses
+                WriteListeningText("loopback", loopbackAddresses);
+            }
+            else
+            {
+                Console.WriteLine("No network interfaces detected.");
             }
         }
     }
