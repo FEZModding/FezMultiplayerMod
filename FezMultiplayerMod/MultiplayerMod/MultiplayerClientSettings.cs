@@ -10,12 +10,12 @@ namespace FezGame.MultiplayerMod
     {
         private const int DefaultPort = 7777;
         /// <summary>
-        /// The endpoint to connect to. Note: Currently only supports IPv4
+        /// The endpoint to connect to. Note: IPv6 must be in brackets like [::1]:7777
         /// </summary>
-        [Description("The endpoint to connect to. Note: Currently only supports IPv4")]
+        [Description("The endpoint to connect to. Note: IPv6 must be in brackets like [::1]:7777")]
         public IPEndPoint MainEndpoint = new IPEndPoint(IPAddress.Loopback, DefaultPort);
         /// <summary>
-        /// A string representing the name to display for this client. Note: currently only supports alphanumeric ASCII characters.
+        /// A string representing the name to display for this client.
         /// </summary>
         [Description("A string representing the name to display for this client.")]
         public string MyPlayerName = "Player";
