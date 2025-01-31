@@ -27,6 +27,7 @@ namespace FezMultiplayerDedicatedServer
 
             //MultiplayerServerSettings.WriteSettingsFile(SettingsFilePath, settings);//TODO
 
+            //Wait for the server netcode to finish initializing
             while (server.LocalEndPoint == null && server.FatalException == null)
             {
                 System.Threading.Thread.Sleep(1);
@@ -49,7 +50,7 @@ namespace FezMultiplayerDedicatedServer
 
             //Note: gotta keep the program busy otherwise it'll close
 
-            //TODO make the CLI better; see https://learn.microsoft.com/en-us/dotnet/api/system.console , particularly Console.CursorTop and Console.CursorLeft
+            //TODO make the CLI better; see https://learn.microsoft.com/en-us/dotnet/api/system.console , particularly Console.SetCursorPosition
             //I want a nice animated one that automatically updates what it writes on the screen
 
             try
