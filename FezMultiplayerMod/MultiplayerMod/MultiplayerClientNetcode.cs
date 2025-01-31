@@ -12,6 +12,7 @@ using Microsoft.Xna.Framework;
 using FezEngine;
 using FezGame.Structure;
 using FezSharedTools;
+using Common;
 
 namespace FezGame.MultiplayerMod
 {
@@ -23,6 +24,16 @@ namespace FezGame.MultiplayerMod
     }
     public abstract class MultiplayerClientNetcode : SharedNetcode<PlayerMetadata>, IDisposable
     {
+        protected static void LogStatus(LogSeverity severity, string message)
+        {
+            string ComponentName = nameof(MultiplayerClientNetcode);
+            string ThreadName = Thread.CurrentThread.Name ?? String.Empty;
+            if(ThreadName.Length > 0)
+            {
+                message = $"({ThreadName}) " + message;
+            }
+            Logger.Log(ComponentName, severity, message);
+        }
 
         private Thread listenerThread;
 
@@ -102,13 +113,15 @@ namespace FezGame.MultiplayerMod
             {
                 //TODO already connected to somewhere
                 return;
+                throw new InvalidOperationException("Already connected to " + RemoteEndpoint);
             }
             RemoteEndpoint = endpoint;
             listenerThread = new Thread(() =>
             {
-                void ConnectToServerInternal(out bool ConnectionSucessful)
+                void ConnectToServerInternal(out bool ConnectionSuccessful)
                 {
-                    ConnectionSucessful = false;
+                    LogStatus(LogSeverity.Information, $"Connecting to {endpoint} ...");
+                    ConnectionSuccessful = false;
                     TcpClient tcpClient = new TcpClient(endpoint.AddressFamily);
                     tcpClient.Connect(endpoint);
                     listening = true;
@@ -123,7 +136,8 @@ namespace FezGame.MultiplayerMod
                         bool retransmitAppearanceRequested = false;
                         ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
                         ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
-                        ConnectionSucessful = true;
+                        ConnectionSuccessful = true;
+                        LogStatus(LogSeverity.Information, $"Connection to {endpoint} successful");
                         while (true)
                         {
                             ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
@@ -151,6 +165,7 @@ namespace FezGame.MultiplayerMod
                             }
                             else
                             {
+                                LogStatus(LogSeverity.Information, $"Disconnecting from {RemoteEndpoint} ...");
                                 //tell the server we're disconnecting
                                 WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, new List<Guid>(0), true);
                                 break;
@@ -161,10 +176,11 @@ namespace FezGame.MultiplayerMod
                         tcpStream.Close();
                         tcpClient.Close();
                     }
+                    LogStatus(LogSeverity.Information, $"Disconnected cleanly from {RemoteEndpoint}");
                 }
                 bool wasSuccessfullyConnected = false;
                 long? disconnectTime = null;
-                while (true) // Infinite loop will allow us to retry connection
+                while (!disconnectRequested) // Infinite loop will allow us to retry connection
                 {
                     try
                     {
@@ -180,19 +196,23 @@ namespace FezGame.MultiplayerMod
                     //}
                     catch (Exception e)//Connection failed, data read error, connection terminated by server, etc.
                     {
+                        LogStatus(LogSeverity.Warning, $"Lost connection to {RemoteEndpoint}");
                         //TODO this does not properly handle scenarios where the connection is successful but an error occurs consistently after the initial connection.
                         if (wasSuccessfullyConnected)
                         {
+                            LogStatus(LogSeverity.Information, $"Attempting to reconnect to {RemoteEndpoint} ...");
                             disconnectTime = DateTime.UtcNow.Ticks;
                         }
                         else if (DateTime.UtcNow.Ticks - disconnectTime > reconnectTimeout)
                         {
                             //reconnection failed
+                            LogStatus(LogSeverity.Error, $"Failed to reconnect to {RemoteEndpoint}");
                             FatalException = e; // Record the fatal exception on failed connection attempts
                             break; // Exit the loop on persistent failures
                         }
                         else if (disconnectTime == null && !wasSuccessfullyConnected)
                         {
+                            LogStatus(LogSeverity.Error, $"Failed to connect to {RemoteEndpoint}");
                             FatalException = e; // Record the fatal exception on failed connection attempts
                             break; // Exit the loop on persistent failures
                         }
@@ -203,8 +223,10 @@ namespace FezGame.MultiplayerMod
                         listening = false;
                     }
                 }
+                LogStatus(LogSeverity.Information, $"Connection with {RemoteEndpoint} terminated");
                 RemoteEndpoint = null;
             });
+            listenerThread.Name = "Listener Thread";
             listenerThread.Start();
         }
 
@@ -214,13 +236,18 @@ namespace FezGame.MultiplayerMod
         private volatile bool disconnectRequested = false;
         public void Disconnect()
         {
+            LogStatus(LogSeverity.Information, "Disconnect requested");
             this.disconnectRequested = true;//let listener thread know it should disconnect
             Thread.Sleep(1000);//try to wait for child threads to stop on their own
             if (listenerThread != null && listenerThread.IsAlive)
             {
+                LogStatus(LogSeverity.Warning, "Forcibly terminated listening thread");
                 listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
             }
+            //ensure RemoteEndpoint is reset
+            RemoteEndpoint = null;
             this.disconnectRequested = false;//reset for next use
+            LogStatus(LogSeverity.Information, "Disconnect complete");
         }
 
         protected abstract SaveDataUpdate? GetSaveDataUpdate();
