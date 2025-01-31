@@ -10,7 +10,7 @@ using System.IO;
 using System.Collections.Concurrent;
 using FezSharedTools;
 using System.Threading.Tasks;
-using static FezMultiplayerDedicatedServer.MultiplayerServer;
+using static FezMultiplayerDedicatedServer.MultiplayerServerNetcode;
 
 namespace FezMultiplayerDedicatedServer
 {
@@ -19,7 +19,7 @@ namespace FezMultiplayerDedicatedServer
     /// 
     /// Note: This class should only contain System usings
     /// </summary>
-    public class MultiplayerServer : SharedNetcode<ServerPlayerMetadata>, IDisposable
+    public class MultiplayerServerNetcode : SharedNetcode<ServerPlayerMetadata>, IDisposable
     {
         [Serializable]
         public class ServerPlayerMetadata : PlayerMetadata
@@ -61,7 +61,7 @@ namespace FezMultiplayerDedicatedServer
         /// For any errors that get encountered see <see cref="ErrorMessage"/> an <see cref="FatalException"/>
         /// </summary>
         /// <param name="settings">The <see cref="MultiplayerServerSettings"/> to use to create this instance.</param>
-        internal MultiplayerServer(MultiplayerServerSettings settings)
+        internal MultiplayerServerNetcode(MultiplayerServerSettings settings)
         {
             this.listenPort = settings.ListenPort;
             this.overduetimeout = settings.OverdueTimeout;
@@ -220,7 +220,7 @@ namespace FezMultiplayerDedicatedServer
                 disposed = true;
             }
         }
-        ~MultiplayerServer()
+        ~MultiplayerServerNetcode()
         {
             Dispose(false);
         }

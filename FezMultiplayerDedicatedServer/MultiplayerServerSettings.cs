@@ -4,7 +4,7 @@ using FezSharedTools;
 namespace FezMultiplayerDedicatedServer
 {
     /// <summary>
-    /// The class that contains the settings for <see cref="MultiplayerServer"/>
+    /// The class that contains the settings for <see cref="MultiplayerServerNetcode"/>
     /// </summary>
     public sealed class MultiplayerServerSettings
     {
@@ -14,7 +14,7 @@ namespace FezMultiplayerDedicatedServer
         [Description("The port to listen on")]
         public int ListenPort = SharedConstants.DefaultPort;
         /// <summary>
-        /// The amount of times to attempt to use the next port as the port to listen to before giving up. In case of an error, see <see cref="MultiplayerServer.ErrorMessage"/>
+        /// The amount of times to attempt to use the next port as the port to listen to before giving up. In case of an error, see <see cref="MultiplayerServerNetcode.ErrorMessage"/>
         /// </summary>
         [Description("The amount of times to attempt to use the next port as the port to listen to before giving up.")]
         public int MaxAdjustListenPortOnBindFail = 1000;

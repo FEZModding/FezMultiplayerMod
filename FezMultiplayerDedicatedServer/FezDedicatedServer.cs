@@ -10,12 +10,12 @@ namespace FezMultiplayerDedicatedServer
 {
     sealed class FezDedicatedServer
     {
-        private static MultiplayerServer server;
+        private static MultiplayerServerNetcode server;
         static void Main(string[] args)
         {
             //TODO add more to this, like command line parameters and connection logs
 
-            Console.WriteLine($"FezMultiplayerMod server starting... (protocol ver: {MultiplayerServer.ProtocolVersion})");
+            Console.WriteLine($"FezMultiplayerMod server starting... (protocol ver: {MultiplayerServerNetcode.ProtocolVersion})");
 
             const string SettingsFilePath = "FezMultiplayerServer.ini";//TODO: probably should use an actual path instead of just the file name
             Console.WriteLine($"Loading settings from {SettingsFilePath}");
@@ -23,7 +23,7 @@ namespace FezMultiplayerDedicatedServer
             IniTools.WriteSettingsFile(SettingsFilePath, settings);
 
             Console.WriteLine("Initializing server...");
-            server = new MultiplayerServer(settings);
+            server = new MultiplayerServerNetcode(settings);
 
             //MultiplayerServerSettings.WriteSettingsFile(SettingsFilePath, settings);//TODO
 
@@ -73,7 +73,7 @@ namespace FezMultiplayerDedicatedServer
                             int count = 0;
                             foreach (var kvpair in server.Players)
                             {
-                                MultiplayerServer.ServerPlayerMetadata p = kvpair.Value;
+                                MultiplayerServerNetcode.ServerPlayerMetadata p = kvpair.Value;
                                 count++;
                                 s += $"{kvpair.Key}: {server.GetPlayerName(p.Uuid) + "\x1B[0m"}, "// + p.Uuid + ", "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
                                     + $"{p.TimeSinceJoin}, "
