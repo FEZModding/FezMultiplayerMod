@@ -4,3 +4,4 @@ libs/*.exe
 libs/*.dll
 .vs/*
 *.bkp
+/PackedRelease
