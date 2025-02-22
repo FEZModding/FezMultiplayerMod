@@ -6,6 +6,7 @@ using System.Timers;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
+using System.Text;
 
 namespace FezMultiplayerDedicatedServer
 {
@@ -73,8 +74,7 @@ namespace FezMultiplayerDedicatedServer
                         {
                             string s = "Connected players:\n";
                             string[] columns = { };
-                            int count = 0;
-                            FormatPlayerDataTabular(ref s, ref count);
+                            s += FormatPlayerDataTabular(out int count);
                             s += $"{count} players online";
                             Console.WriteLine(s);
                         })
@@ -153,13 +153,29 @@ namespace FezMultiplayerDedicatedServer
             }
             server.Dispose();
         }
-
-        private static void FormatPlayerDataTabular(ref string s, ref int count)
+        /// <summary>
+        /// Formats the player information into a tabular format
+        /// </summary>
+        /// <param name="count">This gets incremented for each item in the collection</param>
+        /// <returns>A string containing the player information in a tabular format</returns>
+        private static string FormatPlayerDataTabular(out int count)
         {
+            ///The string to use for padding columns
             const string T_GAP_COL = "   ";
+
+            /// Key is column name, list contains entries in that column
             Dictionary<string, List<string>> tDat = new Dictionary<string, List<string>>();
+
+            /// Contains the max string length of each column in tDat;
+            /// tDatLen[colName] should be equivalent to tDat[colName].Max(s => s.Length)
             Dictionary<string, int> tDatLen = new Dictionary<string, int>();
+
+            /// Contains the names of the columns (keys) in tDat and tDatLen
             List<string> colNames = new List<string>();
+            
+            var sb = new StringBuilder();
+            count = 0;
+
             void AddToCol(string colName, string val)
             {
                 if (!tDat.ContainsKey(colName))
@@ -167,7 +183,8 @@ namespace FezMultiplayerDedicatedServer
                     colNames.Add(colName);
                     tDat.Add(colName, new List<string>());
                 }
-                int valLen = Regex.Replace(val, "\x1B(?:\\[([0-9;+\\-]*)(?:\x20?[\x40-\x7F])|.)|\x7F", "").Length;
+                //Get the length of the visible portion of the string (i.e., the length excluding all non-printable characters)
+                int valLen = Regex.Replace(val, "\x1B(?:\\[([0-9;+\\-]*)(?:\x20?[\x40-\x7F])|.)|\x7F|[\x00-\x1F]", "").Length;
                 if (tDatLen.ContainsKey(colName))
                 {
                     tDatLen[colName] = Math.Max(valLen, tDatLen[colName]);
@@ -178,48 +195,40 @@ namespace FezMultiplayerDedicatedServer
                 }
                 tDat[colName].Add(val);
             }
-            //TODO arrange this data in a nice tabular format
+            // get the data
             foreach (var kvpair in server.Players)
             {
+                /*
+                 * Note: we could probably move the contents of this foreach loop outside of this method
+                 *       and generalize this method for use with other data, to more easily generate tables
+                 */
                 MultiplayerServerNetcode.ServerPlayerMetadata p = kvpair.Value;
                 count++;
-                AddToCol("guid", kvpair.Key.ToString());
-                AddToCol("ip", p.client.RemoteEndPoint.ToString());
-                AddToCol("name", server.GetPlayerName(p.Uuid) + "\x1B[0m");
-                AddToCol("connected", p.TimeSinceJoin.ToString());
-                AddToCol("level", ((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName));
+                AddToCol("Guid", kvpair.Key.ToString());
+                AddToCol("IP address", p.client.RemoteEndPoint.ToString());
+                AddToCol("Name", server.GetPlayerName(p.Uuid) + "\x1B[0m");
+                AddToCol("Time since join", p.TimeSinceJoin.ToString());
+                AddToCol("Level", ((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName));
                 AddToCol("Action", p.Action.ToString());
                 AddToCol("Viewpoint", p.CameraViewpoint.ToString());
                 AddToCol("Position", p.Position.Round(3).ToString());
                 AddToCol("Ping", (p.NetworkSpeedUp + p.NetworkSpeedDown) + "ms");
-                AddToCol("last update", ((DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond) + "s");
+                AddToCol("Last update", ((DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond) + "s");
+                //Note: if the number of entries for each column are not the same, unexpected results will occur
+                //i.e., even if a cell is supposed to be empty, you still need to call AddToCol for the data to be formatted correctly
             }
-            bool notFirst = false;
-            foreach (string colName in colNames)
-            {
-                if(notFirst)
-                {
-                    s += T_GAP_COL;
-                }
-                notFirst = true;
-                s += colName.PadRight(tDatLen[colName]);
-            }
-            s += "\n";
+
+            // arrange the data in a nice tabular format
+            // column header row
+            sb.AppendLine(string.Join(T_GAP_COL, colNames.Select(colName => colName.PadRight(tDatLen[colName]))));
+
             int c = tDat.First().Value.Count;
             for (int i = 0; i < c; ++i)
             {
-                notFirst = false;
-                foreach (string colName in colNames)
-                {
-                    if (notFirst)
-                    {
-                        s += T_GAP_COL;
-                    }
-                    notFirst = true;
-                    s += tDat[colName][i].PadRight(tDatLen[colName]);
-                }
+                // data rows
+                sb.AppendLine(string.Join(T_GAP_COL, colNames.Select(colName => tDat[colName][i].PadRight(tDatLen[colName]))));
             }
-            s += "\n";
+            return sb.ToString();
         }
 
         private class IPAddressComparer : IComparer<IPAddress>

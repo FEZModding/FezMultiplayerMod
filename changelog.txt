@@ -53,3 +53,5 @@ countless bug fixes and improvements
 fixed server console not resetting styles after a player name
 fixed player list not getting cleared on client side when reconnecting to server
 added ping speed information 
+made server player list look nicer
+
