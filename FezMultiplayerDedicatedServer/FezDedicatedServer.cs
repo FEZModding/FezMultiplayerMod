@@ -72,6 +72,7 @@ namespace FezMultiplayerDedicatedServer
                         {
                             string s = "Connected players:\n";
                             int count = 0;
+                            //TODO arrange this data in a nice tabular format
                             foreach (var kvpair in server.Players)
                             {
                                 MultiplayerServerNetcode.ServerPlayerMetadata p = kvpair.Value;
