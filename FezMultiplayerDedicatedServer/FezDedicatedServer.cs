@@ -113,7 +113,7 @@ namespace FezMultiplayerDedicatedServer
                             foreach (var kvpair in server.PlayerAppearances)
                             {
                                 count++;
-                                s += $"{kvpair.Key}: Name=\"{kvpair.Value.PlayerName}\" Appearance=\"{kvpair.Value.CustomCharacterAppearance}\"\n";
+                                s += $"{kvpair.Key}: Name=\"{kvpair.Value.PlayerName}\x1B[0m\" Appearance=\"{kvpair.Value.CustomCharacterAppearance}\"\n";
                             }
                             if(count == 0)
                             {
