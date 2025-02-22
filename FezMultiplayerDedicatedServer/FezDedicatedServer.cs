@@ -5,6 +5,7 @@ using System.Net.NetworkInformation;
 using System.Timers;
 using System.Linq;
 using System.Net;
+using System.Text.RegularExpressions;
 
 namespace FezMultiplayerDedicatedServer
 {
@@ -71,21 +72,9 @@ namespace FezMultiplayerDedicatedServer
                         ("Lists currently connected players", () =>
                         {
                             string s = "Connected players:\n";
+                            string[] columns = { };
                             int count = 0;
-                            //TODO arrange this data in a nice tabular format
-                            foreach (var kvpair in server.Players)
-                            {
-                                MultiplayerServerNetcode.ServerPlayerMetadata p = kvpair.Value;
-                                count++;
-                                s += $"{kvpair.Key} ({p.client.RemoteEndPoint}): {server.GetPlayerName(p.Uuid) + "\x1B[0m"}, "// + p.Uuid + ", "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
-                                    + $"connected: {p.TimeSinceJoin}, "
-                                    + $"level: {((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
-                                    + $"act: {p.Action}, "
-                                    + $"vp: {p.CameraViewpoint}, "
-                                    + $"pos: {p.Position.Round(3)}, "
-                                    + $"ping: {p.NetworkSpeedUp + p.NetworkSpeedDown}ms, "
-                                    + $"last update: {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}s\n";
-                            }
+                            FormatPlayerDataTabular(ref s, ref count);
                             s += $"{count} players online";
                             Console.WriteLine(s);
                         })
@@ -164,6 +153,75 @@ namespace FezMultiplayerDedicatedServer
             }
             server.Dispose();
         }
+
+        private static void FormatPlayerDataTabular(ref string s, ref int count)
+        {
+            const string T_GAP_COL = "   ";
+            Dictionary<string, List<string>> tDat = new Dictionary<string, List<string>>();
+            Dictionary<string, int> tDatLen = new Dictionary<string, int>();
+            List<string> colNames = new List<string>();
+            void AddToCol(string colName, string val)
+            {
+                if (!tDat.ContainsKey(colName))
+                {
+                    colNames.Add(colName);
+                    tDat.Add(colName, new List<string>());
+                }
+                int valLen = Regex.Replace(val, "\x1B(?:\\[([0-9;+\\-]*)(?:\x20?[\x40-\x7F])|.)|\x7F", "").Length;
+                if (tDatLen.ContainsKey(colName))
+                {
+                    tDatLen[colName] = Math.Max(valLen, tDatLen[colName]);
+                }
+                else
+                {
+                    tDatLen[colName] = Math.Max(valLen, colName.Length);
+                }
+                tDat[colName].Add(val);
+            }
+            //TODO arrange this data in a nice tabular format
+            foreach (var kvpair in server.Players)
+            {
+                MultiplayerServerNetcode.ServerPlayerMetadata p = kvpair.Value;
+                count++;
+                AddToCol("guid", kvpair.Key.ToString());
+                AddToCol("ip", p.client.RemoteEndPoint.ToString());
+                AddToCol("name", server.GetPlayerName(p.Uuid) + "\x1B[0m");
+                AddToCol("connected", p.TimeSinceJoin.ToString());
+                AddToCol("level", ((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName));
+                AddToCol("Action", p.Action.ToString());
+                AddToCol("Viewpoint", p.CameraViewpoint.ToString());
+                AddToCol("Position", p.Position.Round(3).ToString());
+                AddToCol("Ping", (p.NetworkSpeedUp + p.NetworkSpeedDown) + "ms");
+                AddToCol("last update", ((DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond) + "s");
+            }
+            bool notFirst = false;
+            foreach (string colName in colNames)
+            {
+                if(notFirst)
+                {
+                    s += T_GAP_COL;
+                }
+                notFirst = true;
+                s += colName.PadRight(tDatLen[colName]);
+            }
+            s += "\n";
+            int c = tDat.First().Value.Count;
+            for (int i = 0; i < c; ++i)
+            {
+                notFirst = false;
+                foreach (string colName in colNames)
+                {
+                    if (notFirst)
+                    {
+                        s += T_GAP_COL;
+                    }
+                    notFirst = true;
+                    s += tDat[colName][i].PadRight(tDatLen[colName]);
+                }
+            }
+            s += "\n";
+        }
+
         private class IPAddressComparer : IComparer<IPAddress>
         {
             public int Compare(IPAddress addr1, IPAddress addr2)
