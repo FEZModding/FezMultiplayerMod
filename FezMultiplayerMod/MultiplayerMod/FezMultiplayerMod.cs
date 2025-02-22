@@ -321,7 +321,8 @@ namespace FezGame.MultiplayerMod
                     s += $"{mp.MyAppearance.PlayerName}, "//{mp.MyUuid}, "
                         + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
                         + $"{p.Action}, {p.CameraViewpoint}, "
-                        + $"{p.Position.Round(3)}, {mp.ConnectionLatencyUp}\n";
+                        + $"{p.Position.Round(3)}, "
+                        + $"ping: {(mp.ConnectionLatencyUp + mp.ConnectionLatencyDown) / TimeSpan.TicksPerMillisecond}ms\n";
                 }
             }
             if (mp.ErrorMessage != null)
@@ -354,7 +355,7 @@ namespace FezGame.MultiplayerMod
                             s += $"{playerName}, "// + p.Uuid + ", "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
                                 + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
                                 + $"{p.Action}, {p.CameraViewpoint}, "
-                                + $"{p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
+                                + $"{p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (float)TimeSpan.TicksPerSecond}\n";
                         }
                         //draw other player to screen if in the same level
                         if (p.Uuid != mp.MyUuid && p.CurrentLevelName != null && p.CurrentLevelName.Length > 0 && p.CurrentLevelName == LevelManager.Name)

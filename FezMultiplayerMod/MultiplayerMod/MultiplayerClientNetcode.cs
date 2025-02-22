@@ -70,6 +70,7 @@ namespace FezGame.MultiplayerMod
         private volatile bool MyAppearanceChanged = false;
 
         public volatile uint ConnectionLatencyUp = 0;
+        public volatile uint ConnectionLatencyDown = 0;
 
         public string MyPlayerName
         {
@@ -134,13 +135,13 @@ namespace FezGame.MultiplayerMod
                     using (BinaryNetworkWriter writer = new BinaryNetworkWriter(tcpStream))
                     {
                         bool retransmitAppearanceRequested = false;
-                        ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
+                        ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
                         ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
                         ConnectionSuccessful = true;
                         LogStatus(LogSeverity.Information, $"Connection to {endpoint} successful");
                         while (true)
                         {
-                            ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
+                            ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
                             if (!disconnectRequested)
                             {
                                 ActiveLevelState? activeLevelState = null;

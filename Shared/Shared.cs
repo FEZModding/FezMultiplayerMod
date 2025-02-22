@@ -319,9 +319,10 @@ namespace FezSharedTools
         /// </summary>
         /// <param name="reader">The BinaryNetworkReader to read data from</param>
         /// <param name="retval">The value to store the return values in</param>
-        /// <returns>PlayerMetadata, true if the client is going to disconnect</returns>
-        protected void ReadClientGameTickPacket(BinaryNetworkReader reader, ref MiscClientData retval, Guid playerUuid)
+        /// <returns>the amount of time, in ticks, it took to read the data to the network</returns>
+        protected long ReadClientGameTickPacket(BinaryNetworkReader reader, ref MiscClientData retval, Guid playerUuid)
         {
+            Stopwatch sw = new Stopwatch();
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
             string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
             ValidateProcotolAndVersion(sig, ver);
@@ -356,6 +357,7 @@ namespace FezSharedTools
 
             retval.Metadata = playerMetadata;
             retval.Disconnecting = Disconnecting;
+            return sw.ElapsedTicks;
         }
         /// 
         /// 
@@ -364,7 +366,6 @@ namespace FezSharedTools
                 PlayerAppearance? appearance, ICollection<Guid> requestPlayerAppearance, bool Disconnecting)
         {
             Stopwatch sw = new Stopwatch();
-            int datalength;
             //optimize network writing so it doesn't send a bazillion packets for a single tick
             using (MemoryStream ms = new MemoryStream())
             {
@@ -398,16 +399,19 @@ namespace FezSharedTools
                     writer.Flush();
                 }
                 byte[] data = ms.ToArray();
-                datalength = data.Length;
                 sw.Start();
                 writer0.Write(data);
                 writer0.Flush();
                 sw.Stop();
             }
-            return sw.ElapsedTicks / datalength;
+            return sw.ElapsedTicks;
         }
-        protected void ReadServerGameTickPacket(BinaryNetworkReader reader, ref bool RetransmitAppearance)
+        /// 
+        /// 
+        /// <returns>the amount of time, in ticks, it took to read the data from the network</returns>
+        protected long ReadServerGameTickPacket(BinaryNetworkReader reader, ref bool RetransmitAppearance)
         {
+            Stopwatch sw = new Stopwatch();
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
             string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
             ValidateProcotolAndVersion(sig, ver);
@@ -453,6 +457,7 @@ namespace FezSharedTools
                 ProcessNewClientGuid(NewClientGuid);
             }
             RetransmitAppearance = reader.ReadBoolean();
+            return sw.ElapsedTicks;
         }
         /// 
         /// 

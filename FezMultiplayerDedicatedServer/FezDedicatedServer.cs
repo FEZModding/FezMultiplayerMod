@@ -76,11 +76,14 @@ namespace FezMultiplayerDedicatedServer
                             {
                                 MultiplayerServerNetcode.ServerPlayerMetadata p = kvpair.Value;
                                 count++;
-                                s += $"{kvpair.Key}: {server.GetPlayerName(p.Uuid) + "\x1B[0m"}, "// + p.Uuid + ", "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
-                                    + $"{p.TimeSinceJoin}, "
-                                    + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
-                                    + $"{p.Action}, {p.CameraViewpoint}, "
-                                    + $"{p.Position.Round(3)}, {p.NetworkSpeedUp}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}\n";
+                                s += $"{kvpair.Key} ({p.client.RemoteEndPoint}): {server.GetPlayerName(p.Uuid) + "\x1B[0m"}, "// + p.Uuid + ", "//{Convert.ToBase64String(p.Uuid.ToByteArray()).TrimEnd('=')}, "
+                                    + $"connected: {p.TimeSinceJoin}, "
+                                    + $"level: {((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
+                                    + $"act: {p.Action}, "
+                                    + $"vp: {p.CameraViewpoint}, "
+                                    + $"pos: {p.Position.Round(3)}, "
+                                    + $"ping: {p.NetworkSpeedUp + p.NetworkSpeedDown}ms, "
+                                    + $"last update: {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond}s\n";
                             }
                             s += $"{count} players online";
                             Console.WriteLine(s);

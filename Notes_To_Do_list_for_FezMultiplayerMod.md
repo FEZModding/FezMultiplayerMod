@@ -5,7 +5,7 @@
 
 - [ ] Add extensible modding support 
 
-- [ ] Add a way to detect player connection speed (both read and write speeds)
+- [x] Add a way to detect player connection speed (both read and write speeds)
 
 - [x] Note: using strings may result in DoS attacks; use WriteStringAsByteArrayWithLength and ReadStringAsByteArrayWithLength instead.
 

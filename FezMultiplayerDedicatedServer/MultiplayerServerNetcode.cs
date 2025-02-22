@@ -28,6 +28,7 @@ namespace FezMultiplayerDedicatedServer
             public readonly DateTime joinTime = DateTime.UtcNow;
             public TimeSpan TimeSinceJoin => DateTime.UtcNow - joinTime;
             public long NetworkSpeedUp = 0;
+            public long NetworkSpeedDown = 0;
 
             public ServerPlayerMetadata(Socket client, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             : base(Uuid, CurrentLevelName, Position, CameraViewpoint, Action, AnimFrame, LookingDirection, LastUpdateTimestamp)
@@ -266,13 +267,13 @@ namespace FezMultiplayerDedicatedServer
                         try
                         {
                             Queue<long> SpeedUp = new Queue<long>(100);
-                            long SpeedDown = 0;
+                            Queue<long> SpeedDown = new Queue<long>(100);
                             //send them our data and get player appearance from client
                             SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
                                     null, GetActiveLevelStates(), DisconnectedPlayers.Keys,
                                     PlayerAppearances, uuid, false, sharedSaveData));
                             MiscClientData clientData = new MiscClientData(null, false, new HashSet<Guid>(MiscClientData.MaxRequestedAppearancesSize));
-                            ReadClientGameTickPacket(reader, ref clientData, uuid);
+                            SpeedDown.Enqueue(ReadClientGameTickPacket(reader, ref clientData, uuid));
                             bool Disconnecting = clientData.Disconnecting;
                             PlayerMetadata playerMetadata = clientData.Metadata;
 
@@ -311,7 +312,9 @@ namespace FezMultiplayerDedicatedServer
                                 }
                                 if (Players.TryGetValue(uuid, out ServerPlayerMetadata serverPlayerMetadata))
                                 {
-                                    serverPlayerMetadata.NetworkSpeedUp = (long)Math.Round(SpeedUp.Average());//Note: does not produce a meaningful number for connections to loopback addresses
+                                    //Note: does not produce a meaningful number for connections to loopback addresses
+                                    serverPlayerMetadata.NetworkSpeedUp = (long)Math.Round(SpeedUp.Average()) / TimeSpan.TicksPerMillisecond;
+                                    serverPlayerMetadata.NetworkSpeedDown = (long)Math.Round(SpeedDown.Average()) / TimeSpan.TicksPerMillisecond;
                                 }
                                 //if UnknownPlayerAppearanceGuids contains uuid, ask client to retransmit their PlayerAppearance
                                 bool requestAppearance = UnknownPlayerAppearanceGuids.ContainsKey(uuid);
@@ -320,10 +323,14 @@ namespace FezMultiplayerDedicatedServer
                                 {
                                     _ = SpeedUp.Dequeue();
                                 }
+                                if (SpeedDown.Count >= 100)
+                                {
+                                    _ = SpeedDown.Dequeue();
+                                }
                                 SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
                                         GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys,
                                         GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, null));
-                                ReadClientGameTickPacket(reader, ref clientData, uuid);
+                                SpeedDown.Enqueue(ReadClientGameTickPacket(reader, ref clientData, uuid));
                                 Disconnecting = clientData.Disconnecting;
                                 playerMetadata = clientData.Metadata;
                                 Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
