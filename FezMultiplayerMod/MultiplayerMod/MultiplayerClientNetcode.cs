@@ -221,6 +221,7 @@ namespace FezGame.MultiplayerMod
                     finally
                     {
                         listening = false;
+                        Players.Clear();
                     }
                 }
                 LogStatus(LogSeverity.Information, $"Connection with {RemoteEndpoint} terminated");
