@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Text;
+using System.Globalization;
 
 namespace FezMultiplayerDedicatedServer
 {
@@ -19,7 +20,29 @@ namespace FezMultiplayerDedicatedServer
 
             Console.WriteLine($"FezMultiplayerMod server starting... (protocol ver: {MultiplayerServerNetcode.ProtocolVersion})");
 
-            const string SettingsFilePath = "FezMultiplayerServer.ini";//TODO: probably should use an actual path instead of just the file name
+            Queue<string> queue = new Queue<string>();
+            foreach (string item in args)
+            {
+                queue.Enqueue(item);
+            }
+
+            string SettingsFilePath = "FezMultiplayerServer.ini";
+
+            //Note: to include spaces in the file path, enclose the entire path in double quotes ""
+            while (queue.Count > 0)
+            {
+                string val;
+                switch (val = queue.Dequeue().ToLower(CultureInfo.InvariantCulture))
+                {
+                case "--settings-file":
+                    SettingsFilePath = queue.Dequeue();
+                    break;
+                default:
+                    Console.WriteLine($"Invalid switch - \"{val}\"");
+                    break;
+                }
+            }
+
             Console.WriteLine($"Loading settings from {SettingsFilePath}");
             MultiplayerServerSettings settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerServerSettings());
             IniTools.WriteSettingsFile(SettingsFilePath, settings);

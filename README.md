@@ -55,6 +55,11 @@ To start a server, download `FezMultiplayerServer.zip` from https://github.com/F
 After running FezMultiplayerServer.exe, a `FezMultiplayerServer.ini` configuration file will appear.
 In the generated `FezMultiplayerServer.ini` configuration file, you will find options to change how the multiplayer server works.
 
+### Multiplayer Server command line arguments
+
+* `--settings-file` specifies the name and path of the settings file as command line argument. (e.g., `--settings-file "C:/Program Files (x86)/Steam/steamapps/common/FEZ/FezMultiplayerServer.ini"`)
+
+
 ## Building
 
 1. Clone repository.
