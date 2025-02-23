@@ -25,6 +25,17 @@ namespace FezSharedTools
     internal sealed class SharedConstants
     {
         public static readonly int DefaultPort = 7777;
+        /// <summary>
+        /// The IP address on which local multiplayer servers broadcast their existence.
+        /// TODO implement this as per <a href="https://github.com/FEZModding/FezMultiplayerMod/issues/5">#5</a>
+        /// </summary>
+        public static readonly IPAddress MulticastAddress = IPAddress.Parse("239.81.37.120");
+        /// <summary>
+        /// The IPv6 address on which local multiplayer servers broadcast their existence.
+        /// TODO decide on a link-local multicast IPv6 address; see https://www.iana.org/assignments/ipv6-multicast-addresses/ipv6-multicast-addresses.xhtml#link-local
+        /// TODO implement this as per https://github.com/FEZModding/FezMultiplayerMod/issues/5
+        /// </summary>
+        //public static readonly IPAddress MulticastAddressV6 = IPAddress.Parse("ff02::idk");
     }
 
     [Serializable]
