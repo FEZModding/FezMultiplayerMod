@@ -268,7 +268,7 @@ namespace FezSharedTools
     {
         #region network packet stuff
         private const int MaxProtocolVersionLength = 32;
-        protected const string ProtocolSignature = "FezMultiplayer";// Do not change
+        public const string ProtocolSignature = "FezMultiplayer";// Do not change
         public static readonly string ProtocolVersion = "seventeen";//Update this ever time you change something that affect the packets
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread

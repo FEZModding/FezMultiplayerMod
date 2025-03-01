@@ -44,6 +44,7 @@
     <Compile Include="..\Shared\Shared.cs">
       <Link>Shared.cs</Link>
     </Compile>
+    <Compile Include="ServerAdvertiser.cs" />
     <Compile Include="FezDedicatedServer.cs" />
     <Compile Include="IPFilter.cs" />
     <Compile Include="FezCompatibilityTypes.cs" />
