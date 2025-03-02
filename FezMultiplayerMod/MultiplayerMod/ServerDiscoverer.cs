@@ -1,29 +1,38 @@
-﻿using FezSharedTools;
-using System;
+﻿using System;
 using System.Linq;
 using System.Net;
-using System.Text.RegularExpressions;
 using System.Text;
 using System.Net.Sockets;
 using System.Threading;
+using System.Collections.Generic;
 
 namespace FezGame.MultiplayerMod
 {
     //TODO test and use this class
+    /// <summary>
+    /// Receives simple INI-formatted data from the specified <see cref="IPAddress"/>
+    /// and supplies the entries as a 
+    /// <see cref="Dictionary{String, String}"/>
+    /// to the <see cref="OnReceiveData"/> event.
+    /// </summary>
     internal sealed class ServerDiscoverer : IDisposable
     {
+        private readonly IPAddress MulticastAddress;
         private readonly UdpClient client = new UdpClient();
-        private readonly string ProtocolSignature;
-        private readonly string ProtocolVersion;
-        private Thread listenerThread;
+        private readonly Thread listenerThread;
         private volatile bool disposing = false;
         private bool thisDisposed = false;
 
-        internal ServerDiscoverer(string ProtocolSignature, string ProtocolVersion)
+        /// <summary>
+        /// Constructs a new <see cref="ServerDiscoverer"/> with the specified <paramref name="MulticastAddress"/>
+        /// </summary>
+        /// <param name="MulticastAddress">The <paramref name="MulticastAddress"/> to use for this <see cref="ServerDiscoverer"/></param>
+        /// <param name="ProtocolSignature"></param>
+        /// <param name="ProtocolVersion"></param>
+        internal ServerDiscoverer(IPAddress MulticastAddress, string ProtocolSignature, string ProtocolVersion)
         {
-            this.ProtocolSignature = ProtocolSignature;
-            this.ProtocolVersion = ProtocolVersion;
-            client.JoinMulticastGroup(SharedConstants.MulticastAddress);
+            this.MulticastAddress = MulticastAddress;
+            client.JoinMulticastGroup(MulticastAddress);
             listenerThread = new Thread(() =>
             {
                 try
@@ -33,7 +42,8 @@ namespace FezGame.MultiplayerMod
                         IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
                         byte[] receivedBytes = client.Receive(ref remoteEndPoint);
                         string receivedMessage = Encoding.UTF8.GetString(receivedBytes);
-                        OnReceiveData(receivedMessage);
+
+                        OnReceiveData(receivedMessage.Split('\n').Select(a => a.Split(new[] { '=' }, 2)).ToDictionary(p => p[0], p => p[1]));
                     }
                 }
                 catch (Exception e)
@@ -44,7 +54,7 @@ namespace FezGame.MultiplayerMod
             });
             listenerThread.Start();
         }
-        event Action<string> OnReceiveData = (data) => { };
+        event Action<Dictionary<string,string>> OnReceiveData = (data) => { };
 
         private void Dispose(bool disposing)
         {
@@ -58,7 +68,7 @@ namespace FezGame.MultiplayerMod
                     {
                         listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
                     }
-                    client.DropMulticastGroup(SharedConstants.MulticastAddress);
+                    client.DropMulticastGroup(MulticastAddress);
                     client.Close();
                     // TODO: dispose managed state (managed objects)
                 }
