@@ -8,7 +8,7 @@ using System.Collections.Generic;
 
 namespace FezGame.MultiplayerMod
 {
-    //TODO test and use this class
+    //TODO test this class
     /// <summary>
     /// Receives simple INI-formatted data from the specified <see cref="IPAddress"/>
     /// and supplies the entries as a 
@@ -29,7 +29,7 @@ namespace FezGame.MultiplayerMod
         /// <param name="MulticastAddress">The <paramref name="MulticastAddress"/> to use for this <see cref="ServerDiscoverer"/></param>
         /// <param name="ProtocolSignature"></param>
         /// <param name="ProtocolVersion"></param>
-        internal ServerDiscoverer(IPAddress MulticastAddress, string ProtocolSignature, string ProtocolVersion)
+        internal ServerDiscoverer(IPAddress MulticastAddress)
         {
             this.MulticastAddress = MulticastAddress;
             client.JoinMulticastGroup(MulticastAddress);
@@ -43,7 +43,7 @@ namespace FezGame.MultiplayerMod
                         byte[] receivedBytes = client.Receive(ref remoteEndPoint);
                         string receivedMessage = Encoding.UTF8.GetString(receivedBytes);
 
-                        OnReceiveData(receivedMessage.Split('\n').Select(a => a.Split(new[] { '=' }, 2)).ToDictionary(p => p[0], p => p[1]));
+                        OnReceiveData(remoteEndPoint, receivedMessage.Split('\n').Select(a => a.Split(new[] { '=' }, 2)).ToDictionary(p => p[0], p => p[1]));
                     }
                 }
                 catch (Exception e)
@@ -54,7 +54,10 @@ namespace FezGame.MultiplayerMod
             });
             listenerThread.Start();
         }
-        event Action<Dictionary<string,string>> OnReceiveData = (data) => { };
+        /// <summary>
+        /// Receives simple INI-formatted data from the <see cref="IPAddress"/> associated with this <see cref="ServerDiscoverer"/>
+        /// </summary>
+        public event Action<IPEndPoint, Dictionary<string,string>> OnReceiveData = (remoteEndPoint, data) => { };
 
         private void Dispose(bool disposing)
         {

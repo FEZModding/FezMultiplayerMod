@@ -4,6 +4,7 @@ using FezEngine.Structure.Input;
 using FezEngine.Tools;
 using FezGame.Services;
 using FezGame.Structure;
+using FezSharedTools;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
@@ -19,14 +20,50 @@ namespace FezGame.MultiplayerMod
 {
     internal sealed class ServerListMenu : DrawableGameComponent
     {
-        public static ServerListMenu Instance;
-        private readonly SpriteBatch drawer;
+        private class ServerInfo
+        {
+            public string Name;
+            public readonly IPEndPoint Endpoint;
+            public ServerInfo(string text, IPEndPoint endpoint)
+            {
+                this.Name = text;
+                this.Endpoint = endpoint;
+            }
+        }
+        private class LANServerInfo : ServerInfo
+        {
+            public long lastUpdate;
+            public LANServerInfo(string text, IPEndPoint endpoint) : base(text, endpoint)
+            {
+            }
+        }
+        private class MenuListOption
+        {
+            public string DisplayText;
+            public readonly Action Action;
+            public MenuListOption(string text, Action action)
+            {
+                this.DisplayText = text;
+                this.Action = action;
+            }
+        }
+
+        #region Service dependencies
         private IKeyboardStateManager KeyboardState { get; set; }
         private IContentManagerProvider CMProvider { get; set; }
         private IInputManager InputManager { get; set; }
         private IGameStateManager GameState { get; set; }
         private IFontManager Fonts { get; set; }
         private ISoundManager SoundManager { get; set; }
+        #endregion
+
+        public static ServerListMenu Instance;
+        private readonly SpriteBatch drawer;
+        private readonly ServerDiscoverer serverDiscoverer;
+
+        private static readonly List<ServerInfo> ServerInfoList = new List<ServerInfo>();
+        private static readonly ConcurrentDictionary<IPEndPoint, LANServerInfo> LANServerInfoList = new ConcurrentDictionary<IPEndPoint, LANServerInfo>();
+
 
         public ServerListMenu(Game game) : base(game)
         {
@@ -46,7 +83,55 @@ namespace FezGame.MultiplayerMod
                 Fonts = ServiceHelper.Get<IFontManager>();
                 SoundManager = ServiceHelper.Get<ISoundManager>();
             });
+
+            serverDiscoverer = new ServerDiscoverer(SharedConstants.MulticastAddress);
+            serverDiscoverer.OnReceiveData += ServerDiscoverer_OnReceiveData;
         }
+
+        private void ServerDiscoverer_OnReceiveData(IPEndPoint remoteEndpoint, Dictionary<string, string> obj)
+        {
+            if (obj.TryGetValue("Protocol", out string protocol) && protocol.Equals(SharedNetcode<PlayerMetadata>.ProtocolSignature))
+            {
+                if (obj.TryGetValue("Version", out string version) && version.Equals(SharedNetcode<PlayerMetadata>.ProtocolVersion))
+                {
+                    if (obj.TryGetValue("Endpoint", out string endpointString) && int.TryParse(endpointString.Split(':').Last(), out int port))
+                    {
+                        IPEndPoint targetEndpoint = new IPEndPoint(remoteEndpoint.Address, port);
+                        string name = obj.TryGetValue("Name", out string name0) ? name0 : targetEndpoint.ToString();
+                        _ = LANServerInfoList.AddOrUpdate(targetEndpoint, (endpoint) =>
+                        {
+                            return new LANServerInfo(name, targetEndpoint) { lastUpdate = DateTime.UtcNow.Ticks };
+
+                        }, (endpoint, server) =>
+                        {
+                            server.Name = name;
+                            server.lastUpdate = DateTime.UtcNow.Ticks;
+                            return server;
+                        });
+                    }
+                }
+            }
+        }
+        /// <summary>
+        /// The amount of time, in ticks, before forgetting about a LAN server info.
+        /// </summary>
+        private static readonly long LANServerTimeout = TimeSpan.FromSeconds(30).Ticks;
+        private void RemoveOldLANServers()
+        {
+            long currentTime = DateTime.UtcNow.Ticks;
+            var expiredKeys = new List<IPEndPoint>();
+            try
+            {
+                expiredKeys = LANServerInfoList
+                        .Where(server => (currentTime - server.Value.lastUpdate) > LANServerTimeout)
+                        .Select(a => a.Key).ToList();
+                expiredKeys.ForEach(key => LANServerInfoList.TryRemove(key, out _));
+            }
+            catch
+            {
+            }
+        }
+
         private bool disposing = false;
         protected override void Dispose(bool disposing)
         {
@@ -55,36 +140,15 @@ namespace FezGame.MultiplayerMod
             this.disposing = true;
             drawer.Dispose();
 
-            base.Dispose();
-        }
+            serverDiscoverer.Dispose();
 
-        private class ServerInfo
-        {
-            public string Name;
-            public readonly IPEndPoint Endpoint;
-            public ServerInfo(string text, IPEndPoint endpoint)
-            {
-                this.Name = text;
-                this.Endpoint = endpoint;
-            }
-        }
-        private static readonly List<ServerInfo> ServerInfoList = new List<ServerInfo>();
-        private static readonly ConcurrentBag<ServerInfo> LANServerInfoList = new ConcurrentBag<ServerInfo>();
-        private class MenuListOption
-        {
-            public string DisplayText;
-            public readonly Action Action;
-            public MenuListOption(string text, Action action)
-            {
-                this.DisplayText = text;
-                this.Action = action;
-            }
+            base.Dispose();
         }
 
         private static readonly MenuListOption OptionAdd = new MenuListOption("Add", SelectAdd);
         private static readonly MenuListOption OptionBack = new MenuListOption("Back", SelectBack);
 
-        private static IEnumerable<MenuListOption> ServerList => ServerInfoList.Concat(LANServerInfoList.OrderBy(s => s.Name))
+        private static IEnumerable<MenuListOption> ServerList => ServerInfoList.Concat(LANServerInfoList.Values.OrderBy(s => s.Name))
                         .Select(info => new MenuListOption(info.Name, () => SelectServer(info)));
         private static List<MenuListOption> GetListOptions()
         {

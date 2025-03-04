@@ -1,11 +1,13 @@
 ﻿using System;
+using System.Linq;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
 namespace FezMultiplayerDedicatedServer
 {
-    //TODO test and use this class
+    //TODO test this class
     /// <summary>
     /// Transmits simple INI-formatted data to the specified <see cref="IPAddress"/>
     /// in the following format:
@@ -29,16 +31,14 @@ namespace FezMultiplayerDedicatedServer
         /// Constructs a new <see cref="ServerAdvertiser"/> with the specified <paramref name="MulticastAddress"/>
         /// </summary>
         /// <param name="MulticastAddress">The <paramref name="MulticastAddress"/> to use for this <see cref="ServerAdvertiser"/></param>
-        /// <param name="ProtocolInfo"></param>
-        /// <param name="EndpointInfo"></param>
-        internal ServerAdvertiser(IPAddress MulticastAddress, string ProtocolInfo, string EndpointInfo)
+        /// <param name="MulticastData">The data to be transmitted in INI format</param>
+        internal ServerAdvertiser(IPAddress MulticastAddress, Dictionary<string, string> MulticastData)
         {
             this.MulticastAddress = MulticastAddress;
             client.JoinMulticastGroup(MulticastAddress);
 
             // Prepare the message to be sent.
-            string message = $"Protocol={ProtocolInfo}\n" +
-                    $"Endpoint={EndpointInfo}\n";
+            string message = string.Join("\n", MulticastData.Select(kv => kv.Key + '=' + kv.Value));
             dataToSend = Encoding.UTF8.GetBytes(message);
 
             myTimer.Elapsed += (a, b) => { this.AdvertiseServer(); };
