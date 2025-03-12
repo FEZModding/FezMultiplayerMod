@@ -17,8 +17,8 @@ namespace FezMultiplayerDedicatedServer
     /// </summary>
     internal sealed class ServerAdvertiser : IDisposable
     {
-        private readonly IPAddress MulticastAddress;
-        private readonly UdpClient client = new UdpClient();
+        private readonly IPEndPoint MulticastEndpoint;
+        private readonly UdpClient client;
         private readonly System.Timers.Timer myTimer = new System.Timers.Timer();
         private readonly byte[] dataToSend;
 
@@ -28,14 +28,15 @@ namespace FezMultiplayerDedicatedServer
         private const float Interval = 10f;
 
         /// <summary>
-        /// Constructs a new <see cref="ServerAdvertiser"/> with the specified <paramref name="MulticastAddress"/>
+        /// Constructs a new <see cref="ServerAdvertiser"/> with the specified <paramref name="MulticastEndpoint"/>
         /// </summary>
-        /// <param name="MulticastAddress">The <paramref name="MulticastAddress"/> to use for this <see cref="ServerAdvertiser"/></param>
+        /// <param name="MulticastEndpoint">The <paramref name="MulticastEndpoint"/> to use for this <see cref="ServerAdvertiser"/></param>
         /// <param name="MulticastData">The data to be transmitted in INI format</param>
-        internal ServerAdvertiser(IPAddress MulticastAddress, Dictionary<string, string> MulticastData)
+        internal ServerAdvertiser(IPEndPoint MulticastEndpoint, Dictionary<string, string> MulticastData)
         {
-            this.MulticastAddress = MulticastAddress;
-            client.JoinMulticastGroup(MulticastAddress);
+            this.MulticastEndpoint = MulticastEndpoint;
+            client = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
+            client.JoinMulticastGroup(MulticastEndpoint.Address);
 
             // Prepare the message to be sent.
             string message = string.Join("\n", MulticastData.Select(kv => kv.Key + '=' + kv.Value));
@@ -51,7 +52,7 @@ namespace FezMultiplayerDedicatedServer
         {
             try
             {
-                client.Send(dataToSend, dataToSend.Length, new IPEndPoint(MulticastAddress, 0));
+                client.Send(dataToSend, dataToSend.Length, MulticastEndpoint);
             }
             catch(Exception e)
             {
@@ -70,7 +71,7 @@ namespace FezMultiplayerDedicatedServer
                     //Note: Important to stop the timer before closing the client, so Elapsed doesn't get called
                     myTimer.Stop();
                     myTimer.Dispose();
-                    client.DropMulticastGroup(MulticastAddress);
+                    client.DropMulticastGroup(MulticastEndpoint.Address);
                     client.Close();
                     // TODO: dispose managed state (managed objects)
                 }

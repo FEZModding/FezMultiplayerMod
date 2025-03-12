@@ -122,8 +122,9 @@ namespace FezGame.MultiplayerMod
             mp = new MultiplayerClient(settings);
             IniTools.WriteSettingsFile(SettingsFilePath, settings);
 
-            //ServerListMenu serverListMenu;
-            //ServiceHelper.AddComponent(serverListMenu = new ServerListMenu(game));
+            System.Diagnostics.Debugger.Launch();
+            ServerListMenu serverListMenu;
+            ServiceHelper.AddComponent(serverListMenu = new ServerListMenu(game));
 
             mp.ConnectToServerAsync(settings.MainEndpoint);
 

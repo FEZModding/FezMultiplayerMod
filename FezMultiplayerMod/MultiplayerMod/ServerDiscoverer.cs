@@ -17,33 +17,50 @@ namespace FezGame.MultiplayerMod
     /// </summary>
     internal sealed class ServerDiscoverer : IDisposable
     {
-        private readonly IPAddress MulticastAddress;
-        private readonly UdpClient client = new UdpClient();
+        private readonly IPEndPoint MulticastEndpoint;
+        private readonly UdpClient client;
         private readonly Thread listenerThread;
         private volatile bool disposing = false;
         private bool thisDisposed = false;
 
         /// <summary>
-        /// Constructs a new <see cref="ServerDiscoverer"/> with the specified <paramref name="MulticastAddress"/>
+        /// Constructs a new <see cref="ServerDiscoverer"/> with the specified <paramref name="MulticastEndpoint"/>
         /// </summary>
-        /// <param name="MulticastAddress">The <paramref name="MulticastAddress"/> to use for this <see cref="ServerDiscoverer"/></param>
+        /// <param name="MulticastEndpoint">The <paramref name="MulticastEndpoint"/> to use for this <see cref="ServerDiscoverer"/></param>
         /// <param name="ProtocolSignature"></param>
         /// <param name="ProtocolVersion"></param>
-        internal ServerDiscoverer(IPAddress MulticastAddress)
+        internal ServerDiscoverer(IPEndPoint MulticastEndpoint)
         {
-            this.MulticastAddress = MulticastAddress;
-            client.JoinMulticastGroup(MulticastAddress);
+            this.MulticastEndpoint = MulticastEndpoint;
+            client = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
+            client.JoinMulticastGroup(MulticastEndpoint.Address);
             listenerThread = new Thread(() =>
             {
                 try
                 {
                     while (!disposing)
                     {
-                        IPEndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+                        IPEndPoint remoteEndPoint = new IPEndPoint(MulticastEndpoint.Address, MulticastEndpoint.Port);
                         byte[] receivedBytes = client.Receive(ref remoteEndPoint);
                         string receivedMessage = Encoding.UTF8.GetString(receivedBytes);
 
-                        OnReceiveData(remoteEndPoint, receivedMessage.Split('\n').Select(a => a.Split(new[] { '=' }, 2)).ToDictionary(p => p[0], p => p[1]));
+                        try
+                        {
+                            OnReceiveData(remoteEndPoint, receivedMessage
+                                        .Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                                        .Select(a => a.Split(new[] { '=' }, 2))
+                                        .GroupBy(p => p[0])
+                                        .ToDictionary(g => g.Key, g =>
+                                        {
+                                            var p = g.FirstOrDefault();
+                                            return (p.Length > 1 ? p[1] : "");
+                                        })
+                                    );
+                        }
+                        catch(Exception e)
+                        {
+                            System.Diagnostics.Debugger.Launch();
+                        }
                     }
                 }
                 catch (Exception e)
@@ -71,7 +88,7 @@ namespace FezGame.MultiplayerMod
                     {
                         listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
                     }
-                    client.DropMulticastGroup(MulticastAddress);
+                    client.DropMulticastGroup(MulticastEndpoint.Address);
                     client.Close();
                     // TODO: dispose managed state (managed objects)
                 }
