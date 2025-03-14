@@ -35,8 +35,10 @@ namespace FezMultiplayerDedicatedServer
         internal ServerAdvertiser(IPEndPoint MulticastEndpoint, Dictionary<string, string> MulticastData)
         {
             this.MulticastEndpoint = MulticastEndpoint;
-            client = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
-            client.JoinMulticastGroup(MulticastEndpoint.Address);
+            client = new UdpClient(new IPEndPoint(IPAddress.Any, 0));//AddressFamily.InterNetwork
+            client.ExclusiveAddressUse = false;
+            //You do not need to belong to a multicast group to send datagrams to a multicast IP address.
+            //client.JoinMulticastGroup(MulticastEndpoint.Address);
 
             // Prepare the message to be sent.
             string message = string.Join("\n", MulticastData.Select(kv => kv.Key + '=' + kv.Value));
@@ -71,7 +73,7 @@ namespace FezMultiplayerDedicatedServer
                     //Note: Important to stop the timer before closing the client, so Elapsed doesn't get called
                     myTimer.Stop();
                     myTimer.Dispose();
-                    client.DropMulticastGroup(MulticastEndpoint.Address);
+                    //client.DropMulticastGroup(MulticastEndpoint.Address);
                     client.Close();
                     // TODO: dispose managed state (managed objects)
                 }

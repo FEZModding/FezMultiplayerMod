@@ -32,7 +32,9 @@ namespace FezGame.MultiplayerMod
         internal ServerDiscoverer(IPEndPoint MulticastEndpoint)
         {
             this.MulticastEndpoint = MulticastEndpoint;
-            client = new UdpClient(new IPEndPoint(IPAddress.Any, 0));
+            //You must create the UdpClient using the multicast port number otherwise you will not be able to receive multicasted datagrams. 
+            client = new UdpClient(MulticastEndpoint.Port, AddressFamily.InterNetwork);
+            client.ExclusiveAddressUse = false;
             client.JoinMulticastGroup(MulticastEndpoint.Address);
             listenerThread = new Thread(() =>
             {
