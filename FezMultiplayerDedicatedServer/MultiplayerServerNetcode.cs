@@ -57,6 +57,8 @@ namespace FezMultiplayerDedicatedServer
 
         private readonly List<ActiveLevelState> activeLevelStates = new List<ActiveLevelState>();
 
+        private readonly ServerAdvertiser serverAdvertiser;
+
         /// <summary>
         /// Creates a new instance of this class with the provided parameters.
         /// For any errors that get encountered see <see cref="ErrorMessage"/> an <see cref="FatalException"/>
@@ -108,11 +110,12 @@ namespace FezMultiplayerDedicatedServer
 
             Dictionary<string, string> multicastData = new Dictionary<string, string>()
             {
-                { "Prototol", ProtocolSignature },
+                { "Protocol", ProtocolSignature },
                 { "Version", ProtocolVersion },
                 { "Endpoint", listenPort.ToString() },
             };
-            ServerAdvertiser serverAdvertiser = new ServerAdvertiser(SharedConstants.MulticastAddress, multicastData);
+            serverAdvertiser = new ServerAdvertiser(SharedConstants.MulticastAddress, multicastData);
+            OnDispose += serverAdvertiser.Dispose;
         }
         private void RemoveOldClients()
         {

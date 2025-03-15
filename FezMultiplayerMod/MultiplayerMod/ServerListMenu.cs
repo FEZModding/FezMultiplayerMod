@@ -174,6 +174,8 @@ namespace FezGame.MultiplayerMod
 
         private static List<MenuListOption> cachedMenuListOptions = null;
         private static readonly TimeSpan UpdateInterval = TimeSpan.FromSeconds(60);
+        private static readonly TimeSpan FirstUpdateInterval = TimeSpan.FromSeconds(15);
+        private static bool FirstUpdateDone = false;
         private static TimeSpan SinceLastUpdateList = UpdateInterval;
 
         private static bool hasFocus = true;
@@ -185,7 +187,12 @@ namespace FezGame.MultiplayerMod
                 return;
             }
             SinceLastUpdateList += gameTime.ElapsedGameTime;
-            if(SinceLastUpdateList > UpdateInterval)
+            if(!FirstUpdateDone && SinceLastUpdateList > FirstUpdateInterval)
+            {
+                cachedMenuListOptions = GetListOptions();
+                SinceLastUpdateList = TimeSpan.Zero;
+            }
+            if (SinceLastUpdateList > UpdateInterval)
             {
                 cachedMenuListOptions = GetListOptions();
                 SinceLastUpdateList = TimeSpan.Zero;

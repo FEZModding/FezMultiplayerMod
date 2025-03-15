@@ -36,7 +36,6 @@ namespace FezMultiplayerDedicatedServer
         {
             this.MulticastEndpoint = MulticastEndpoint;
             client = new UdpClient(new IPEndPoint(IPAddress.Any, 0));//AddressFamily.InterNetwork
-            client.ExclusiveAddressUse = false;
             //You do not need to belong to a multicast group to send datagrams to a multicast IP address.
             //client.JoinMulticastGroup(MulticastEndpoint.Address);
 

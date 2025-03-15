@@ -29,7 +29,7 @@ namespace FezSharedTools
         /// The IP address on which local multiplayer servers broadcast their existence.
         /// TODO implement this as per <a href="https://github.com/FEZModding/FezMultiplayerMod/issues/5">#5</a>
         /// </summary>
-        public static readonly IPEndPoint MulticastAddress = new IPEndPoint(IPAddress.Parse("239.255.254.26"), 7777);
+        public static readonly IPEndPoint MulticastAddress = new IPEndPoint(IPAddress.Parse("239.255.254.26"), 1900);
         /// <summary>
         /// The IPv6 address on which local multiplayer servers broadcast their existence.
         /// TODO decide on a link-local multicast IPv6 address; see https://www.iana.org/assignments/ipv6-multicast-addresses/ipv6-multicast-addresses.xhtml#link-local
