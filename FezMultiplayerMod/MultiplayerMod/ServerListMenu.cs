@@ -92,9 +92,9 @@ namespace FezGame.MultiplayerMod
         {
             if (obj.TryGetValue("Protocol", out string protocol) && protocol.Equals(SharedNetcode<PlayerMetadata>.ProtocolSignature))
             {
-                if (obj.TryGetValue("Version", out string version) && version.Equals(SharedNetcode<PlayerMetadata>.ProtocolVersion))
+                if (obj.TryGetValue("Endpoint", out string endpointString) && int.TryParse(endpointString.Split(':').Last(), out int port))
                 {
-                    if (obj.TryGetValue("Endpoint", out string endpointString) && int.TryParse(endpointString.Split(':').Last(), out int port))
+                    if (obj.TryGetValue("Version", out string version) && version.Equals(SharedNetcode<PlayerMetadata>.ProtocolVersion))
                     {
                         IPEndPoint targetEndpoint = new IPEndPoint(remoteEndpoint.Address, port);
                         string name = obj.TryGetValue("Name", out string name0) ? name0 : targetEndpoint.ToString();
@@ -108,8 +108,21 @@ namespace FezGame.MultiplayerMod
                             server.lastUpdate = DateTime.UtcNow.Ticks;
                             return server;
                         });
+
+                    }
+                    else
+                    {
+                        //TODO version doesn't match; signify this somehow?
                     }
                 }
+                else
+                {
+                    //Malformed message: Missing endpoint information; ignore
+                }
+            }
+            else
+            {
+                //Different protocol; ignore
             }
         }
         /// <summary>

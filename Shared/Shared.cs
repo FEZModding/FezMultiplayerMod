@@ -36,6 +36,10 @@ namespace FezSharedTools
         /// TODO implement this as per https://github.com/FEZModding/FezMultiplayerMod/issues/5
         /// </summary>
         //public static readonly IPAddress MulticastAddressV6 = IPAddress.Parse("ff02::idk");
+
+        /// <summary>
+        /// </summary>
+        public static readonly string ServerDiscoveryEntrySeparator = "=";
     }
 
     [Serializable]

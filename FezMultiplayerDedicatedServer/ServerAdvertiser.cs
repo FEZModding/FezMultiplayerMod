@@ -20,7 +20,7 @@ namespace FezMultiplayerDedicatedServer
         private readonly IPEndPoint MulticastEndpoint;
         private readonly UdpClient client;
         private readonly System.Timers.Timer myTimer = new System.Timers.Timer();
-        private readonly byte[] dataToSend;
+        private volatile byte[] dataToSend;
 
         /// <summary>
         /// The amount of time, in seconds, to reshare our server info.
@@ -32,21 +32,23 @@ namespace FezMultiplayerDedicatedServer
         /// </summary>
         /// <param name="MulticastEndpoint">The <paramref name="MulticastEndpoint"/> to use for this <see cref="ServerAdvertiser"/></param>
         /// <param name="MulticastData">The data to be transmitted in INI format</param>
-        internal ServerAdvertiser(IPEndPoint MulticastEndpoint, Dictionary<string, string> MulticastData)
+        internal ServerAdvertiser(IPEndPoint MulticastEndpoint, string message)
         {
             this.MulticastEndpoint = MulticastEndpoint;
             client = new UdpClient(new IPEndPoint(IPAddress.Any, 0));//AddressFamily.InterNetwork
             //You do not need to belong to a multicast group to send datagrams to a multicast IP address.
             //client.JoinMulticastGroup(MulticastEndpoint.Address);
 
-            // Prepare the message to be sent.
-            string message = string.Join("\n", MulticastData.Select(kv => kv.Key + '=' + kv.Value));
-            dataToSend = Encoding.UTF8.GetBytes(message);
+            SetMessage(message);
 
             myTimer.Elapsed += (a, b) => { this.AdvertiseServer(); };
             myTimer.Interval = Interval * 1000; // 1000 ms is one second
             myTimer.Start();
+        }
 
+        internal void SetMessage(string message)
+        {
+            dataToSend = Encoding.UTF8.GetBytes(message);
         }
 
         private void AdvertiseServer()

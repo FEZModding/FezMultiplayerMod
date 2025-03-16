@@ -51,13 +51,13 @@ namespace FezGame.MultiplayerMod
                         try
                         {
                             OnReceiveData(remoteEndPoint, receivedMessage
-                                        .Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                                        .Select(a => a.Split(new[] { '=' }, 2))
+                                        .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                                        .Select(a => a.Split(new[] { FezSharedTools.SharedConstants.ServerDiscoveryEntrySeparator }, 2, StringSplitOptions.None))
                                         .GroupBy(p => p[0])
                                         .ToDictionary(g => g.Key, g =>
                                         {
                                             var p = g.FirstOrDefault();
-                                            return (p.Length > 1 ? p[1] : "");
+                                            return (p.Length > 1 ? p[1].Trim() : "");
                                         })
                                     );
                         }

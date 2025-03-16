@@ -114,7 +114,9 @@ namespace FezMultiplayerDedicatedServer
                 { "Version", ProtocolVersion },
                 { "Endpoint", listenPort.ToString() },
             };
-            serverAdvertiser = new ServerAdvertiser(SharedConstants.MulticastAddress, multicastData);
+            string message = string.Join("\n", multicastData.Select(kv => kv.Key + SharedConstants.ServerDiscoveryEntrySeparator + kv.Value));
+            serverAdvertiser = new ServerAdvertiser(SharedConstants.MulticastAddress, message);
+            //serverAdvertiser.SetMessage(message);
             OnDispose += serverAdvertiser.Dispose;
         }
         private void RemoveOldClients()
