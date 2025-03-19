@@ -207,6 +207,7 @@ namespace FezGame.MultiplayerMod
             }
             if (SinceLastUpdateList > UpdateInterval)
             {
+                RemoveOldLANServers();
                 cachedMenuListOptions = GetListOptions();
                 SinceLastUpdateList = TimeSpan.Zero;
             }

@@ -21,6 +21,7 @@ namespace FezMultiplayerDedicatedServer
         private readonly UdpClient client;
         private readonly System.Timers.Timer myTimer = new System.Timers.Timer();
         private volatile byte[] dataToSend;
+        private bool thisDisposed = false;
 
         /// <summary>
         /// The amount of time, in seconds, to reshare our server info.
@@ -64,7 +65,6 @@ namespace FezMultiplayerDedicatedServer
             }
         }
 
-        private bool thisDisposed = false;
         private void Dispose(bool disposing)
         {
             if (!thisDisposed)
