@@ -221,8 +221,10 @@ namespace FezMultiplayerDedicatedServer
                     this.disposing = true;//let child threads know it's disposing time
                     OnDispose();
                     Thread.Sleep(1000);//try to wait for child threads to stop on their own
-
-                    listenerSocket.Shutdown(SocketShutdown.Both);
+                    if (listenerSocket.Connected)
+                    {
+                        listenerSocket.Shutdown(SocketShutdown.Both);
+                    }
                     foreach (Socket client in ConnectedClients)
                     {
                         client.Close();

@@ -1,2 +1,3 @@
 
-.\FezMultiplayerDedicatedServer\bin\Debug\FezMultiplayerDedicatedServer.exe %*
+cd .\FezMultiplayerDedicatedServer\bin\Debug\
+FezMultiplayerDedicatedServer.exe %*
