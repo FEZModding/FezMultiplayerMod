@@ -108,16 +108,19 @@ namespace FezMultiplayerDedicatedServer
             listenerTask = StartAcceptTcpClients();
             timeoutTask = Task.Factory.StartNew(RemoveOldClients, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
-            Dictionary<string, string> multicastData = new Dictionary<string, string>()
+            if (settings.DoAdvertiseServer)
             {
-                { "Protocol", ProtocolSignature },
-                { "Version", ProtocolVersion },
-                { "Endpoint", listenPort.ToString() },
-            };
-            string message = string.Join("\n", multicastData.Select(kv => kv.Key + SharedConstants.ServerDiscoveryEntrySeparator + kv.Value));
-            serverAdvertiser = new ServerAdvertiser(SharedConstants.MulticastAddress, message);
-            //serverAdvertiser.SetMessage(message);
-            OnDispose += serverAdvertiser.Dispose;
+                Dictionary<string, string> multicastData = new Dictionary<string, string>()
+                {
+                    { "Protocol", ProtocolSignature },
+                    { "Version", ProtocolVersion },
+                    { "Endpoint", listenPort.ToString() },
+                };
+                string message = string.Join("\n", multicastData.Select(kv => kv.Key + SharedConstants.ServerDiscoveryEntrySeparator + kv.Value));
+                serverAdvertiser = new ServerAdvertiser(SharedConstants.MulticastAddress, message);
+                //serverAdvertiser.SetMessage(message);
+                OnDispose += serverAdvertiser.Dispose;
+            }
         }
         private void RemoveOldClients()
         {

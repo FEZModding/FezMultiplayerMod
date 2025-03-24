@@ -53,5 +53,11 @@ namespace FezMultiplayerDedicatedServer
         /// </summary>
         [Description("If true, attempts to sync world save data, level states, and player inventories across players. Note that this setting must also be enabled on the clients for it to work.")]
         public bool SyncWorldState = false;
+
+        /// <summary>
+        /// If true, advertises the existence of this server over LAN.
+        /// </summary>
+        [Description("If true, advertises the existence of this server over LAN.")]
+        public bool DoAdvertiseServer = true;
     }
 }
