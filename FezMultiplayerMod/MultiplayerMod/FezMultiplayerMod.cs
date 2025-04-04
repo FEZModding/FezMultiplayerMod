@@ -117,6 +117,8 @@ namespace FezGame.MultiplayerMod
             ServiceHelper.AddComponent(saveDataObserver = new SaveDataObserver(game));
             saveDataObserver.OnSaveDataChanged += SaveDataObserver_OnSaveDataChanged;
 
+            ServiceHelper.AddComponent(new OpenTreasureListener(game));
+
             const string SettingsFilePath = "FezMultiplayerMod.ini";//TODO: probably should use an actual path instead of just the file name
             MultiplayerClientSettings settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerClientSettings());
             mp = new MultiplayerClient(settings);
