@@ -29,6 +29,8 @@ namespace FezGame.MultiplayerMod
                 string uniqueIdentifier = containerIdentifier + IDENTIFIER_SEPARATOR + key;
                 if (Changes.TryGetValue(uniqueIdentifier, out ChangeInfo change))
                 {
+                    //Changes.Remove(uniqueIdentifier);
+                    //the following line can throw exceptions if the uniqueIdentifier is the same
                     Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, key, currentVal, change.OldVal));
                 }
                 else
@@ -188,12 +190,12 @@ namespace FezGame.MultiplayerMod
                         // add changes to changes
                         addedVals.ForEach(addedVal =>
                         {
-                            changes.Add(containerIdentifier, field.Name, addedVal, null);
+                            changes.Add(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, "" + addedVal, true, false);
                         });
                         removedVals.ForEach(removedVal =>
                         {
                             //TODO? idk if this ever actually happens, but should probably implement it somehow
-                            changes.Add(containerIdentifier, field.Name, null, oldVal);
+                            changes.Add(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, "" + removedVal, false, true);
                         });
                     }
                 }
