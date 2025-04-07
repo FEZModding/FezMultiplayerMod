@@ -56,4 +56,4 @@ Added ping speed information
 Made server player list look nicer
 Added Multiplayer Server command line argument `--settings-file`
 Added Multiplayer Server `DoAdvertiseServer` setting
-
+Fixed a crash in SaveDataObserver when loading certain save files
