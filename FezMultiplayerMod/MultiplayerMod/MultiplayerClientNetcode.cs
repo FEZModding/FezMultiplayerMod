@@ -91,6 +91,8 @@ namespace FezGame.MultiplayerMod
 
         public event Action OnUpdate = () => { };
         public event Action OnDispose = () => { };
+        public event Action OnConnect = () => { };
+        public event Action OnDisconnect = () => { };
 
         /// <summary>
         /// Creates a new instance of this class with the provided parameters.
@@ -139,6 +141,7 @@ namespace FezGame.MultiplayerMod
                         ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
                         ConnectionSuccessful = true;
                         LogStatus(LogSeverity.Information, $"Connection to {endpoint} successful");
+                        OnConnect();
                         while (true)
                         {
                             ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
@@ -223,6 +226,7 @@ namespace FezGame.MultiplayerMod
                     {
                         listening = false;
                         Players.Clear();
+                        OnDisconnect();
                     }
                 }
                 LogStatus(LogSeverity.Information, $"Connection with {RemoteEndpoint} terminated");
@@ -240,14 +244,18 @@ namespace FezGame.MultiplayerMod
         {
             LogStatus(LogSeverity.Information, "Disconnect requested");
             this.disconnectRequested = true;//let listener thread know it should disconnect
-            Thread.Sleep(1000);//try to wait for child threads to stop on their own
             if (listenerThread != null && listenerThread.IsAlive)
             {
-                LogStatus(LogSeverity.Warning, "Forcibly terminated listening thread");
-                listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
+                Thread.Sleep(1000);//try to wait for child threads to stop on their own
+                if (listenerThread != null && listenerThread.IsAlive)
+                {
+                    LogStatus(LogSeverity.Warning, "Forcibly terminated listening thread");
+                    listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
+                }
             }
             //ensure RemoteEndpoint is reset
             RemoteEndpoint = null;
+            listenerThread = null;
             this.disconnectRequested = false;//reset for next use
             LogStatus(LogSeverity.Information, "Disconnect complete");
         }
