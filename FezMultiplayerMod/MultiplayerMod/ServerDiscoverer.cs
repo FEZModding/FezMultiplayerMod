@@ -69,9 +69,12 @@ namespace FezGame.MultiplayerMod
                 }
                 catch (Exception e)
                 {
-                    //TODO
-                    System.Diagnostics.Debugger.Break();
-                    throw e;
+                    if (e.Message != "Thread was being aborted.")
+                    {
+                        //TODO
+                        System.Diagnostics.Debugger.Break();
+                        throw e;
+                    }
                 }
             });
             listenerThread.Start();
