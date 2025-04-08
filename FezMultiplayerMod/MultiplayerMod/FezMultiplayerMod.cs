@@ -126,9 +126,12 @@ namespace FezGame.MultiplayerMod
 
             System.Diagnostics.Debugger.Launch();
             ServerListMenu serverListMenu;
-            ServiceHelper.AddComponent(serverListMenu = new ServerListMenu(game));
-
-            mp.ConnectToServerAsync(settings.MainEndpoint);
+            ServiceHelper.AddComponent(serverListMenu = new ServerListMenu(game, mp));
+            serverListMenu.LoadServerSettings(settings);
+            serverListMenu.OnServerListChange += (serverList =>
+            {
+                IniTools.WriteSettingsFile(SettingsFilePath, settings);
+            });
 
             //TODO add a in-game menu to let players easily choose what server and name they want to use
 
