@@ -48,6 +48,38 @@ namespace FezGame.MultiplayerMod
                 this.DisplayText = text;
                 this.Action = action;
             }
+            public MenuListOption(string text, Func<MenuLevel> submenuSupplier)
+            {
+                this.DisplayText = text;
+                this.Action = ()=> { Instance.CurrentMenuLevel = submenuSupplier.Invoke(); };
+            }
+        }
+        private class MenuLevel
+        {
+            private static int NextId = 0;
+            public readonly int Id;
+            public readonly string Name;
+            public readonly MenuLevel ParentMenu;
+            public readonly Action<List<MenuListOption>> AddOptions;
+            public MenuLevel(string name, MenuLevel parent, Action<List<MenuListOption>> AddOptions)
+            {
+                Id = NextId++;
+                Name = name;
+                ParentMenu = parent;
+                this.AddOptions = AddOptions;
+            }
+            public override bool Equals(object obj)
+            {
+                return (obj as MenuLevel)?.Id == Id;
+            }
+            public override int GetHashCode()
+            {
+                return Id;
+            }
+            public override string ToString()
+            {
+                return Name;
+            }
         }
 
         #region Service dependencies
@@ -67,12 +99,16 @@ namespace FezGame.MultiplayerMod
         private readonly ConcurrentDictionary<IPEndPoint, LANServerInfo> LANServerInfoList = new ConcurrentDictionary<IPEndPoint, LANServerInfo>();
         private readonly MultiplayerClient mp;
 
-        private readonly MenuListOption OptionAdd;
-        private readonly MenuListOption OptionRemove;
+        //declared on class scope so we can also trigger it when the back button is pressed
         private readonly MenuListOption OptionBack;
-        private readonly MenuListOption OptionJoin;
+        //declared on class scope so we can toggle Enabled
         private readonly MenuListOption OptionDisconnect;
-        private readonly MenuListOption OptionRefreshLAN;
+
+        private readonly MenuLevel Menu_None = new MenuLevel("", null, (list)=> { });
+        private readonly MenuLevel Menu_ServerList;
+        private readonly MenuLevel Menu_ServerSelected;
+        private readonly MenuLevel Menu_ServerAdd;
+        private readonly MenuLevel Menu_ServerRemove;
 
         /// <summary>
         /// TODO call this with <c><see cref="ServerInfoList"/>.AsReadOnly()</c> when <see cref="ServerInfoList"/> changes <br />
@@ -111,12 +147,40 @@ namespace FezGame.MultiplayerMod
             });
             mp = client;
 
-            OptionAdd = new MenuListOption("Add", SelectAdd);
-            OptionRemove = new MenuListOption("Remove", SelectRemove);
-            OptionBack = new MenuListOption("Back", SelectBack);
-            OptionJoin = new MenuListOption("Join", JoinServer);
+            //declared on class scope so we can be ran it when the back button is pressed
+            OptionBack = new MenuListOption("Back", MenuBack);
+            //declared on class scope so we can toggle Enabled
             OptionDisconnect = new MenuListOption("Disconnect from server", LeaveServer) { Enabled = false };
-            OptionRefreshLAN = new MenuListOption("Refresh LAN servers", ForceRefreshOptionsList);
+
+            MenuListOption OptionAdd = new MenuListOption("Add", () => Menu_ServerAdd);
+            MenuListOption OptionRemove = new MenuListOption("Remove", () => Menu_ServerRemove);
+            MenuListOption OptionJoin = new MenuListOption("Join", JoinServer);
+            MenuListOption OptionRefreshLAN = new MenuListOption("Refresh LAN servers", ForceRefreshOptionsList);
+
+            Menu_ServerList = new MenuLevel("Server List", parent: Menu_None, list =>
+            {
+                list.Add(OptionDisconnect);
+                list.Add(OptionAdd);
+                list.Add(OptionRefreshLAN);
+                list.AddRange(ServerList);
+            });
+            Menu_ServerSelected = new MenuLevel("Selected Server", parent: Menu_ServerList, list =>
+            {
+                list.Add(OptionJoin);
+                if (!selectedInfo.GetType().IsAssignableFrom(typeof(LANServerInfo)))
+                {
+                    list.Add(OptionRemove);
+                }
+            });
+            Menu_ServerAdd = new MenuLevel("Add Server", parent: Menu_ServerList, list =>
+            {
+                //TODO
+            });
+            Menu_ServerRemove = new MenuLevel("Remove Server?", parent: Menu_ServerSelected, list =>
+            {
+                //TODO
+            });
+            CurrentMenuLevel = Menu_ServerList;
 
             serverDiscoverer = new ServerDiscoverer(SharedConstants.MulticastAddress);
             serverDiscoverer.OnReceiveData += ServerDiscoverer_OnReceiveData;
@@ -203,93 +267,46 @@ namespace FezGame.MultiplayerMod
 
         private IEnumerable<MenuListOption> ServerList => ServerInfoList.Concat(LANServerInfoList.Values.OrderBy(s => s.Name))
                         .Select(info => new MenuListOption(info.Name, () => SelectServer(info)));
-        private enum MenuLevel
-        {
-            Hidden = 0,
-            ServerList,
-            ServerSelected,
-            ServerAdd,
-            ServerRemove,
-        }
-        private MenuLevel __currentMenu = MenuLevel.ServerList;
-        private MenuLevel currentMenu
+
+        private MenuLevel __currentMenu = null;
+        private MenuLevel CurrentMenuLevel
         {
             get => __currentMenu;
             set
             {
+                if(value == null)
+                {
+                    System.Diagnostics.Debugger.Launch();
+                    System.Diagnostics.Debugger.Break();
+                    return;
+                }
                 __currentMenu = value;
                 currentIndex = 0;
                 ForceRefreshOptionsList();
             }
         }
         private ServerInfo selectedInfo = null;
+        private void SelectServer(ServerInfo info)
+        {
+            selectedInfo = info;
+            CurrentMenuLevel = Menu_ServerSelected;
+        }
+
         private List<MenuListOption> GetListOptions()
         {
             List<MenuListOption> list = new List<MenuListOption>();
-            switch (currentMenu)
-            {
-            case MenuLevel.ServerList:
-                list.Add(OptionDisconnect);
-                list.Add(OptionAdd);
-                list.Add(OptionRefreshLAN);
-                list.AddRange(ServerList);
-                break;
-            case MenuLevel.ServerSelected:
-                list.Add(OptionJoin);
-                if (!selectedInfo.GetType().IsAssignableFrom(typeof(LANServerInfo)))
-                {
-                    list.Add(OptionRemove);
-                }
-                break;
-            case MenuLevel.ServerAdd:
-                //TODO
-                break;
-            case MenuLevel.ServerRemove:
-                //TODO
-                break;
-            case MenuLevel.Hidden:
-                break;
-            }
+            CurrentMenuLevel.AddOptions(list);
             list.Add(OptionBack);
             return list;
+        }
+        private void MenuBack()
+        {
+            CurrentMenuLevel = CurrentMenuLevel.ParentMenu;
         }
 
         private void ForceRefreshOptionsList()
         {
             SinceLastUpdateList += UpdateInterval;
-        }
-        private void SelectAdd()
-        {
-            currentMenu = MenuLevel.ServerAdd;
-            //TODO
-        }
-        private void SelectRemove()
-        {
-            currentMenu = MenuLevel.ServerRemove;
-            //TODO
-        }
-        private void SelectBack()
-        {
-            switch (currentMenu)
-            {
-            case MenuLevel.ServerList:
-                currentMenu = MenuLevel.ServerList;
-                break;
-            case MenuLevel.ServerRemove:
-                currentMenu = MenuLevel.ServerSelected;
-                break;
-            case MenuLevel.ServerAdd:
-            case MenuLevel.ServerSelected:
-                currentMenu = MenuLevel.ServerList;
-                break;
-            case MenuLevel.Hidden:
-                break;
-            }
-        }
-        private void SelectServer(ServerInfo info)
-        {
-            selectedInfo = info;
-            currentMenu = MenuLevel.ServerSelected;
         }
         private void JoinServer()
         {
@@ -358,13 +375,23 @@ namespace FezGame.MultiplayerMod
                 }
                 if ((InputManager.CancelTalk == FezButtonState.Pressed) || InputManager.Back == FezButtonState.Pressed)
                 {
-                    OptionBack.Action.Invoke();
+                    MenuBack();
                 }
                 if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed)
                 {
                     cachedMenuListOptions.ElementAt(currentIndex).Action.Invoke();
                 }
             }
+        }
+        private void drawTextRichShadow(string text, Vector2 position, Vector2? scale = null, Color? color = null, Color? shadow = null)
+        {
+            if(scale == null)
+            {
+                scale = Vector2.One;
+            }
+
+            RichTextRenderer.DrawString(drawer, Fonts, text, position + Vector2.One, shadow ?? Color.Black, Color.Transparent, scale.Value);
+            RichTextRenderer.DrawString(drawer, Fonts, text, position, color ?? Color.White, Color.Transparent, scale.Value);
         }
         public override void Draw(GameTime gameTime)
         {
@@ -374,7 +401,23 @@ namespace FezGame.MultiplayerMod
                 Vector2 position = Vector2.Zero;
                 position.Y = GraphicsDevice.Viewport.Height / 10;
                 int i = 0;
-                foreach(var option in cachedMenuListOptions)
+                {
+                    const string underlineStart = "\x1B[21m";
+                    const string underlinePadding = "    ";
+                    const string resetFormatting = "\x1B[0m";
+                    const string nameStart = underlineStart + underlinePadding;
+                    const string nameEnd = underlinePadding + resetFormatting;
+
+                    string menuTitle = nameStart + CurrentMenuLevel.Name + nameEnd;
+
+                    Vector2 titleScale = new Vector2(1.5f);
+                    Vector2 lineSize = RichTextRenderer.MeasureString(Fonts, menuTitle) * titleScale;
+                    position.X = GraphicsDevice.Viewport.Width / 2 - lineSize.X / 2;
+                    drawTextRichShadow(menuTitle, position, titleScale);
+                    //drawTextRichShadow(menuTitle, position);
+                    position.Y += lineSize.Y;
+                }
+                foreach (var option in cachedMenuListOptions)
                 {
                     bool selected = i == currentIndex;
                     string optionName = option.DisplayText;
