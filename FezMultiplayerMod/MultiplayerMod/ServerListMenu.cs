@@ -1,4 +1,5 @@
-﻿using FezEngine.Components;
+﻿using Common;
+using FezEngine.Components;
 using FezEngine.Services;
 using FezEngine.Structure.Input;
 using FezEngine.Tools;
@@ -7,6 +8,7 @@ using FezGame.Structure;
 using FezSharedTools;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using MonoMod.RuntimeDetour;
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -126,12 +128,87 @@ namespace FezGame.MultiplayerMod
             //TODO load the server list from the supplied settings into ServerInfoList
             //ServerInfoList.AddRange()
         }
+        private static Hook MenuInitHook = null;
+        private static readonly List<Tuple<string, Action>> CustomMenuOptions = new List<Tuple<string, Action>>();
+        private static void InitFakeMenuLevel()
+        {
+            Type MainMenuType = typeof(Fez).Assembly.GetType("FezGame.Components.MainMenu");
+            Type MenuBaseType = typeof(Fez).Assembly.GetType("FezGame.Components.MenuBase");
+            Type MenuLevelType = typeof(Fez).Assembly.GetType("FezGame.Structure.MenuLevel");
+
+            void CreateAndAddCustomLevels(object MenuBase)
+            {
+                const BindingFlags privBind = BindingFlags.NonPublic | BindingFlags.Instance;
+
+                // prepare main menu object
+                object MenuRoot = null;
+                if (MenuBase.GetType() == MainMenuType)
+                {
+                    MenuRoot = MainMenuType.GetField("RealMenuRoot", privBind).GetValue(MenuBase);
+                }
+
+                if (MenuBase.GetType() != MainMenuType || MenuRoot == null)
+                {
+                    MenuRoot = MenuBaseType.GetField("MenuRoot", privBind).GetValue(MenuBase);
+                }
+
+                if (MenuRoot == null)
+                {
+                    Logger.Log("FezMultiplayerMod", LogSeverity.Warning, "Unable to create multiplayer menu!");
+                    return;
+                }
+
+                MenuLevelType.GetField("IsDynamic").SetValue(MenuRoot, true);
+
+                CustomMenuOptions.ForEach(tuple =>
+                {
+                    string optionText = tuple.Item1;
+                    object CustomLevel = Activator.CreateInstance(MenuLevelType);
+                    MenuLevelType.GetField("IsDynamic").SetValue(CustomLevel, true);
+                    MenuLevelType.GetProperty("Title").SetValue(CustomLevel, optionText, null);
+                    MenuLevelType.GetField("Parent").SetValue(CustomLevel, MenuRoot);
+                    MenuLevelType.GetField("Oversized").SetValue(CustomLevel, true);
+                    // add created menu level to the main menu
+                    int modsIndex = ((IList)MenuLevelType.GetField("Items").GetValue(MenuRoot)).Count - 2;
+                    MenuLevelType.GetMethod("AddItem", new Type[] { typeof(string), typeof(Action), typeof(int) })
+                        .Invoke(MenuRoot, new object[] { optionText, (Action) delegate{
+                                MenuBaseType.GetMethod("ChangeMenuLevel").Invoke(MenuBase, new object[] { CustomLevel, false });
+                                tuple.Item2();
+                        }, modsIndex});
+                    ;
+                });
+
+                // needed to refresh the menu before the transition to it happens (pause menu)
+                MenuBaseType.GetMethod("RenderToTexture", privBind).Invoke(MenuBase, new object[] { });
+
+            }
+
+            if (MenuInitHook == null)
+            {
+                MenuInitHook = new Hook(
+                    MenuBaseType.GetMethod("Initialize"),
+                    new Action<Action<object>, object>((orig, self) =>
+                    {
+                        orig(self);
+                        CreateAndAddCustomLevels(self);
+                    })
+                );
+            }
+        }
+        private static void AddFakeMenuLevel(string text, Action onSelect)
+        {
+            CustomMenuOptions.Add(Tuple.Create(text, onSelect));
+        }
 
         public ServerListMenu(Game game, MultiplayerClient client) : base(game)
         {
             DrawOrder = 2300;
             Instance = this;
             drawer = new SpriteBatch(GraphicsDevice);
+
+            InitFakeMenuLevel();
+            AddFakeMenuLevel("@MULTIPLAYER", () => HasFocus = true);
+
             _ = Waiters.Wait(() =>
             {
                 return ServiceHelper.FirstLoadDone;
@@ -283,6 +360,10 @@ namespace FezGame.MultiplayerMod
                 __currentMenu = value;
                 currentIndex = 0;
                 ForceRefreshOptionsList();
+                if (CurrentMenuLevel == Menu_None)
+                {
+                    HasFocus = false;
+                }
             }
         }
         private ServerInfo selectedInfo = null;
@@ -325,13 +406,30 @@ namespace FezGame.MultiplayerMod
         private static bool FirstUpdateDone = false;
         private static TimeSpan SinceLastUpdateList = UpdateInterval;
 
-        private bool hasFocus = true;
+        private bool __hasFocus = false;
+        private bool HasFocus
+        {
+            get => __hasFocus;
+            set
+            {
+                if (value == true)
+                {
+                    CurrentMenuLevel = Menu_ServerList;
+                }
+                __hasFocus = value;
+            }
+        }
         private int currentIndex = 0;
         public override void Update(GameTime gameTime)
         {
             if(!ServiceHelper.FirstLoadDone)
             {
                 return;
+            }
+            //TODO set hasFocus when the fake menu is selected
+            if (Microsoft.Xna.Framework.Input.Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.F2))
+            {
+                HasFocus = true;
             }
             SinceLastUpdateList += gameTime.ElapsedGameTime;
             if(!FirstUpdateDone && SinceLastUpdateList > FirstUpdateInterval)
@@ -345,8 +443,7 @@ namespace FezGame.MultiplayerMod
                 cachedMenuListOptions = GetListOptions();
                 SinceLastUpdateList = TimeSpan.Zero;
             }
-            //TODO set hasFocus somewhere
-            if (hasFocus)
+            if (HasFocus)
             {
                 if (InputManager.Up == FezButtonState.Pressed)
                 {
@@ -395,11 +492,11 @@ namespace FezGame.MultiplayerMod
         }
         public override void Draw(GameTime gameTime)
         {
-            if (hasFocus && cachedMenuListOptions != null && drawer != null)
+            if (HasFocus && cachedMenuListOptions != null && drawer != null)
             {
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 Vector2 position = Vector2.Zero;
-                position.Y = GraphicsDevice.Viewport.Height / 10;
+                position.Y = GraphicsDevice.Viewport.Height * 0.15f;
                 int i = 0;
                 {
                     const string underlineStart = "\x1B[21m";
