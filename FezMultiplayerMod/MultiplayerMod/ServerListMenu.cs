@@ -403,7 +403,6 @@ namespace FezGame.MultiplayerMod
         private List<MenuListOption> cachedMenuListOptions = null;
         private static readonly TimeSpan UpdateInterval = TimeSpan.FromSeconds(60);
         private static readonly TimeSpan FirstUpdateInterval = TimeSpan.FromSeconds(15);
-        private static bool FirstUpdateDone = false;
         private static TimeSpan SinceLastUpdateList = UpdateInterval;
 
         private bool __hasFocus = false;
@@ -432,7 +431,7 @@ namespace FezGame.MultiplayerMod
                 HasFocus = true;
             }
             SinceLastUpdateList += gameTime.ElapsedGameTime;
-            if(!FirstUpdateDone && SinceLastUpdateList > FirstUpdateInterval)
+            if(SinceLastUpdateList > FirstUpdateInterval)
             {
                 cachedMenuListOptions = GetListOptions();
                 SinceLastUpdateList = TimeSpan.Zero;
@@ -480,7 +479,7 @@ namespace FezGame.MultiplayerMod
                 }
             }
         }
-        private void drawTextRichShadow(string text, Vector2 position, Vector2? scale = null, Color? color = null, Color? shadow = null)
+        private void DrawTextRichShadow(string text, Vector2 position, Vector2? scale = null, Color? color = null, Color? shadow = null)
         {
             if(scale == null)
             {
@@ -510,7 +509,7 @@ namespace FezGame.MultiplayerMod
                     Vector2 titleScale = new Vector2(1.5f);
                     Vector2 lineSize = RichTextRenderer.MeasureString(Fonts, menuTitle) * titleScale;
                     position.X = GraphicsDevice.Viewport.Width / 2 - lineSize.X / 2;
-                    drawTextRichShadow(menuTitle, position, titleScale);
+                    DrawTextRichShadow(menuTitle, position, titleScale);
                     //drawTextRichShadow(menuTitle, position);
                     position.Y += lineSize.Y;
                 }

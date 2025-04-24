@@ -279,7 +279,7 @@ namespace FezMultiplayerDedicatedServer
                 return 0;
             }
         };
-        private static IPAddressComparer AddressComparer = new IPAddressComparer();
+        private static readonly IPAddressComparer AddressComparer = new IPAddressComparer();
         private const bool HIDE_LOOPBACK_ADDRS = true;
         private const bool HIDE_V6LINK_LOCAL = false;
         private static void GetLocalIPAddresses()

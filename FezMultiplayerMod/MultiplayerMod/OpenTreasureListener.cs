@@ -27,33 +27,33 @@ namespace FezGame.MultiplayerMod
         private readonly SpriteBatch drawer;
         private IFontManager FontManager;
         private TimeSpan SinceActive => TryGetCastedValueByName<TimeSpan>("sinceActive", out var r) ? r : TimeSpan.Zero;
-        private ActorType treasureActorType => TryGetCastedValueByName<ActorType>("treasureActorType", out var r) ? r : ActorType.None;
+        private ActorType TreasureActorType => TryGetCastedValueByName<ActorType>("treasureActorType", out var r) ? r : ActorType.None;
         /// <summary>
         /// if the item collected is an art object (artifacts)
-        /// <seealso cref="treasureAoInstance"/>
+        /// <seealso cref="TreasureAoInstance"/>
         /// </summary>
-        private bool treasureIsAo => TryGetCastedValueByName<bool>("treasureIsAo", out var r) ? r : false;
+        private bool TreasureIsAo => TryGetCastedValueByName<bool>("treasureIsAo", out var r) ? r : false;
         /// <summary>
         /// if the item collected is a map
         /// </summary>
-        private bool treasureIsMap => TryGetCastedValueByName<bool>("treasureIsMap", out var r) ? r : false;
+        private bool TreasureIsMap => TryGetCastedValueByName<bool>("treasureIsMap", out var r) ? r : false;
         /// <summary>
         /// if the item collected is a trile (cubes and keys)
-        /// <seealso cref="treasureInstance"/>
+        /// <seealso cref="TreasureInstance"/>
         /// </summary>
-        private bool treasureIsTrile => !(treasureIsAo || treasureIsMap);
+        private bool TreasureIsTrile => !(TreasureIsAo || TreasureIsMap);
         /// <summary>
         /// the chest the player is in front of
         /// </summary>
-        private ArtObjectInstance chestAO => TryGetCastedValueByName<ArtObjectInstance>("chestAO", out var r) ? r : null;
+        private ArtObjectInstance ChestAO => TryGetCastedValueByName<ArtObjectInstance>("chestAO", out var r) ? r : null;
         /// <summary>
         /// the Trile for the item collected / spawned by the chest
         /// </summary>
-        private TrileInstance treasureInstance => TryGetCastedValueByName<TrileInstance>("treasureInstance", out var r) ? r : null;
+        private TrileInstance TreasureInstance => TryGetCastedValueByName<TrileInstance>("treasureInstance", out var r) ? r : null;
         /// <summary>
         /// the Art Object for the item collected / spawned by the chest
         /// </summary>
-        private ArtObjectInstance treasureAoInstance => TryGetCastedValueByName<ArtObjectInstance>("treasureAoInstance", out var r) ? r : null;
+        private ArtObjectInstance TreasureAoInstance => TryGetCastedValueByName<ArtObjectInstance>("treasureAoInstance", out var r) ? r : null;
         /**
          * <summary><para>
          * Note: when collecting maps, map name is stored in <br />
@@ -61,7 +61,7 @@ namespace FezGame.MultiplayerMod
          * • or <c>chestAO.ActorSettings.TreasureMapName</c> if it's from a chest.
          * </para></summary>
          */
-        private string TreasureMapName => chestAO?.ActorSettings?.TreasureMapName ?? treasureAoInstance?.ActorSettings?.TreasureMapName ?? null;
+        private string TreasureMapName => ChestAO?.ActorSettings?.TreasureMapName ?? TreasureAoInstance?.ActorSettings?.TreasureMapName ?? null;
 
         public OpenTreasureListener(Game game) : base(game)
         {
@@ -78,7 +78,8 @@ namespace FezGame.MultiplayerMod
                 );
             ;
             var excludedTypes = new[] { "SoundEffect", "Texture2D", "Quaternion", "List", "Group", "Mesh" };
-            var excludedNames = new[] { "^[Oo]ld", "^SinceCreated$", "^lastZoom$", "Service", "__BackingField"}.Select(s => new Regex(s));
+            var excludedNames = new[] { "^[Oo]ld", "^SinceCreated$", "^lastZoom$", "Service", "__BackingField",
+                    "^treasureTrile$", "^treasureAo$"}.Select(s => new Regex(s));
             var fieldNameFieldMap = OpenTreasureType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
             .Where(fieldInfo =>
             {
@@ -108,6 +109,15 @@ namespace FezGame.MultiplayerMod
             });
 
             //TODO so something with this data, like send it to an event or something
+
+            /*
+             * unique IDs: 
+             *   chestAO.Id,                                                      | ChestCount
+             *   treasureAoInstance.Id,                                           | OtherCollectibleCount
+             *   treasureInstance.OriginalEmplacement + treasureInstance.Foreign, | CubeShardCount or OtherCollectibleCount
+             *   treasureActorType
+             *   ForcedTreasure
+             */
 
             //Note: internally in FEZ, upon collecting a treasure, the following occurs to update the level data:
             //if it's a chest, it runs
@@ -165,22 +175,41 @@ namespace FezGame.MultiplayerMod
              * }
              */
         }
+        private TimeSpan? lastSinceActive = null;
+        private bool IsActive = false;
         public override void Update(GameTime gameTime)
         {
             if (GetValues != null)
             {
                 var sinceActive = SinceActive;
+                if (!lastSinceActive.HasValue)
+                {
+                    lastSinceActive = sinceActive;
+                }
+                if (!ServiceHelper.Get<Services.IGameStateManager>().Paused)
+                {
+                    IsActive = lastSinceActive < sinceActive;
+                    lastSinceActive = sinceActive;
+                }
             }
         }
         public override void Draw(GameTime gameTime)
         {
             if (GetValueByNameOrFail != null)
             {
-                var a = new object[] { SinceActive, treasureActorType, treasureIsAo, treasureIsMap, treasureIsTrile, chestAO, treasureInstance, treasureAoInstance };
+                var a = new object[] { SinceActive, TreasureActorType, TreasureIsAo, TreasureIsMap, TreasureIsTrile, ChestAO, TreasureInstance, TreasureAoInstance };
             }
             if(GetValues != null)
             {
-                string text = GetValues();
+                string text = "Type: "+(TreasureIsAo ? "Ao" : (TreasureIsMap ? "Map" : "Trile")) + "\n"
+                + "Source: "+(ServiceHelper.Get<Services.IPlayerManager>().ForcedTreasure!=null ? "Forced" : (ChestAO != null ? "Chest" : (TreasureIsMap ? "Map" : "Trile"))) + "\n"
+                + "TreasureMapName: "+ TreasureMapName + "\n"
+                + "ActorType: "+ TreasureActorType + "\n"
+                + "IsCollecting: " + IsActive + "\n"
+                + "ArtObjectId: " + (ChestAO?.Id ?? TreasureAoInstance?.Id) + "\n"
+                + "TrileEmplacement: " + (TreasureInstance?.OriginalEmplacement) + "\n"
+                + "TrileIsForeign: " + (TreasureInstance?.Foreign) + "\n";
+                //Note: Foreign is for triles that get spawned in, like code cubes, heart cubes, clock cubes, and fork cubes.
                 drawer.Begin();
 
                 //align to bottom
