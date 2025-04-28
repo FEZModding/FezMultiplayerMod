@@ -19,6 +19,172 @@ namespace FezGame.MultiplayerMod
     /// </remarks>
     public sealed class RichTextRenderer
     {
+        #region PublicEnums
+        public const char ESC = '\x1B';
+        public enum EscapeSequences
+        {
+            ControlSequenceIntroducer = '[',
+            CSI = ControlSequenceIntroducer,
+            PrivateUseOne = 'Q',
+            PU1 = PrivateUseOne,
+            PrivateUseTwo = 'R',
+            PU2 = PrivateUseTwo,
+        }
+        /// <summary>
+        /// CSI Commands with no Intermediate byte
+        /// </summary>
+        public enum CSICommands
+        {
+            StartReversedString = '\x5B',
+            SRS = StartReversedString,
+            StartDirectedString = '\x5B',
+            SDS = StartDirectedString,
+            SelectGraphicRendition = 'm',
+            SGR = SelectGraphicRendition,
+        }
+        /// <summary>
+        /// CSI Commands with \x20 as the Intermediate byte
+        /// </summary>
+        public enum CSICommands20
+        {
+            GraphicSizeModification = '\x42',
+            GSM = GraphicSizeModification,
+            GraphicSizeSelection = '\x43',
+            GSS = GraphicSizeSelection,
+            FontSelection = '\x44',
+            FNT = FontSelection,
+            ThinSpaceSpecification = '\x45',
+            TSS = ThinSpaceSpecification,
+            SpacingIncrement = '\x47',
+            SPI = SpacingIncrement,
+
+            SelectSizeUnit = '\x49',
+            SSU = SelectSizeUnit,
+
+            SelectPresentationDirections = '\x53',
+            SPD = SelectPresentationDirections,
+
+            PresentationExpandOrContract = '\x5A',
+            PEC = PresentationExpandOrContract,
+            SetSpaceWidth = '\x5B',
+            SSW = SetSpaceWidth,
+            SetAdditionalCharacterSeparation = '\\',
+            SACS = SetAdditionalCharacterSeparation,
+
+            SelectAlternativePresentationVariants = '\x5D',
+            SAPV = SelectAlternativePresentationVariants,
+
+            GraphicCharacterCombination = '\x5F',
+            GCC = GraphicCharacterCombination,
+
+            SelectCharacterOrientation = '\x65',
+            SCO = SelectCharacterOrientation,
+            SetReducedCharacterSeparation = '\x66',
+            SRCS = SetReducedCharacterSeparation,
+            SetCharacterSpacing = '\x67',
+            SCS = SetCharacterSpacing,
+            SetLineSpacing = '\x68',
+            SLS = SetLineSpacing,
+
+            SelectCharacterPath = '\x6B',
+            SCP = SelectCharacterPath,
+        }
+        /// <summary>
+        /// Select Graphic Rendition parameters 
+        /// </summary>
+        public enum SGRParameters
+        {
+            Reset = 0,
+            Bold = 1,
+            Faint = 2,
+            Italic = 3,
+            Underline = 4,
+            SlowBlink = 5,
+            RapidBlink = 6,
+            NegativeImage = 7,
+            Obfuscate = 8,
+            ConcealedCharacters = Obfuscate,
+            Strikethrough = 9,
+
+            //cases 10 to 20 are fonts
+
+            DoubleUnderline = 21,
+            NeitherBoldNorFaint = 22,
+            NotItalic = 23,
+            NotUnderlined = 24,
+            NotBlinking = 25,
+            ProportionalSpacing = 26,
+            NotNegativeImage = 27,
+            NotObfuscated = 28,
+            RevealedCharacters = NotObfuscated,
+            NotStrikethrough = 29,
+            // Standard colors
+            ColorDarkBlack = 30,
+            ColorDarkRed = 31,
+            ColorDarkGreen = 32,
+            ColorDarkYellow = 33,
+            ColorDarkBlue = 34,
+            ColorDarkMagenta = 35,
+            ColorDarkCyan = 36,
+            ColorDarkWhite = 37,
+            ColorStartTrueColor = 38,
+            ResetFgColor = 39,
+            // cases 40 to 49 are for backgrounds, in the same order as 30 to 39
+            BgColorDarkBlack = 40,
+            BgColorDarkRed = 41,
+            BgColorDarkGreen = 42,
+            BgColorDarkYellow = 43,
+            BgColorDarkBlue = 44,
+            BgColorDarkMagenta = 45,
+            BgColorDarkCyan = 46,
+            BgColorDarkWhite = 47,
+            BgColorStartTrueColor = 48,
+            ResetBgColor = 49,
+
+            CancelProportionalSpacing = 50,
+            Framed = 51,
+            Encircled = 52,
+            Overlined = 53,
+            NotFramedNotEncircled = 54,
+            NotOverlined = 55,
+
+            // cases 56 to 59 are not defined
+
+            IdeogramUnderline = 60,
+            IdeogramDoubleUnderline = 61,
+            IdeogramOverline = 62,
+            IdeogramDoubleOverline = 63,
+            IdeogramStressMarking = 64,
+            NoIdeogramEffects = 65,
+
+            //nothing defined for 66 to 89
+
+            // Bright colors
+            ColorBrightBlack = 90,
+            ColorBrightRed = 91,
+            ColorBrightGreen = 92,
+            ColorBrightYellow = 93,
+            ColorBrightBlue = 94,
+            ColorBrightMagenta = 95,
+            ColorBrightCyan = 96,
+            ColorBrightWhite = 97,
+
+            //nothing defined for 98 to 99
+
+            // cases 100 to 107 are for backgrounds, in the same order as 90 to 97
+            BgColorBrightBlack = 100,
+            BgColorBrightRed = 101,
+            BgColorBrightGreen = 102,
+            BgColorBrightYellow = 103,
+            BgColorBrightBlue = 104,
+            BgColorBrightMagenta = 105,
+            BgColorBrightCyan = 106,
+            BgColorBrightWhite = 107,
+
+            //nothing defined after 107
+        }
+        #endregion
+
         /// <summary>
         /// Contains a <see cref="SpriteFont"/> and the float value used to make this font appear at the same scale as other fonts. <br />
         /// These values should match up with the possible values seen in <see cref="FontManager"/> for <see cref="FontManager.Big"/> and <see cref="FontManager.BigFactor"/>
@@ -201,8 +367,7 @@ namespace FezGame.MultiplayerMod
             return ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, Vector2.One, (token, positionOffset) => { });
         }
 
-
-
+        #region DrawStringOverloads
         /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, Vector2, float)"/>
         public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor)
         {
@@ -233,6 +398,7 @@ namespace FezGame.MultiplayerMod
         {
             DrawString(batch, defaultFont, defaultFontScale, text, position, defaultColor, defaultBGColor, new Vector2(scale, scale), layerDepth);
         }
+        #endregion
 
         private static Texture2D _texture;
 
@@ -543,6 +709,7 @@ namespace FezGame.MultiplayerMod
 
                     if (i + 1 < text.Length)
                     {
+                        ///See: <see cref="EscapeSequences"/>
                         switch (text[i + 1])
                         {
                         case '[':
@@ -566,6 +733,7 @@ namespace FezGame.MultiplayerMod
                                 {
                                     // Capture the full parameter, excluding the ESC and '[' and ending characters
                                     string parameters = text.Substring(start + 2, i_temp - start - 3);
+                                    ///See: <see cref="CSICommands20"/>
                                     switch (text[i_temp])
                                     {
                                     /*
@@ -660,6 +828,7 @@ namespace FezGame.MultiplayerMod
                                 {
                                     // Capture the full parameter, excluding the ESC and '[' and ending character
                                     string parameters = text.Substring(start + 2, i_temp - start - 2);
+                                    ///See: <see cref="CSICommands"/>
                                     switch (text[i_temp])
                                     {
                                     /*
@@ -815,6 +984,7 @@ namespace FezGame.MultiplayerMod
                 }
                 if (int.TryParse(codes[i], out int codeValue))
                 {
+                    ///See: <see cref="SGRParameters"/>
                     switch (codeValue)
                     {
                     case 0: // Reset
