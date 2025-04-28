@@ -184,7 +184,7 @@ namespace FezGame.MultiplayerMod
             //nothing defined after 107
         }
         #endregion
-
+        #region PrivateStructsAndEnums
         /// <summary>
         /// Contains a <see cref="SpriteFont"/> and the float value used to make this font appear at the same scale as other fonts. <br />
         /// These values should match up with the possible values seen in <see cref="FontManager"/> for <see cref="FontManager.Big"/> and <see cref="FontManager.BigFactor"/>
@@ -291,6 +291,9 @@ namespace FezGame.MultiplayerMod
                 Style = tokenStyle.Clone();
             }
         }
+        #endregion
+
+        #region Fonts
         /// <summary>
         /// Simple list for keeping track of how many fonts are loaded, and for enumerating through the fonts.
         /// </summary>
@@ -348,6 +351,45 @@ namespace FezGame.MultiplayerMod
             return LoadFonts(CMProvider.Global);//Should always use Global
         }
 
+        /// <summary>
+        /// Gets the first supported font for the given character, prefering <paramref name="defaultFontData"/> if possible, 
+        /// </summary>
+        /// <param name="defaultFontData">The default font to use</param>
+        /// <param name="ch">The character to find a supported font for</param>
+        /// <returns>
+        ///         <paramref name="defaultFontData"/> if that font supports the character, else the first compatible font in <see cref="Fonts"/>.
+        ///         If no compatible font is found, returns defaultFontData.
+        /// </returns>
+        private static FontData GetFirstSupportedFont(in FontData defaultFontData, in char ch)
+        {
+            if (FontSupportsCharacter(defaultFontData.Font, ch))
+            {
+                return defaultFontData;
+            }
+            else
+            {
+                foreach (FontData fontData in Fonts)
+                {
+                    if (FontSupportsCharacter(fontData.Font, ch))
+                    {
+                        return fontData;
+                    }
+                }
+                return defaultFontData;
+            }
+        }
+        /// <summary>
+        /// Returns <c>true</c> if the supplied <see cref="SpriteFont"/> supports the provided character.
+        /// </summary>
+        /// <param name="font">The font to check</param>
+        /// <param name="ch">The character to check</param>
+        /// <returns><c>true</c> if the supplied <see cref="SpriteFont"/> supports the provided character; false otherwise.</returns>
+        private static bool FontSupportsCharacter(in SpriteFont font, in char ch)
+        {
+            return font.Characters.Contains(ch);
+        }
+        #endregion
+        #region MeasureString
         /// <inheritdoc cref="MeasureString(SpriteFont, float, string)"/>
         /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, float, float)"/>
         public static Vector2 MeasureString(IFontManager fontManager, string text)
@@ -366,7 +408,7 @@ namespace FezGame.MultiplayerMod
         {
             return ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, Vector2.One, (token, positionOffset) => { });
         }
-
+        #endregion
         #region DrawStringOverloads
         /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, Vector2, float)"/>
         public static void DrawString(SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Color defaultColor)
@@ -889,43 +931,6 @@ namespace FezGame.MultiplayerMod
             }
 
             return tokens;
-        }
-        /// <summary>
-        /// Gets the first supported font for the given character, prefering <paramref name="defaultFontData"/> if possible, 
-        /// </summary>
-        /// <param name="defaultFontData">The default font to use</param>
-        /// <param name="ch">The character to find a supported font for</param>
-        /// <returns>
-        ///         <paramref name="defaultFontData"/> if that font supports the character, else the first compatible font in <see cref="Fonts"/>.
-        ///         If no compatible font is found, returns defaultFontData.
-        /// </returns>
-        private static FontData GetFirstSupportedFont(in FontData defaultFontData, in char ch)
-        {
-            if (FontSupportsCharacter(defaultFontData.Font, ch))
-            {
-                return defaultFontData;
-            }
-            else
-            {
-                foreach (FontData fontData in Fonts)
-                {
-                    if (FontSupportsCharacter(fontData.Font, ch))
-                    {
-                        return fontData;
-                    }
-                }
-                return defaultFontData;
-            }
-        }
-        /// <summary>
-        /// Returns <c>true</c> if the supplied <see cref="SpriteFont"/> supports the provided character.
-        /// </summary>
-        /// <param name="font">The font to check</param>
-        /// <param name="ch">The character to check</param>
-        /// <returns><c>true</c> if the supplied <see cref="SpriteFont"/> supports the provided character; false otherwise.</returns>
-        private static bool FontSupportsCharacter(in SpriteFont font, in char ch)
-        {
-            return font.Characters.Contains(ch);
         }
         private static readonly IList<Color> ColorTable = Array.AsReadOnly(new Color[]{
             Color.Black,   // Dark Black
