@@ -37,7 +37,7 @@ namespace FezGame.MultiplayerMod
         {
             StartReversedString = '\x5B',
             SRS = StartReversedString,
-            StartDirectedString = '\x5B',
+            StartDirectedString = '\x5D',
             SDS = StartDirectedString,
             SelectGraphicRendition = 'm',
             SGR = SelectGraphicRendition,
