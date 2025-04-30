@@ -57,3 +57,4 @@ Made server player list look nicer
 Added Multiplayer Server command line argument `--settings-file`
 Added Multiplayer Server `DoAdvertiseServer` setting
 Fixed a crash in SaveDataObserver when loading certain save files
+Added support for C1 codes from Unicode block Latin-1 Supplement

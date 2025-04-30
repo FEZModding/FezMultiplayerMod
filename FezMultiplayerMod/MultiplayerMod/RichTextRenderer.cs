@@ -7,9 +7,27 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using static FezGame.MultiplayerMod.RichTextRenderer;
 
 namespace FezGame.MultiplayerMod
 {
+    public static class TypeExtensions
+    {
+        public static bool HasValue(this Type type, char value)
+        {
+            return type.GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public).Any(field =>
+            {
+                return field.FieldType.IsAssignableFrom(typeof(char)) && value == (char)field.GetValue(null);
+            });
+        }
+        public static bool HasValue(this Type type, int value)
+        {
+            return type.GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public).Any(field =>
+            {
+                return field.FieldType.IsAssignableFrom(typeof(int)) && value == (int)field.GetValue(null);
+            });
+        }
+    }
     /// <summary>
     /// Uses format codes to stylize, format, and display text.
     /// See ANSI escape codes or ECMA-48
@@ -21,32 +39,45 @@ namespace FezGame.MultiplayerMod
     {
         #region PublicEnums
         public const char ESC = '\x1B';
-        public enum EscapeSequences
+        public sealed class C1_EscapeSequences
         {
+            public static readonly char
             ControlSequenceIntroducer = '[',
             CSI = ControlSequenceIntroducer,
             PrivateUseOne = 'Q',
             PU1 = PrivateUseOne,
             PrivateUseTwo = 'R',
-            PU2 = PrivateUseTwo,
+            PU2 = PrivateUseTwo;
+        }
+        public sealed class C1_8BitCodes
+        {
+            public static readonly char
+            ControlSequenceIntroducer = '\x9B',
+            CSI = ControlSequenceIntroducer,
+            PrivateUseOne = '\x91',
+            PU1 = PrivateUseOne,
+            PrivateUseTwo = '\x92',
+            PU2 = PrivateUseTwo;
         }
         /// <summary>
         /// CSI Commands with no Intermediate byte
         /// </summary>
-        public enum CSICommands
+        public sealed class CSICommands
         {
+            public static readonly char
             StartReversedString = '\x5B',
             SRS = StartReversedString,
             StartDirectedString = '\x5D',
             SDS = StartDirectedString,
             SelectGraphicRendition = 'm',
-            SGR = SelectGraphicRendition,
+            SGR = SelectGraphicRendition;
         }
         /// <summary>
         /// CSI Commands with \x20 as the Intermediate byte
         /// </summary>
-        public enum CSICommands20
+        public sealed class CSICommands20
         {
+            public static readonly char
             GraphicSizeModification = '\x42',
             GSM = GraphicSizeModification,
             GraphicSizeSelection = '\x43',
@@ -87,13 +118,14 @@ namespace FezGame.MultiplayerMod
             SLS = SetLineSpacing,
 
             SelectCharacterPath = '\x6B',
-            SCP = SelectCharacterPath,
+            SCP = SelectCharacterPath;
         }
         /// <summary>
         /// Select Graphic Rendition parameters 
         /// </summary>
-        public enum SGRParameters
+        public sealed class SGRParameters
         {
+            public static readonly int
             Reset = 0,
             Bold = 1,
             Faint = 2,
@@ -179,7 +211,7 @@ namespace FezGame.MultiplayerMod
             BgColorBrightBlue = 104,
             BgColorBrightMagenta = 105,
             BgColorBrightCyan = 106,
-            BgColorBrightWhite = 107,
+            BgColorBrightWhite = 107;
 
             //nothing defined after 107
         }
@@ -480,7 +512,7 @@ namespace FezGame.MultiplayerMod
                 throw new ArgumentNullException(nameof(text));
             }
 
-            void DrawBox(Vector2 start, float width, float height, Color color)
+            void DrawRect(Vector2 start, float width, float height, Color color)
             {
                 if (_texture == null)
                 {
@@ -530,7 +562,7 @@ namespace FezGame.MultiplayerMod
                 Vector2 tokenSize = fontData.Font.MeasureString(token.Text) * fontData.Scale * scale;
                 float tokenWidth = tokenSize.X + letterSpacing;
 
-                DrawBox(offsetPosition, tokenSize.X, tokenSize.Y, backgroundColor);
+                DrawRect(offsetPosition, tokenSize.X, tokenSize.Y, backgroundColor);
 
                 batch.DrawString(fontData.Font, token.Text, offsetPosition, textColor, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
 
@@ -539,30 +571,30 @@ namespace FezGame.MultiplayerMod
                 {
                     Vector2 underlinePosition = offsetPosition + underlineOffset * Vector2.UnitY;
                     // draw line with width of token starting at position underlinePosition
-                    DrawBox(underlinePosition, tokenWidth, lineThickness, decorationColor);
+                    DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
                     if ((decoration & TextDecoration.DoubleUnderline) != 0)
                     {
                         underlinePosition += doublelineOffsetOffset * Vector2.UnitY;
                         // draw line with width of token starting at position underlinePosition
-                        DrawBox(underlinePosition, tokenWidth, lineThickness, decorationColor);
+                        DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
                     }
                 }
                 if ((decoration & TextDecoration.Strikethrough) != 0)
                 {
                     Vector2 strikethroughPosition = offsetPosition + strikethroughOffset * Vector2.UnitY;
                     // draw line with width of token starting at position strikethroughPosition
-                    DrawBox(strikethroughPosition, tokenWidth, lineThickness, decorationColor);
+                    DrawRect(strikethroughPosition, tokenWidth, lineThickness, decorationColor);
                 }
                 if ((decoration & TextDecoration.Overline) != 0)
                 {
                     Vector2 overlinePosition = offsetPosition + overlineOffset * Vector2.UnitY;
                     // draw line with width of token starting at position overlinePosition
-                    DrawBox(overlinePosition, tokenWidth, lineThickness, decorationColor);
+                    DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
                     if ((decoration & TextDecoration.DoubleOverline) != 0)
                     {
                         overlinePosition -= doublelineOffsetOffset * Vector2.UnitY;
                         // draw line with width of token starting at position overlinePosition
-                        DrawBox(overlinePosition, tokenWidth, lineThickness, decorationColor);
+                        DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
                     }
                 }
                 if ((decoration & TextDecoration.Framed) != 0)
@@ -573,13 +605,13 @@ namespace FezGame.MultiplayerMod
                     float boxWidth = tokenSize.X + padding * 2 + lineThickness * 2;
                     float boxHeight = tokenSize.Y + padding * 2 + lineThickness * 2;
                     //top
-                    DrawBox(origin, boxWidth, lineThickness, decorationColor);
+                    DrawRect(origin, boxWidth, lineThickness, decorationColor);
                     //left
-                    DrawBox(origin, lineThickness, boxHeight, decorationColor);
+                    DrawRect(origin, lineThickness, boxHeight, decorationColor);
                     //bottom
-                    DrawBox(origin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, decorationColor);
+                    DrawRect(origin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, decorationColor);
                     //right
-                    DrawBox(origin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
+                    DrawRect(origin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
                 }
                 if ((decoration & TextDecoration.Encircled) != 0)
                 {
@@ -596,7 +628,7 @@ namespace FezGame.MultiplayerMod
             {1, new string[]{ "\x1B[10\x20\x68",//set line spacing
                 "\x1B[31mThis is red text\x1B[0m and this is normal.",
                 "\x1B[1mBold Text\x1B[0m then \x1B[34mBlue Text\x1B[0m, returning to normal.",
-                "\x1B[31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
+                $"{C1_8BitCodes.ControlSequenceIntroducer}31;1mRed and bold\x1B[0m but normal here. \x1B[32mGreen text\x1B[0m.",
                 "Some text \x1B[32mGreen\x1B[0m, then some text \x1B[35Hello but this won't change.",
                 "Multifont test: [\u3046e\u56DB\uAFB8\u3044\u5B89\uD658]",
                 "Colored multifont test: [Y\x1B[31m\u3042\u3044\xE9\x1B[93m\u56DB\u5B89\x1B[96m\uAFB8\uD658\x1B[90m\uFF1FZ\x1B[0m\u4E0AW]",
@@ -606,10 +638,10 @@ namespace FezGame.MultiplayerMod
                 "true bit colors: \x1B[38;2;255;0;255mMagenta.",
             }},
             {2, new string[]{ "\x1B[10\x20\x68",//set line spacing
-                "\x1B[21;53mThis text has both double underlined and has an overline\x1B[0m",
+                $"{C1_8BitCodes.ControlSequenceIntroducer}21;53mThis text has both double underlined and has an overline\x1B[0m",
                 "\x1B[21mdouble underlined\x1B[24m, \x1B[53moverlined\x1B[55m, \x1B[9mstrikethrough\x1B[29m",
                 "\x1B[63mdouble overline\x1B[55m, \x1B[9mstrikethrough\x1B[29m, \x1B[21mdouble underlined\x1B[24m",
-                "\x1B[63;9;21mThis text has all double overline, strikethrough, and double underline\x1B[0m",
+                $"{C1_8BitCodes.ControlSequenceIntroducer}63;9;21mThis text has all double overline, strikethrough, and double underline\x1B[0m",
                 "Decorated colored multifont test: [\x1B[63;9;21mY\x1B[31m\u3042\u3044\xE9\x1B[93m\u56DB\u5B89\x1B[96m\uAFB8\uD658\x1B[90m\uFF1FZ\x1B[38;2;255;0;255m\u4E0AW\x1B[0m]",
                 "\x1B[51mFramed\x1B[54m, \x1B[52mEncircled\x1B[54m, and \x1B[51;52mboth\x1B[54m\x1B[0m",
             }}
@@ -713,8 +745,11 @@ namespace FezGame.MultiplayerMod
             {
                 char c = text[i];
 
+                char? NullableC1_8bitCode = typeof(C1_8BitCodes).HasValue(c)
+                                ? (char?)c : null;
+
                 //check for special characters to change currentColor and whatever other presentation options we want to include; see "Select Graphic Rendition"
-                if (c == '\x1B')//ANSI escape codes
+                if (c == '\x1B' || NullableC1_8bitCode.HasValue)//ANSI escape codes
                 {
                     //flush current token
                     if (currentToken.Length > 0)
@@ -749,20 +784,34 @@ namespace FezGame.MultiplayerMod
                      *   so just reference it to get an idea of how the code below should function.
                      */
 
-                    if (i + 1 < text.Length)
+                    if (NullableC1_8bitCode.HasValue || i + 1 < text.Length)
                     {
-                        ///See: <see cref="EscapeSequences"/>
-                        switch (text[i + 1])
-                        {
-                        case '[':
+                        ///See: <see cref="C1_EscapeSequences"/>
+                        char? nextChar = text.Length >= (i+1) ? (char?)text[i + 1] : null;
+                        char? escapeSequence = nextChar.HasValue && typeof(C1_EscapeSequences).HasValue(nextChar.Value)
+                                ? (char?)nextChar : null;
+                        if (NullableC1_8bitCode == C1_8BitCodes.ControlSequenceIntroducer 
+                                || escapeSequence == C1_EscapeSequences.ControlSequenceIntroducer) {
                             // CSI (Control Sequence Identifier) codes
 
                             // Start collecting the escape sequence
-                            int start = i;
+                            int start;
+                            if (NullableC1_8bitCode.HasValue)
+                            {
+                                start = i + 1;
+                            }
+                            else if (escapeSequence.HasValue)
+                            {
+                                start = i + 2;
+                            }
+                            else
+                            {
+                                throw new ArgumentException("Somehow got to the C1 control code processing code without a value for C1");
+                            }
                             int i_temp = i;
                             i_temp += 2; // Skip over the escape and the '['
 
-                            // Collect until we find a letter or the end of the string
+                            // Collect until we find a character in the range ['\x40' and '\x7F'] or the end of the string
                             while (i_temp < text.Length && !((c = text[i_temp]) >= '\x40' && c <= '\x7F'))
                             {
                                 i_temp++;
@@ -774,7 +823,21 @@ namespace FezGame.MultiplayerMod
                                 if (text[i_temp - 1] == '\x20')
                                 {
                                     // Capture the full parameter, excluding the ESC and '[' and ending characters
-                                    string parameters = text.Substring(start + 2, i_temp - start - 3);
+                                    string parameters = text.Substring(start, i_temp - start - 1);
+
+
+                                    // Excerp from ECMA-48 section 5.4.2 "Parameter string format":
+                                    // b) Each parameter sub-string consists of one or more bit combinations from 03/00 to 03/10;
+                                    //   the bit combinations from 03/00 to 03/09 represent the digits ZERO to NINE;
+                                    //   bit combination 03/10 may be used as a separator in a parameter sub-string,
+                                    //    for example, to separate the fractional part of a decimal number from the integer part of that number.
+                                    parameters = parameters.Replace('\x3A', '.');
+
+                                    // Note: our code intentially allows for positive and negative signs in parameter strings, 
+                                    // but ECMA-48 only allows for the bit combinations from \x30 to \x3F
+                                    // Note ECMA-48 says the range \x3C and \x3F is intended for private use,
+                                    // so we could use the characters in the range \x3C and \x3F for positive/negative signs
+
                                     ///See: <see cref="CSICommands20"/>
                                     switch (text[i_temp])
                                     {
@@ -869,7 +932,7 @@ namespace FezGame.MultiplayerMod
                                 else
                                 {
                                     // Capture the full parameter, excluding the ESC and '[' and ending character
-                                    string parameters = text.Substring(start + 2, i_temp - start - 2);
+                                    string parameters = text.Substring(start, i_temp - start);
                                     ///See: <see cref="CSICommands"/>
                                     switch (text[i_temp])
                                     {
@@ -896,13 +959,21 @@ namespace FezGame.MultiplayerMod
                                 i = i_temp;
                                 continue;//this continue jumps all the way back up to that for loop that iterates over the characters
                             }
-                            break;
+                        }
                         //ESC codes
-                        case 'Q'://PRIVATE USE ONE
-                        case 'R'://PRIVATE USE TWO
-                        default:
+                        else if (NullableC1_8bitCode == C1_8BitCodes.PrivateUseOne
+                                || escapeSequence == C1_EscapeSequences.PrivateUseOne)//PRIVATE USE ONE
+                        {
+                            //tbd?
+                        }
+                        else if (NullableC1_8bitCode == C1_8BitCodes.PrivateUseTwo
+                            || escapeSequence == C1_EscapeSequences.PrivateUseTwo)//PRIVATE USE TWO
+                        {
+                            //tbd?
+                        }
+                        else
+                        {
                             //Not supported escape code
-                            break;
                         }
                     }
                 }
