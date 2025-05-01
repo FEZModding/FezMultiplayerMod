@@ -125,7 +125,7 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         public sealed class SGRParameters
         {
-            public static readonly int
+            public const int
             Reset = 0,
             Bold = 1,
             Faint = 2,
@@ -243,14 +243,15 @@ namespace FezGame.MultiplayerMod
         {
             None = 0,
             #pragma warning disable IDE0055
-            Underline       = 0b00000001,
-            Strikethrough   = 0b00000010,
-            Overline        = 0b00000100,
-            DoubleUnderline = 0b00001000 | Underline,
-            Framed          = 0b00010000,
-            Encircled       = 0b00100000,
-            DoubleOverline  = 0b01000000 | Overline,
-            Concealed       = 0b10000000,
+            Underline       = 0b000000001,
+            Strikethrough   = 0b000000010,
+            Overline        = 0b000000100,
+            DoubleUnderline = 0b000001000 | Underline,
+            Framed          = 0b000010000,
+            Encircled       = 0b000100000,
+            DoubleOverline  = 0b001000000 | Overline,
+            Concealed       = 0b010000000,
+            StressMarking   = 0b100000000,
             #pragma warning restore IDE0055
         }
         /// <summary>
@@ -289,6 +290,11 @@ namespace FezGame.MultiplayerMod
             /// Text slant, in degrees. See https://developer.mozilla.org/en-US/docs/Web/CSS/font-style
             /// </summary>
             public float ObliqueAngle { get; set; }
+            /// <summary>
+            /// The duration, in seconds, for the text to be on/off. <br />
+            /// A value of 0 or lower indicates the text does not blink.
+            /// </summary>
+            public float BlinkDuration { get; set; }
 
             public TokenStyle(Color color, Color backgroundColor, Color? decorationColor, FontData fontdata, TextDecoration decoration, ushort weight, float slantAngle)
             {
@@ -547,6 +553,14 @@ namespace FezGame.MultiplayerMod
 
             _ = ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, scale, (token, positionOffset) =>
             {
+                TextDecoration decoration = token.Style.Decoration;
+
+                if ((decoration & TextDecoration.Concealed) != 0)
+                {
+                    //Don't draw the characters if they're concealed
+                    return;
+                }
+
                 FontData fontData = token.Style.FontData;
                 Color textColor = token.Style.Color;
                 Color backgroundColor = token.Style.BackgroundColor;
@@ -556,9 +570,13 @@ namespace FezGame.MultiplayerMod
 
                 float letterSpacing = 1;//TODO
 
-                TextDecoration decoration = token.Style.Decoration;
+                /// TODO implement font weight (maybe draw this many times, shifting over by 1 px every time)
                 ushort weight = token.Style.FontWeight;
+                /// TODO draw slanted text
                 float slant = token.Style.ObliqueAngle;
+                /// TODO draw blinking text somehow
+                float blink = token.Style.BlinkDuration;
+
                 Vector2 tokenSize = fontData.Font.MeasureString(token.Text) * fontData.Scale * scale;
                 float tokenWidth = tokenSize.X + letterSpacing;
 
@@ -617,9 +635,9 @@ namespace FezGame.MultiplayerMod
                 {
                     //TODO draw the outline of an ellipse around the characters
                 }
-                if ((decoration & TextDecoration.Concealed) != 0)
+                if ((decoration & TextDecoration.StressMarking) != 0)
                 {
-                    //TODO decide how to conceal the characters
+                    //TODO idk what this is supposed to look like
                 }
             });
         }
@@ -647,6 +665,19 @@ namespace FezGame.MultiplayerMod
             }}
         };
         private static readonly ushort DefaultFontWeight = 1;
+        /// <summary>
+        /// One second on, one second off. See <see cref="TokenStyle.BlinkDuration"/>
+        /// </summary>
+        private static readonly float TextBlinkDurationSlow = 1f;
+        /// <summary>
+        /// half second on, half second off. See <see cref="TokenStyle.BlinkDuration"/>
+        /// </summary>
+        /// <remarks>
+        /// This value should be less than or equal to <see cref="TextBlinkDurationSlow"/>, but 
+        /// always greater than 0.4f to comply with the WCAG limit of 3 flashes per second.
+        /// </remarks>
+        private static readonly float TextBlinkDurationFast = 0.5f;
+
         /// <summary>
         /// Iterates through the provided <paramref name="text"/> line by line, parsing ECMA-48 escape codes, and calling <paramref name="onToken"/> on each token, in order of occurance.
         /// </summary>
@@ -890,7 +921,6 @@ namespace FezGame.MultiplayerMod
                                     case '\x5D'://SAPV - SELECT ALTERNATIVE PRESENTATION VARIANTS
                                         break;
                                     case '\x5F'://GCC - GRAPHIC CHARACTER COMBINATION
-                                        //Maybe could be used to display controller glyphs?
                                         break;
 
                                     case '\x65'://SCO - SELECT CHARACTER ORIENTATION
@@ -1085,10 +1115,10 @@ namespace FezGame.MultiplayerMod
                         currentStyle.Decoration |= TextDecoration.Underline;
                         break;
                     case 5: // Slow blink
-                        //TODO decide how to implement this; either as part of TextDecoration, or a float BlinkSpeed in TokenStyle
+                        currentStyle.BlinkDuration = TextBlinkDurationSlow;
                         break;
                     case 6: // Rapid blink
-                        //TODO decide how to implement this; either as part of TextDecoration, or a float BlinkSpeed in TokenStyle
+                        currentStyle.BlinkDuration = TextBlinkDurationFast;
                         break;
                     case 7: // Negative image
                         //TODO decide if/how to implement this
@@ -1115,7 +1145,7 @@ namespace FezGame.MultiplayerMod
                         currentStyle.Decoration &= ~(TextDecoration.Underline | TextDecoration.DoubleUnderline);
                         break;
                     case 25: // Not blinking
-                        //TODO decide how to implement this; either as part of TextDecoration, or a float BlinkSpeed in TokenStyle
+                        currentStyle.BlinkDuration = 0;
                         break;
                     case 26: // Proportional spacing
                         //Not supporting this
@@ -1196,10 +1226,14 @@ namespace FezGame.MultiplayerMod
                         currentStyle.Decoration |= TextDecoration.DoubleOverline;
                         break;
                     case 64: // ideogram stress marking
-                        //TODO idk what this means
+                        currentStyle.Decoration |= TextDecoration.StressMarking;
                         break;
                     case 65: // cancels the effect of the rendition aspects established by parameter values 60 to 64
-                        currentStyle.Decoration &= ~(TextDecoration.Underline | TextDecoration.DoubleUnderline | TextDecoration.Overline | TextDecoration.DoubleOverline);
+                        currentStyle.Decoration &= ~(TextDecoration.Underline
+                                                     | TextDecoration.DoubleUnderline
+                                                     | TextDecoration.Overline
+                                                     | TextDecoration.DoubleOverline
+                                                     | TextDecoration.StressMarking);
                         break;
 
                     //nothing defined for 66 to 89
