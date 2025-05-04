@@ -7,6 +7,8 @@ using FezGame.Services;
 using FezGame.Structure;
 using FezSharedTools;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using MonoMod.RuntimeDetour;
 using System;
@@ -18,6 +20,7 @@ using System.Linq;
 using System.Net;
 using System.Reflection;
 using System.Text;
+using static FezEngine.Structure.SoundEffectExtensions;
 
 namespace FezGame.MultiplayerMod
 {
@@ -211,6 +214,7 @@ namespace FezGame.MultiplayerMod
         {
             CustomMenuOptions.Add(Tuple.Create(text, onSelect));
         }
+        private static SoundEffect sCancel, sConfirm, sCursorUp, sCursorDown;
 
         public ServerListMenu(Game game, MultiplayerClient client) : base(game)
         {
@@ -237,6 +241,12 @@ namespace FezGame.MultiplayerMod
                 GameState = ServiceHelper.Get<IGameStateManager>();
                 Fonts = ServiceHelper.Get<IFontManager>();
                 SoundManager = ServiceHelper.Get<ISoundManager>();
+
+                ContentManager contentManager = CMProvider.Get(CM.Menu);
+                sCancel = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/Cancel");
+                sConfirm = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/Confirm");
+                sCursorUp = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/CursorUp");
+                sCursorDown = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/CursorDown");
             });
             mp = client;
 
@@ -467,7 +477,7 @@ namespace FezGame.MultiplayerMod
                 {
                     if(currentIndex > 0)
                     {
-                        //sCursorUp.Emit();
+                        sCursorUp.Emit();
                         currentIndex--;
                     }
                 }
@@ -476,7 +486,7 @@ namespace FezGame.MultiplayerMod
                 {
                     if (currentIndex < maxIndex)
                     {
-                        //sCursorUp.Emit();
+                        sCursorDown.Emit();
                         currentIndex++;
                     }
                 }
@@ -495,6 +505,7 @@ namespace FezGame.MultiplayerMod
                 if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed)
                 {
                     cachedMenuListOptions.ElementAt(currentIndex).Action.Invoke();
+                    //Note: having sConfirm.Emit(); here can cause the sound to play twice when opening the server list menu
                 }
             }
         }
