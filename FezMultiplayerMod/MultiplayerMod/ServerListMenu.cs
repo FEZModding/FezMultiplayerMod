@@ -115,6 +115,9 @@ namespace FezGame.MultiplayerMod
         private readonly MenuLevel Menu_ServerAdd;
         private readonly MenuLevel Menu_ServerRemove;
 
+        private readonly TextInputLogicComponent NameTextbox;
+        private readonly TextInputLogicComponent AddressTextbox;
+
         /// <summary>
         /// TODO call this with <c><see cref="ServerInfoList"/>.AsReadOnly()</c> when <see cref="ServerInfoList"/> changes <br />
         /// Called when the user adds or removes a server from the server list. <br />
@@ -257,8 +260,36 @@ namespace FezGame.MultiplayerMod
 
             MenuListOption OptionAdd = new MenuListOption("Add", () => Menu_ServerAdd);
             MenuListOption OptionRemove = new MenuListOption("Remove", () => Menu_ServerRemove);
+            MenuListOption OptionRemoveConfirm = new MenuListOption("Confirm Removal", RemoveServerConfirmed);
+            MenuListOption OptionAddServer = new MenuListOption("Add Server", AddServerConfirmed);
             MenuListOption OptionJoin = new MenuListOption("Join", JoinServer);
             MenuListOption OptionRefreshLAN = new MenuListOption("Refresh LAN servers", ForceRefreshOptionsList);
+
+            NameTextbox = new TextInputLogicComponent(game) { Value = "Test" };
+            AddressTextbox = new TextInputLogicComponent(game);
+            string framedTextEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}";
+            const int textboxPadRight = 30;
+            string textboxInitialText = framedTextEscapeCode.PadRight(textboxPadRight);
+            MenuListOption OptionNameTextbox = new MenuListOption("Name: " + textboxInitialText, () => NameTextbox.Focus());
+            MenuListOption OptionAddressTextbox = new MenuListOption("Address: " + textboxInitialText, () => AddressTextbox.Focus());
+            string baseNameName = "Name: " + framedTextEscapeCode;
+            string baseAddressName = "Address: " + framedTextEscapeCode;
+            OptionAddServer.Enabled = false;
+            NameTextbox.OnInput += () => { OptionNameTextbox.DisplayText = baseNameName + NameTextbox.Value.PadRight(textboxPadRight); };
+            AddressTextbox.OnInput += () =>
+            {
+                OptionAddressTextbox.DisplayText = baseAddressName + AddressTextbox.Value.PadRight(textboxPadRight);
+                //Check the IPEndPoint is valid
+                try
+                {
+                    _ = IniTools.TryParseIPEndPoint(AddressTextbox.Value);
+                    OptionAddServer.Enabled = true;
+                }
+                catch
+                {
+                    OptionAddServer.Enabled = false;
+                }
+            };
 
             Menu_ServerList = new MenuLevel("Server List", parent: Menu_None, list =>
             {
@@ -277,11 +308,14 @@ namespace FezGame.MultiplayerMod
             });
             Menu_ServerAdd = new MenuLevel("Add Server", parent: Menu_ServerList, list =>
             {
-                //TODO
+                //TODO add textbox
+                list.Add(OptionNameTextbox);
+                list.Add(OptionAddressTextbox);
+                list.Add(OptionAddServer);
             });
             Menu_ServerRemove = new MenuLevel("Remove Server?", parent: Menu_ServerSelected, list =>
             {
-                //TODO
+                list.Add(OptionRemoveConfirm);
             });
             CurrentMenuLevel = Menu_ServerList;
 
@@ -414,6 +448,24 @@ namespace FezGame.MultiplayerMod
             CurrentMenuLevel = CurrentMenuLevel.ParentMenu;
         }
 
+        private void AddServerConfirmed()
+        {
+            string name = NameTextbox.Value;
+            string address = AddressTextbox.Value;
+            try
+            {
+                IPEndPoint endpoint = IniTools.TryParseIPEndPoint(address);
+                ServerInfoList.Add(new ServerInfo(name, endpoint));
+                //TODO
+                MenuBack();
+            }
+            catch (ArgumentException) { }
+        }
+        private void RemoveServerConfirmed()
+        {
+            ServerInfoList.Remove(selectedInfo);
+        }
+
         private void ForceRefreshOptionsList()
         {
             SinceLastUpdateList += UpdateInterval;
@@ -435,6 +487,7 @@ namespace FezGame.MultiplayerMod
         private static TimeSpan SinceLastUpdateList = UpdateInterval;
 
         private bool __hasFocus = false;
+        private bool justGotFocus = false;
         private bool HasFocus
         {
             get => __hasFocus;
@@ -443,6 +496,7 @@ namespace FezGame.MultiplayerMod
                 if (value == true)
                 {
                     CurrentMenuLevel = Menu_ServerList;
+                    justGotFocus = true;
                 }
                 __hasFocus = value;
             }
@@ -454,7 +508,6 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
-            //TODO set hasFocus when the fake menu is selected
             if (Microsoft.Xna.Framework.Input.Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.F2))
             {
                 HasFocus = true;
@@ -504,10 +557,26 @@ namespace FezGame.MultiplayerMod
                 }
                 if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed)
                 {
-                    cachedMenuListOptions.ElementAt(currentIndex).Action.Invoke();
-                    //Note: having sConfirm.Emit(); here can cause the sound to play twice when opening the server list menu
+                    var menuitem = cachedMenuListOptions.ElementAt(currentIndex);
+                    if (menuitem.Enabled)
+                    {
+                        menuitem.Action.Invoke();
+                        if(!justGotFocus)
+                        {
+                            if (menuitem.DisplayText.Equals(OptionBack.DisplayText))
+                            {
+                                sCancel.Emit();
+                            }
+                            else
+                            {
+                                sConfirm.Emit();
+                            }
+                        }
+                    }
+                    //Note: having  here can cause the sound to play twice when opening the server list menu
                 }
             }
+            justGotFocus = false;
         }
         private void DrawTextRichShadow(string text, Vector2 position, Vector2? scale = null, Color? color = null, Color? shadow = null)
         {

@@ -8,7 +8,6 @@ using System.Collections.Generic;
 
 namespace FezGame.MultiplayerMod
 {
-    //TODO test this class
     /// <summary>
     /// Receives simple INI-formatted data from the specified <see cref="IPAddress"/>
     /// and supplies the entries as a 
@@ -98,11 +97,11 @@ namespace FezGame.MultiplayerMod
                     }
                     client.DropMulticastGroup(MulticastEndpoint.Address);
                     client.Close();
-                    // TODO: dispose managed state (managed objects)
+                    // dispose managed state (managed objects)
                 }
 
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-                // TODO: set large fields to null
+                // free unmanaged resources (unmanaged objects) and override finalizer
+                // set large fields to null
                 thisDisposed = true;
             }
         }

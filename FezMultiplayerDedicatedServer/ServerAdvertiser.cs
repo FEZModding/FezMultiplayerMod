@@ -7,7 +7,6 @@ using System.Text;
 
 namespace FezMultiplayerDedicatedServer
 {
-    //TODO test this class
     /// <summary>
     /// Transmits simple INI-formatted data to the specified <see cref="IPAddress"/>
     /// in the following format:
@@ -76,11 +75,11 @@ namespace FezMultiplayerDedicatedServer
                     myTimer.Dispose();
                     //client.DropMulticastGroup(MulticastEndpoint.Address);
                     client.Close();
-                    // TODO: dispose managed state (managed objects)
+                    // dispose managed state (managed objects)
                 }
 
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-                // TODO: set large fields to null
+                // free unmanaged resources (unmanaged objects) and override finalizer
+                // set large fields to null
                 thisDisposed = true;
             }
         }
