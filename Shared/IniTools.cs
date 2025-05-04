@@ -16,6 +16,46 @@ namespace FezSharedTools
 {
     internal sealed class IniTools
     {
+        /// <summary>
+        /// Attempts to parse the provided string into an IP endpoint, throwing an <see cref="ArgumentException"/> if it is not in a valid format. 
+        /// </summary>
+        /// <remarks>
+        /// Note: For IPV6 endpoints, please encase the IPV6 address in square brackets, followed by a colon and then the port. e.g. <c>[::1]:7777</c><br />
+        /// For IPV4 endpoints, the typical dotted decimal notation (e.g. <c>127.0.0.1:7777</c>) is the correct format.
+        /// </remarks>
+        /// <param name="str">The string to attempt to parse into an IP Endpoint</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException">if the provided string is not in a valid format</exception>
+        public static IPEndPoint TryParseIPEndPoint(string str)
+        {
+            try
+            {
+                str = str.Trim();
+                int portsepindex = str.LastIndexOf(':');
+                string addr;//Note: the replaces are for IPv6
+                int port;
+                if (portsepindex < 0)
+                {
+                    portsepindex = str.Length;
+                    port = SharedConstants.DefaultPort;
+                    string msg = $"port for endpoint \"{str}\" not found. Using default port ({SharedConstants.DefaultPort})";
+#if FEZCLIENT
+                    Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, msg);
+#endif
+                    Console.WriteLine("Warning: " + msg);
+                }
+                else
+                {
+                    port = int.Parse(str.Substring(portsepindex + 1));
+                }
+                addr = str.Substring(0, portsepindex).Replace("[", "").Replace("]", "");//Note: the replaces are for IPv6
+                return new IPEndPoint(IPAddress.Parse(addr), port);
+            }
+            catch (Exception e)
+            {
+                throw new ArgumentException($"String \"{str}\" is not a valid IPEndPoint.", "str", e);
+            }
+        }
         private const char IniKeyValDelimiter = '=';
         /// <summary>
         /// Reads the values from a file in INI format and assigns the values to the public fields of the same names in object <c>settings</c>.
@@ -129,33 +169,7 @@ namespace FezSharedTools
                 }
                 if (typeof(IPEndPoint).Equals(t))
                 {
-                    try
-                    {
-                        str = str.Trim();
-                        int portsepindex = str.LastIndexOf(':');
-                        string addr;//Note: the replaces are for IPv6
-                        int port;
-                        if (portsepindex < 0)
-                        {
-                            portsepindex = str.Length;
-                            port = SharedConstants.DefaultPort;
-                            string msg = $"port for endpoint \"{str}\" not found. Using default port ({SharedConstants.DefaultPort})";
-#if FEZCLIENT
-                            Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, msg);
-#endif
-                            Console.WriteLine("Warning: " + msg);
-                        }
-                        else
-                        {
-                            port = int.Parse(str.Substring(portsepindex + 1));
-                        }
-                        addr = str.Substring(0, portsepindex).Replace("[", "").Replace("]", "");//Note: the replaces are for IPv6
-                        return new IPEndPoint(IPAddress.Parse(addr), port);
-                    }
-                    catch (Exception e)
-                    {
-                        throw new ArgumentException($"String \"{str}\" is not a valid IPEndPoint.", "str", e);
-                    }
+                    return TryParseIPEndPoint(str);
                 }
                 if (t.IsArray)
                 {
