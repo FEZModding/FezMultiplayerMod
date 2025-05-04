@@ -129,19 +129,20 @@ namespace FezGame.MultiplayerMod
             //ServerInfoList.AddRange()
         }
         private static Hook MenuInitHook = null;
+        private static Hook MenuUpOneLevelHook = null;
         private static readonly List<Tuple<string, Action>> CustomMenuOptions = new List<Tuple<string, Action>>();
-        private static void InitFakeMenuLevel()
+        private static event Action OnMenuUpOneLevel = () => { };
+        static ServerListMenu()
         {
+            const BindingFlags privBind = BindingFlags.NonPublic | BindingFlags.Instance;
             Type MainMenuType = typeof(Fez).Assembly.GetType("FezGame.Components.MainMenu");
             Type MenuBaseType = typeof(Fez).Assembly.GetType("FezGame.Components.MenuBase");
             Type MenuLevelType = typeof(Fez).Assembly.GetType("FezGame.Structure.MenuLevel");
 
             void CreateAndAddCustomLevels(object MenuBase)
             {
-                const BindingFlags privBind = BindingFlags.NonPublic | BindingFlags.Instance;
-
-                // prepare main menu object
                 object MenuRoot = null;
+                // prepare main menu object
                 if (MenuBase.GetType() == MainMenuType)
                 {
                     MenuRoot = MainMenuType.GetField("RealMenuRoot", privBind).GetValue(MenuBase);
@@ -194,6 +195,17 @@ namespace FezGame.MultiplayerMod
                     })
                 );
             }
+            if (MenuUpOneLevelHook == null)
+            {
+                MenuUpOneLevelHook = new Hook(
+                    MenuBaseType.GetMethod("UpOneLevel", privBind),
+                    new Action<Action<object, object>, object, object>((orig, self, menulevel) =>
+                    {
+                        orig(self, menulevel);
+                        OnMenuUpOneLevel();
+                    })
+                );
+            }
         }
         private static void AddFakeMenuLevel(string text, Action onSelect)
         {
@@ -206,8 +218,12 @@ namespace FezGame.MultiplayerMod
             Instance = this;
             drawer = new SpriteBatch(GraphicsDevice);
 
-            InitFakeMenuLevel();
             AddFakeMenuLevel("@MULTIPLAYER", () => HasFocus = true);
+            OnMenuUpOneLevel += () =>
+            {
+                HasFocus = false;
+                CurrentMenuLevel = Menu_None;
+            };
 
             _ = Waiters.Wait(() =>
             {
@@ -377,7 +393,10 @@ namespace FezGame.MultiplayerMod
         {
             List<MenuListOption> list = new List<MenuListOption>();
             CurrentMenuLevel.AddOptions(list);
-            list.Add(OptionBack);
+            if (CurrentMenuLevel != Menu_ServerList)
+            {
+                list.Add(OptionBack);
+            }
             return list;
         }
         private void MenuBack()
