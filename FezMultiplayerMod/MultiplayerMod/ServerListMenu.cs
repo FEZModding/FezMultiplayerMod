@@ -307,7 +307,7 @@ namespace FezGame.MultiplayerMod
             Menu_ServerSelected = new MenuLevel("Selected Server", parent: Menu_ServerList, list =>
             {
                 list.Add(OptionJoin);
-                if (!selectedInfo.GetType().IsAssignableFrom(typeof(LANServerInfo)))
+                if (selectedInfo.GetType().Name != typeof(LANServerInfo).Name)
                 {
                     list.Add(OptionRemove);
                 }
@@ -470,6 +470,7 @@ namespace FezGame.MultiplayerMod
         private void RemoveServerConfirmed()
         {
             ServerInfoList.Remove(selectedInfo);
+            CurrentMenuLevel = Menu_ServerList;
         }
 
         private void ForceRefreshOptionsList()
