@@ -272,18 +272,19 @@ namespace FezGame.MultiplayerMod
             ServiceHelper.AddComponent(NameTextbox = new TextInputLogicComponent(game) { Value = "Test" });
             ServiceHelper.AddComponent(AddressTextbox = new TextInputLogicComponent(game));
             string framedTextEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}";
+            string framedTextDisableEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.NotFramedNotEncircled}{RichTextRenderer.CSICommands.SGR}";
             const int textboxPadRight = 30;
             TextInputLogicComponent.TextboxPadRight = textboxPadRight;
-            string textboxInitialText = framedTextEscapeCode.PadRight(textboxPadRight);
+            string textboxInitialText = framedTextEscapeCode.PadRight(textboxPadRight) + framedTextDisableEscapeCode;
             MenuListOption OptionNameTextbox = new MenuListOption("Name: " + textboxInitialText, () => NameTextbox.HasFocus = true, () => NameTextbox.HasFocus = false);
             MenuListOption OptionAddressTextbox = new MenuListOption("Address: " + textboxInitialText, () => AddressTextbox.HasFocus = true, () => AddressTextbox.HasFocus = false);
             string baseNameName = "Name: " + framedTextEscapeCode;
             string baseAddressName = "Address: " + framedTextEscapeCode;
             OptionAddServer.Enabled = false;
-            NameTextbox.OnUpdate += () => { OptionNameTextbox.DisplayText = baseNameName + NameTextbox.DisplayValue; };
+            NameTextbox.OnUpdate += () => { OptionNameTextbox.DisplayText = baseNameName + NameTextbox.DisplayValue + framedTextDisableEscapeCode; };
             AddressTextbox.OnUpdate += () =>
             {
-                OptionAddressTextbox.DisplayText = baseAddressName + AddressTextbox.DisplayValue;
+                OptionAddressTextbox.DisplayText = baseAddressName + AddressTextbox.DisplayValue + framedTextDisableEscapeCode;
                 //Check the IPEndPoint is valid
                 try
                 {
