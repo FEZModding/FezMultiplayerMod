@@ -47,11 +47,14 @@ namespace FezGame.MultiplayerMod
         {
             public string DisplayText;
             public readonly Action Action;
+            public readonly Action OnMoveToOtherOption;
             public bool Enabled = true;
-            public MenuListOption(string text, Action action)
+
+            public MenuListOption(string text, Action action, Action onMoveToOtherOption = null)
             {
                 this.DisplayText = text;
                 this.Action = action;
+                this.OnMoveToOtherOption = onMoveToOtherOption;
             }
             public MenuListOption(string text, Func<MenuLevel> submenuSupplier)
             {
@@ -265,20 +268,22 @@ namespace FezGame.MultiplayerMod
             MenuListOption OptionJoin = new MenuListOption("Join", JoinServer);
             MenuListOption OptionRefreshLAN = new MenuListOption("Refresh LAN servers", ForceRefreshOptionsList);
 
-            NameTextbox = new TextInputLogicComponent(game) { Value = "Test" };
-            AddressTextbox = new TextInputLogicComponent(game);
+
+            ServiceHelper.AddComponent(NameTextbox = new TextInputLogicComponent(game) { Value = "Test" });
+            ServiceHelper.AddComponent(AddressTextbox = new TextInputLogicComponent(game));
             string framedTextEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}";
             const int textboxPadRight = 30;
+            TextInputLogicComponent.TextboxPadRight = textboxPadRight;
             string textboxInitialText = framedTextEscapeCode.PadRight(textboxPadRight);
-            MenuListOption OptionNameTextbox = new MenuListOption("Name: " + textboxInitialText, () => NameTextbox.Focus());
-            MenuListOption OptionAddressTextbox = new MenuListOption("Address: " + textboxInitialText, () => AddressTextbox.Focus());
+            MenuListOption OptionNameTextbox = new MenuListOption("Name: " + textboxInitialText, () => NameTextbox.HasFocus = true, () => NameTextbox.HasFocus = false);
+            MenuListOption OptionAddressTextbox = new MenuListOption("Address: " + textboxInitialText, () => AddressTextbox.HasFocus = true, () => AddressTextbox.HasFocus = false);
             string baseNameName = "Name: " + framedTextEscapeCode;
             string baseAddressName = "Address: " + framedTextEscapeCode;
             OptionAddServer.Enabled = false;
-            NameTextbox.OnInput += () => { OptionNameTextbox.DisplayText = baseNameName + NameTextbox.Value.PadRight(textboxPadRight); };
-            AddressTextbox.OnInput += () =>
+            NameTextbox.OnUpdate += () => { OptionNameTextbox.DisplayText = baseNameName + NameTextbox.DisplayValue; };
+            AddressTextbox.OnUpdate += () =>
             {
-                OptionAddressTextbox.DisplayText = baseAddressName + AddressTextbox.Value.PadRight(textboxPadRight);
+                OptionAddressTextbox.DisplayText = baseAddressName + AddressTextbox.DisplayValue;
                 //Check the IPEndPoint is valid
                 try
                 {
@@ -530,6 +535,7 @@ namespace FezGame.MultiplayerMod
                 {
                     if(currentIndex > 0)
                     {
+                        cachedMenuListOptions?.ElementAt(currentIndex)?.OnMoveToOtherOption?.Invoke();
                         sCursorUp.Emit();
                         currentIndex--;
                     }
@@ -539,6 +545,7 @@ namespace FezGame.MultiplayerMod
                 {
                     if (currentIndex < maxIndex)
                     {
+                        cachedMenuListOptions?.ElementAt(currentIndex)?.OnMoveToOtherOption?.Invoke();
                         sCursorDown.Emit();
                         currentIndex++;
                     }
@@ -595,6 +602,7 @@ namespace FezGame.MultiplayerMod
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 Vector2 position = Vector2.Zero;
                 position.Y = GraphicsDevice.Viewport.Height * 0.15f;
+                const float lineHeightModifier = 8;
                 int i = 0;
                 {
                     const string underlineStart = "\x1B[21m";
@@ -623,6 +631,11 @@ namespace FezGame.MultiplayerMod
                     string text = $"{(selected ? ">" : " ")} {optionName} {(selected ? "<" : " ")}";
                     Vector2 lineSize = RichTextRenderer.MeasureString(Fonts, text);
                     position.X = GraphicsDevice.Viewport.Width / 2 - lineSize.X / 2;
+                    if (text.Contains($"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}")
+                    || text.Contains($"{RichTextRenderer.ESC}{RichTextRenderer.C1_EscapeSequences.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}"))
+                    {
+                        position.Y += lineHeightModifier;
+                    }
                     RichTextRenderer.DrawString(drawer, Fonts, text, position + Vector2.One, Color.Black);
                     RichTextRenderer.DrawString(drawer, Fonts, text, position, Color.White);
                     position.Y += lineSize.Y;
