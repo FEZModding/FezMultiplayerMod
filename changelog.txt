@@ -51,6 +51,7 @@ countless bug fixes and improvements
 
 0.5.0
 Added in-game multiplayer server menu
+Breaking change: the "ServerList" client setting replaces the old "MainEndpoint" setting. Please use the new in-game menu to modify the server list.
 Added rudimentary LAN server discovery
 Added Multiplayer Server `DoAdvertiseServer` setting
 Added Multiplayer Server command line argument `--settings-file`
