@@ -24,18 +24,32 @@ using static FezEngine.Structure.SoundEffectExtensions;
 
 namespace FezGame.MultiplayerMod
 {
+    public class ServerInfo
+    {
+        private const char GroupSeparator = '\x1D';
+        public string Name;
+        public readonly IPEndPoint Endpoint;
+        public ServerInfo(string text, IPEndPoint endpoint)
+        {
+            this.Name = text;
+            this.Endpoint = endpoint;
+        }
+        public override string ToString()
+        {
+            return Name + GroupSeparator + Endpoint;
+        }
+        public static ServerInfo Parse(string str)
+        {
+            string[] parts = str.Split(GroupSeparator);
+            if(parts.Length != 2)
+            {
+                throw new ArgumentException("Invalid ServerInfo Format");
+            }
+            return new ServerInfo(parts[0], IniTools.TryParseIPEndPoint(parts[1]));
+        }
+    }
     internal sealed class ServerListMenu : DrawableGameComponent
     {
-        public class ServerInfo
-        {
-            public string Name;
-            public readonly IPEndPoint Endpoint;
-            public ServerInfo(string text, IPEndPoint endpoint)
-            {
-                this.Name = text;
-                this.Endpoint = endpoint;
-            }
-        }
         private class LANServerInfo : ServerInfo
         {
             public long lastUpdate;
@@ -134,8 +148,8 @@ namespace FezGame.MultiplayerMod
         /// <param name="settings">The settings object from which to load the server list</param>
         public void LoadServerSettings(MultiplayerClientSettings settings)
         {
-            //TODO load the server list from the supplied settings into ServerInfoList
-            //ServerInfoList.AddRange()
+            //load the server list from the supplied settings into ServerInfoList
+            ServerInfoList.AddRange(settings.ServerList);
         }
         private static Hook MenuInitHook = null;
         private static Hook MenuUpOneLevelHook = null;
@@ -462,7 +476,7 @@ namespace FezGame.MultiplayerMod
             {
                 IPEndPoint endpoint = IniTools.TryParseIPEndPoint(address);
                 ServerInfoList.Add(new ServerInfo(name, endpoint));
-                //TODO
+                OnServerListChange(ServerInfoList.AsReadOnly());
                 MenuBack();
             }
             catch (ArgumentException) { }
@@ -470,6 +484,7 @@ namespace FezGame.MultiplayerMod
         private void RemoveServerConfirmed()
         {
             ServerInfoList.Remove(selectedInfo);
+            OnServerListChange(ServerInfoList.AsReadOnly());
             CurrentMenuLevel = Menu_ServerList;
         }
 

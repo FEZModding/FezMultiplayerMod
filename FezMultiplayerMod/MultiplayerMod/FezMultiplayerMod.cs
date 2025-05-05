@@ -129,6 +129,8 @@ namespace FezGame.MultiplayerMod
             serverListMenu.LoadServerSettings(settings);
             serverListMenu.OnServerListChange += (serverList =>
             {
+                settings.ServerList.Clear();
+                settings.ServerList.AddRange(serverList);
                 IniTools.WriteSettingsFile(SettingsFilePath, settings);
             });
 

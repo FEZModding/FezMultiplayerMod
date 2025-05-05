@@ -1,5 +1,7 @@
 ﻿using System.Net;
 using System.ComponentModel;
+using System.Collections.Generic;
+using static FezGame.MultiplayerMod.ServerListMenu;
 
 namespace FezGame.MultiplayerMod
 {
@@ -10,10 +12,12 @@ namespace FezGame.MultiplayerMod
     {
         private const int DefaultPort = 7777;
         /// <summary>
-        /// The endpoint to connect to. Note: IPv6 must be in brackets like [::1]:7777
+        /// The list of endpoints in the Server List. Note: IPv6 should be in brackets like [::1]:7777
         /// </summary>
-        [Description("The endpoint to connect to. Note: IPv6 must be in brackets like [::1]:7777")]
-        public IPEndPoint MainEndpoint = new IPEndPoint(IPAddress.Loopback, DefaultPort);
+        [Description("The list of endpoints in the Server List. Note: IPv6 should be in brackets like [::1]:7777")]
+        public List<ServerInfo> ServerList = new List<ServerInfo>(){
+            new ServerInfo("localhost", new IPEndPoint(IPAddress.Loopback, DefaultPort))
+        };
         /// <summary>
         /// A string representing the name to display for this client.
         /// </summary>

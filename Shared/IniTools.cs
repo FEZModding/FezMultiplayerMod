@@ -3,6 +3,9 @@
 #if !FEZCLIENT
 using FezMultiplayerDedicatedServer;
 #endif
+#if FEZCLIENT
+using FezGame.MultiplayerMod;
+#endif
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -14,8 +17,16 @@ using System.Text.RegularExpressions;
 
 namespace FezSharedTools
 {
+    internal static class TypeExtensions
+    {
+        public static bool IsListType(this Type type)
+        {
+            return (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>));
+        }
+    }
     internal sealed class IniTools
     {
+        
         /// <summary>
         /// Attempts to parse the provided string into an IP endpoint, throwing an <see cref="ArgumentException"/> if it is not in a valid format. 
         /// </summary>
@@ -93,7 +104,7 @@ namespace FezSharedTools
                 if (fields.ContainsKey(key))
                 {
                     FieldInfo f = fields[key];
-                    object v = ParseObject(f.FieldType, value.Trim());
+                    object v = ParseObject(f.FieldType, value.Trim(), f, settings);
                     if (v != null)
                     {
                         f.SetValue(settings, v);
@@ -138,20 +149,29 @@ namespace FezSharedTools
 
             File.WriteAllLines(filepath, lines, System.Text.Encoding.UTF8);
         }
+        private const char RecordSeparator = '\x1E';
         private static string FormatObject(object obj)
         {
             if (obj == null)
             {
                 return "";
             }
-            if (obj.GetType().IsArray)
+            if (obj.GetType().IsListType())
             {
-                object[] arr = (object[])obj;
-                return String.Join(", ", arr);
+                System.Collections.IList list = ((System.Collections.IList)obj);
+                string s = "";
+                for(int i=0;i<list.Count; ++i)
+                {
+                    s += list[i];
+                    if(i+1<list.Count){
+                        s += RecordSeparator.ToString();
+                    }
+                }
+                return s;
             }
             return "" + obj;
         }
-        private static object ParseObject(Type t, string str)
+        private static object ParseObject(Type t, string str, FieldInfo fieldInfo, object containingObject)
         {
             try
             {
@@ -171,13 +191,19 @@ namespace FezSharedTools
                 {
                     return TryParseIPEndPoint(str);
                 }
-                if (t.IsArray)
+                if (t.IsListType())
                 {
-                    Type elementType = t.GetElementType();
-                    return str.Split(',').Select(a =>
+                    Type listItemType = fieldInfo.FieldType.GetGenericArguments()[0];
+                    System.Collections.IList list = (System.Collections.IList)fieldInfo.GetValue(containingObject);
+                    list.Clear();
+                    str.Split(RecordSeparator).Select(a =>
                     {
-                        return ParseObject(elementType, a);
-                    }).ToArray();
+                        return ParseObject(listItemType, a, fieldInfo, containingObject);
+                    }).Where(s => s != null).ToList().ForEach(a =>
+                    {
+                        list.Add(a);
+                    });
+                    return list;
                 }
                 if (typeof(string).Equals(t))
                 {
@@ -187,6 +213,19 @@ namespace FezSharedTools
                 if (typeof(IPFilter).Equals(t))
                 {
                     return new IPFilter(str);
+                }
+#endif
+#if FEZCLIENT
+                if (typeof(ServerInfo).Equals(t))
+                {
+                    try
+                    {
+                        return ServerInfo.Parse(str);
+                    }
+                    catch(ArgumentException)
+                    {
+                        return null;
+                    }
                 }
 #endif
             }
