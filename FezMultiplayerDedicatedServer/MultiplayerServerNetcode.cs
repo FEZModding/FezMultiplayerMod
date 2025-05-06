@@ -90,7 +90,7 @@ namespace FezMultiplayerDedicatedServer
                     listenerSocket.Listen(10); // Listen for incoming connections, with a specified backlog
                     initializing = false;
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     if (settings.MaxAdjustListenPortOnBindFail > retries++)
                     {

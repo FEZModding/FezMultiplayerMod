@@ -37,7 +37,7 @@ namespace FezSharedTools
         /// <param name="str">The string to attempt to parse into an IP Endpoint</param>
         /// <returns></returns>
         /// <exception cref="ArgumentException">if the provided string is not in a valid format</exception>
-        public static IPEndPoint TryParseIPEndPoint(string str)
+        public static IPEndPoint TryParseIPEndPoint(string str, bool suppressWarnings = false)
         {
             try
             {
@@ -49,11 +49,14 @@ namespace FezSharedTools
                 {
                     portsepindex = str.Length;
                     port = SharedConstants.DefaultPort;
-                    string msg = $"port for endpoint \"{str}\" not found. Using default port ({SharedConstants.DefaultPort})";
+                    if (!suppressWarnings)
+                    {
+                        string msg = $"port for endpoint \"{str}\" not found. Using default port ({SharedConstants.DefaultPort})";
 #if FEZCLIENT
-                    Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, msg);
+                        Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, msg);
 #endif
-                    Console.WriteLine("Warning: " + msg);
+                        Console.WriteLine("Warning: " + msg);
+                    }
                 }
                 else
                 {

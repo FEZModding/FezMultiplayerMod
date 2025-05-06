@@ -64,6 +64,9 @@ namespace FezGame.MultiplayerMod
             public readonly Action OnMoveToOtherOption;
             public bool Enabled = true;
 
+            public MenuListOption()
+            {
+            }
             public MenuListOption(string text, Action action, Action onMoveToOtherOption = null)
             {
                 this.DisplayText = text;
@@ -74,6 +77,33 @@ namespace FezGame.MultiplayerMod
             {
                 this.DisplayText = text;
                 this.Action = ()=> { Instance.CurrentMenuLevel = submenuSupplier.Invoke(); };
+            }
+        }
+        private class MenuListTextInput
+        {
+            private static readonly string framedTextEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}";
+            private static readonly string framedTextDisableEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.NotFramedNotEncircled}{RichTextRenderer.CSICommands.SGR}";
+            public static int TextboxPadRight
+            {
+                get => TextInputLogicComponent.TextboxPadRight;
+                set => TextInputLogicComponent.TextboxPadRight = value;
+            }
+            public string Value => hiddenInputElement.Value;
+            public readonly MenuListOption MenuListOption;
+            private readonly TextInputLogicComponent hiddenInputElement;
+
+            public MenuListTextInput(Game game, string label, Action<string> OnUpdate = null)
+            {
+                string textboxInitialText = framedTextEscapeCode.PadRight(TextboxPadRight) + framedTextDisableEscapeCode;
+                string baseName = label + framedTextEscapeCode;
+                hiddenInputElement = new TextInputLogicComponent(game);
+                ServiceHelper.AddComponent(hiddenInputElement);
+                MenuListOption = new MenuListOption(label + textboxInitialText, () => hiddenInputElement.HasFocus = true, () => hiddenInputElement.HasFocus = false);
+                hiddenInputElement.OnUpdate += () =>
+                {
+                    MenuListOption.DisplayText = baseName + hiddenInputElement.DisplayValue + framedTextDisableEscapeCode;
+                    OnUpdate?.Invoke(hiddenInputElement.Value);
+                };
             }
         }
         private class MenuLevel
@@ -121,7 +151,7 @@ namespace FezGame.MultiplayerMod
         private readonly ConcurrentDictionary<IPEndPoint, LANServerInfo> LANServerInfoList = new ConcurrentDictionary<IPEndPoint, LANServerInfo>();
         private readonly MultiplayerClient mp;
 
-        //declared on class scope so we can also trigger it when the back button is pressed
+        //declared on class scope so we can add it to every menu
         private readonly MenuListOption OptionBack;
         //declared on class scope so we can toggle Enabled
         private readonly MenuListOption OptionDisconnect;
@@ -132,8 +162,8 @@ namespace FezGame.MultiplayerMod
         private readonly MenuLevel Menu_ServerAdd;
         private readonly MenuLevel Menu_ServerRemove;
 
-        private readonly TextInputLogicComponent NameTextbox;
-        private readonly TextInputLogicComponent AddressTextbox;
+        private readonly MenuListTextInput NameTextbox;
+        private readonly MenuListTextInput AddressTextbox;
 
         /// <summary>
         /// TODO call this with <c><see cref="ServerInfoList"/>.AsReadOnly()</c> when <see cref="ServerInfoList"/> changes <br />
@@ -151,8 +181,8 @@ namespace FezGame.MultiplayerMod
             //load the server list from the supplied settings into ServerInfoList
             ServerInfoList.AddRange(settings.ServerList);
         }
-        private static Hook MenuInitHook = null;
-        private static Hook MenuUpOneLevelHook = null;
+        private static readonly Hook MenuInitHook = null;
+        private static readonly Hook MenuUpOneLevelHook = null;
         private static readonly List<Tuple<string, Action>> CustomMenuOptions = new List<Tuple<string, Action>>();
         private static event Action OnMenuUpOneLevel = () => { };
         static ServerListMenu()
@@ -270,7 +300,7 @@ namespace FezGame.MultiplayerMod
             });
             mp = client;
 
-            //declared on class scope so we can be ran it when the back button is pressed
+            //declared on class scope so we can add it to every menu
             OptionBack = new MenuListOption("Back", MenuBack);
             //declared on class scope so we can toggle Enabled
             OptionDisconnect = new MenuListOption("Disconnect from server", LeaveServer) { Enabled = false };
@@ -283,33 +313,23 @@ namespace FezGame.MultiplayerMod
             MenuListOption OptionRefreshLAN = new MenuListOption("Refresh LAN servers", ForceRefreshOptionsList);
 
 
-            ServiceHelper.AddComponent(NameTextbox = new TextInputLogicComponent(game) { Value = "Test" });
-            ServiceHelper.AddComponent(AddressTextbox = new TextInputLogicComponent(game));
-            string framedTextEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}";
-            string framedTextDisableEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.NotFramedNotEncircled}{RichTextRenderer.CSICommands.SGR}";
             const int textboxPadRight = 30;
-            TextInputLogicComponent.TextboxPadRight = textboxPadRight;
-            string textboxInitialText = framedTextEscapeCode.PadRight(textboxPadRight) + framedTextDisableEscapeCode;
-            MenuListOption OptionNameTextbox = new MenuListOption("Name: " + textboxInitialText, () => NameTextbox.HasFocus = true, () => NameTextbox.HasFocus = false);
-            MenuListOption OptionAddressTextbox = new MenuListOption("Address: " + textboxInitialText, () => AddressTextbox.HasFocus = true, () => AddressTextbox.HasFocus = false);
-            string baseNameName = "Name: " + framedTextEscapeCode;
-            string baseAddressName = "Address: " + framedTextEscapeCode;
-            OptionAddServer.Enabled = false;
-            NameTextbox.OnUpdate += () => { OptionNameTextbox.DisplayText = baseNameName + NameTextbox.DisplayValue + framedTextDisableEscapeCode; };
-            AddressTextbox.OnUpdate += () =>
+            MenuListTextInput.TextboxPadRight = textboxPadRight;
+            NameTextbox = new MenuListTextInput(game, "Name: ");
+            AddressTextbox = new MenuListTextInput(game, "Address: ", (value) =>
             {
-                OptionAddressTextbox.DisplayText = baseAddressName + AddressTextbox.DisplayValue + framedTextDisableEscapeCode;
                 //Check the IPEndPoint is valid
                 try
                 {
-                    _ = IniTools.TryParseIPEndPoint(AddressTextbox.Value);
+                    _ = IniTools.TryParseIPEndPoint(value, true);
                     OptionAddServer.Enabled = true;
                 }
                 catch
                 {
                     OptionAddServer.Enabled = false;
                 }
-            };
+            });
+            OptionAddServer.Enabled = false;
 
             Menu_ServerList = new MenuLevel("Server List", parent: Menu_None, list =>
             {
@@ -329,8 +349,8 @@ namespace FezGame.MultiplayerMod
             Menu_ServerAdd = new MenuLevel("Add Server", parent: Menu_ServerList, list =>
             {
                 //TODO add textbox
-                list.Add(OptionNameTextbox);
-                list.Add(OptionAddressTextbox);
+                list.Add(NameTextbox.MenuListOption);
+                list.Add(AddressTextbox.MenuListOption);
                 list.Add(OptionAddServer);
             });
             Menu_ServerRemove = new MenuLevel("Remove Server?", parent: Menu_ServerSelected, list =>

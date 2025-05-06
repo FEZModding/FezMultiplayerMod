@@ -384,14 +384,37 @@ namespace FezGame.MultiplayerMod
                 drawer.End();
                 break;
             case ConnectionState.Connecting:
-                s += "Connecting to "+mp.RemoteEndpoint;
+                s += "Connecting to " + mp.RemoteEndpoint;
                 break;
             case ConnectionState.Disconnected:
                 s += "Not connected";
                 break;
+            default:
+                break;
+            }
+            if (mp.FatalException != null)
+            {
+                if(!ShowingFatalException){
+                    ShowingFatalException = true;
+                    ShowingFatalExceptionStartTimestamp = gameTime.TotalGameTime;
+#if DEBUG
+                    System.Diagnostics.Debugger.Launch();
+                    //TODO relay connection problems to the user more effectively
+#endif
+                }
+                s += "\nWarning: " + mp.FatalException.Message;
+
+
+                if ((gameTime.TotalGameTime - ShowingFatalExceptionStartTimestamp).TotalSeconds > 10.0f)
+                {
+                    mp.FatalException = null;
+                    ShowingFatalException = false;
+                }
             }
             debugTextDrawer.Text = s;
         }
+        private bool ShowingFatalException = false;
+        private TimeSpan ShowingFatalExceptionStartTimestamp = TimeSpan.Zero;
 
         #region internal drawing stuff
 

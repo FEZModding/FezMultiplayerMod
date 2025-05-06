@@ -20,9 +20,17 @@ namespace FezGame.MultiplayerMod
         private Func<string,object> GetValueByNameOrFail;
         private bool TryGetCastedValueByName<T>(string name, out T castedVal)
         {
-            object rawVal = GetValueByNameOrFail(name);
-            castedVal = (T)rawVal;
-            return true;
+            try
+            {
+                object rawVal = GetValueByNameOrFail(name);
+                castedVal = (T)rawVal;
+                return true;
+            }
+            catch
+            {
+                castedVal = default;
+                return false;
+            }
         }
         private readonly SpriteBatch drawer;
         private IFontManager FontManager;

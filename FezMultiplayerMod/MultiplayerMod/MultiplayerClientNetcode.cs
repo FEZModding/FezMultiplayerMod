@@ -210,13 +210,13 @@ namespace FezGame.MultiplayerMod
                         else if (DateTime.UtcNow.Ticks - disconnectTime > reconnectTimeout)
                         {
                             //reconnection failed
-                            LogStatus(LogSeverity.Error, $"Failed to reconnect to {RemoteEndpoint}");
+                            LogStatus(LogSeverity.Warning, $"Failed to reconnect to {RemoteEndpoint}");
                             FatalException = e; // Record the fatal exception on failed connection attempts
                             break; // Exit the loop on persistent failures
                         }
                         else if (disconnectTime == null && !wasSuccessfullyConnected)
                         {
-                            LogStatus(LogSeverity.Error, $"Failed to connect to {RemoteEndpoint}");
+                            LogStatus(LogSeverity.Warning, $"Failed to connect to {endpoint}");
                             FatalException = e; // Record the fatal exception on failed connection attempts
                             break; // Exit the loop on persistent failures
                         }
@@ -231,8 +231,10 @@ namespace FezGame.MultiplayerMod
                 }
                 LogStatus(LogSeverity.Information, $"Connection with {RemoteEndpoint} terminated");
                 RemoteEndpoint = null;
-            });
-            listenerThread.Name = "Listener Thread";
+            })
+            {
+                Name = "Listener Thread"
+            };
             listenerThread.Start();
         }
 
@@ -294,11 +296,6 @@ namespace FezGame.MultiplayerMod
 
         public void Update()
         {
-            if (FatalException != null)
-            {
-                throw FatalException;
-            }
-
             if (!listening)
             {
                 return;
