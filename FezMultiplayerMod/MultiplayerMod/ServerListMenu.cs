@@ -41,11 +41,11 @@ namespace FezGame.MultiplayerMod
         public static ServerInfo Parse(string str)
         {
             string[] parts = str.Split(GroupSeparator);
-            if(parts.Length != 2)
+            if(parts.Length != 2 || !IniTools.TryParseIPEndPoint(parts[1], out IPEndPoint endpoint))
             {
                 throw new ArgumentException("Invalid ServerInfo Format");
             }
-            return new ServerInfo(parts[0], IniTools.TryParseIPEndPoint(parts[1]));
+            return new ServerInfo(parts[0], endpoint);
         }
     }
     internal sealed class ServerListMenu : DrawableGameComponent
@@ -319,15 +319,7 @@ namespace FezGame.MultiplayerMod
             AddressTextbox = new MenuListTextInput(game, "Address: ", (value) =>
             {
                 //Check the IPEndPoint is valid
-                try
-                {
-                    _ = IniTools.TryParseIPEndPoint(value, true);
-                    OptionAddServer.Enabled = true;
-                }
-                catch
-                {
-                    OptionAddServer.Enabled = false;
-                }
+                OptionAddServer.Enabled = IniTools.TryParseIPEndPoint(value, out IPEndPoint _, true);
             });
             OptionAddServer.Enabled = false;
 
@@ -494,7 +486,7 @@ namespace FezGame.MultiplayerMod
             string address = AddressTextbox.Value;
             try
             {
-                IPEndPoint endpoint = IniTools.TryParseIPEndPoint(address);
+                _ = IniTools.TryParseIPEndPoint(address, out IPEndPoint endpoint);
                 ServerInfoList.Add(new ServerInfo(name, endpoint));
                 OnServerListChange(ServerInfoList.AsReadOnly());
                 MenuBack();

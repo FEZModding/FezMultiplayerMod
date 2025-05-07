@@ -18,33 +18,31 @@ namespace FezGame.MultiplayerMod
         private readonly Hook ActHook;
         private Func<string> GetValues;
         private Func<string,object> GetValueByNameOrFail;
-        private bool TryGetCastedValueByName<T>(string name, out T castedVal)
+        private T GetCastedValueByNameOrDefault<T>(string name, T defaultValue)
         {
             try
             {
                 object rawVal = GetValueByNameOrFail(name);
-                castedVal = (T)rawVal;
-                return true;
+                return (T)rawVal;
             }
             catch
             {
-                castedVal = default;
-                return false;
+                return defaultValue;
             }
         }
         private readonly SpriteBatch drawer;
         private IFontManager FontManager;
-        private TimeSpan SinceActive => TryGetCastedValueByName<TimeSpan>("sinceActive", out var r) ? r : TimeSpan.Zero;
-        private ActorType TreasureActorType => TryGetCastedValueByName<ActorType>("treasureActorType", out var r) ? r : ActorType.None;
+        private TimeSpan SinceActive => GetCastedValueByNameOrDefault<TimeSpan>("sinceActive", TimeSpan.Zero);
+        private ActorType TreasureActorType => GetCastedValueByNameOrDefault<ActorType>("treasureActorType", ActorType.None);
         /// <summary>
         /// if the item collected is an art object (artifacts)
         /// <seealso cref="TreasureAoInstance"/>
         /// </summary>
-        private bool TreasureIsAo => TryGetCastedValueByName<bool>("treasureIsAo", out var r) ? r : false;
+        private bool TreasureIsAo => GetCastedValueByNameOrDefault<bool>("treasureIsAo", false);
         /// <summary>
         /// if the item collected is a map
         /// </summary>
-        private bool TreasureIsMap => TryGetCastedValueByName<bool>("treasureIsMap", out var r) ? r : false;
+        private bool TreasureIsMap => GetCastedValueByNameOrDefault<bool>("treasureIsMap", false);
         /// <summary>
         /// if the item collected is a trile (cubes and keys)
         /// <seealso cref="TreasureInstance"/>
@@ -53,15 +51,15 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// the chest the player is in front of
         /// </summary>
-        private ArtObjectInstance ChestAO => TryGetCastedValueByName<ArtObjectInstance>("chestAO", out var r) ? r : null;
+        private ArtObjectInstance ChestAO => GetCastedValueByNameOrDefault<ArtObjectInstance>("chestAO", null);
         /// <summary>
         /// the Trile for the item collected / spawned by the chest
         /// </summary>
-        private TrileInstance TreasureInstance => TryGetCastedValueByName<TrileInstance>("treasureInstance", out var r) ? r : null;
+        private TrileInstance TreasureInstance => GetCastedValueByNameOrDefault<TrileInstance>("treasureInstance", null);
         /// <summary>
         /// the Art Object for the item collected / spawned by the chest
         /// </summary>
-        private ArtObjectInstance TreasureAoInstance => TryGetCastedValueByName<ArtObjectInstance>("treasureAoInstance", out var r) ? r : null;
+        private ArtObjectInstance TreasureAoInstance => GetCastedValueByNameOrDefault<ArtObjectInstance>("treasureAoInstance", null);
         /**
          * <summary><para>
          * Note: when collecting maps, map name is stored in <br />
@@ -74,11 +72,11 @@ namespace FezGame.MultiplayerMod
         public OpenTreasureListener(Game game) : base(game)
         {
             DrawOrder = int.MaxValue;
-            Type OpenTreasureType = typeof(Fez).Assembly.GetType("FezGame.Components.Actions.OpenTreasure");
+            Type openTreasureType = typeof(Fez).Assembly.GetType("FezGame.Components.Actions.OpenTreasure");
 
-            MethodInfo ActMethod = OpenTreasureType.GetMethod("Act", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            MethodInfo actMethod = openTreasureType.GetMethod("Act", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
             ActHook = new Hook(
-                    ActMethod,
+                    actMethod,
                     new Func<Func<object, TimeSpan, bool>, object, TimeSpan, bool>((orig, self, elapsed) =>
                     {
                         return orig(self, elapsed);
@@ -88,7 +86,7 @@ namespace FezGame.MultiplayerMod
             var excludedTypes = new[] { "SoundEffect", "Texture2D", "Quaternion", "List", "Group", "Mesh" };
             var excludedNames = new[] { "^[Oo]ld", "^SinceCreated$", "^lastZoom$", "Service", "__BackingField",
                     "^treasureTrile$", "^treasureAo$"}.Select(s => new Regex(s));
-            var fieldNameFieldMap = OpenTreasureType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+            var fieldNameFieldMap = openTreasureType.GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
             .Where(fieldInfo =>
             {
                 string fieldType = fieldInfo.FieldType.Name.Split(new[] { '`', '[' })[0];
@@ -102,16 +100,16 @@ namespace FezGame.MultiplayerMod
             _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () =>
             {
                 FontManager = ServiceHelper.Get<IFontManager>();
-                object OpenTreasure = ServiceHelper.Game.Components.FirstOrDefault(c => c.GetType() == OpenTreasureType);
+                object openTreasure = ServiceHelper.Game.Components.FirstOrDefault(c => c.GetType() == openTreasureType);
                 GetValueByNameOrFail = (name) =>
                 {
-                    return fieldNameFieldMap[name].GetValue(OpenTreasure);
+                    return fieldNameFieldMap[name].GetValue(openTreasure);
                 };
                 GetValues = () =>
                 {
                     return String.Join("\n", fieldNameFieldMap.Select(p =>
                     {
-                        return p.Key + ": " + p.Value.GetValue(OpenTreasure);
+                        return p.Key + ": " + p.Value.GetValue(openTreasure);
                     }));
                 };
             });
@@ -203,20 +201,16 @@ namespace FezGame.MultiplayerMod
         }
         public override void Draw(GameTime gameTime)
         {
-            if (GetValueByNameOrFail != null)
+            if (GetValues != null)
             {
-                var a = new object[] { SinceActive, TreasureActorType, TreasureIsAo, TreasureIsMap, TreasureIsTrile, ChestAO, TreasureInstance, TreasureAoInstance };
-            }
-            if(GetValues != null)
-            {
-                string text = "Type: "+(TreasureIsAo ? "Ao" : (TreasureIsMap ? "Map" : "Trile")) + "\n"
-                + "Source: "+(ServiceHelper.Get<Services.IPlayerManager>().ForcedTreasure!=null ? "Forced" : (ChestAO != null ? "Chest" : (TreasureIsMap ? "Map" : "Trile"))) + "\n"
-                + "TreasureMapName: "+ TreasureMapName + "\n"
-                + "ActorType: "+ TreasureActorType + "\n"
-                + "IsCollecting: " + IsActive + "\n"
-                + "ArtObjectId: " + (ChestAO?.Id ?? TreasureAoInstance?.Id) + "\n"
-                + "TrileEmplacement: " + (TreasureInstance?.OriginalEmplacement) + "\n"
-                + "TrileIsForeign: " + (TreasureInstance?.Foreign) + "\n";
+                string text = $"IsCollecting: {IsActive}\n"
+                + $"Type: {(TreasureIsAo ? "Ao" : (TreasureIsMap ? "Map" : "Trile"))}\n"
+                + $"Source: {(ServiceHelper.Get<Services.IPlayerManager>().ForcedTreasure != null ? "Forced" : (ChestAO != null ? "Chest" : (TreasureIsMap ? "Map" : "Trile")))}\n"
+                + $"TreasureMapName: {TreasureMapName}\n"
+                + $"ActorType: {TreasureActorType}\n"
+                + $"ArtObjectId: {(ChestAO?.Id ?? TreasureAoInstance?.Id)}\n"
+                + $"TrileEmplacement: {(TreasureInstance?.OriginalEmplacement)}\n"
+                + $"TrileIsForeign: {(TreasureInstance?.Foreign)}\n";
                 //Note: Foreign is for triles that get spawned in, like code cubes, heart cubes, clock cubes, and fork cubes.
                 drawer.Begin();
 
