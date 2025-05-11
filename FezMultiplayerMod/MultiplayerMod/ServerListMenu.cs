@@ -542,10 +542,6 @@ namespace FezGame.MultiplayerMod
             {
                 return;
             }
-            if (Microsoft.Xna.Framework.Input.Keyboard.GetState().IsKeyDown(Microsoft.Xna.Framework.Input.Keys.F2))
-            {
-                HasFocus = true;
-            }
             SinceLastUpdateList += gameTime.ElapsedGameTime;
             if(SinceLastUpdateList > FirstUpdateInterval)
             {
