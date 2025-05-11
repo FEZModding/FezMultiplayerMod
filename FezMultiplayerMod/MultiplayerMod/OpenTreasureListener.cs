@@ -17,7 +17,7 @@ namespace FezGame.MultiplayerMod
     {
         private readonly Hook ActHook;
         private Func<string> GetValues;
-        private Func<string,object> GetValueByNameOrFail;
+        private Func<string, object> GetValueByNameOrFail;
         private T GetCastedValueByNameOrDefault<T>(string name, T defaultValue)
         {
             try
@@ -69,6 +69,12 @@ namespace FezGame.MultiplayerMod
          */
         private string TreasureMapName => ChestAO?.ActorSettings?.TreasureMapName ?? TreasureAoInstance?.ActorSettings?.TreasureMapName ?? null;
 
+        public struct TreasureCollectionData
+        {
+            //TODO
+        }
+        public event Action<TreasureCollectionData> OnTreasureCollected = (data) => { };
+
         public OpenTreasureListener(Game game) : base(game)
         {
             DrawOrder = int.MaxValue;
@@ -90,7 +96,7 @@ namespace FezGame.MultiplayerMod
             .Where(fieldInfo =>
             {
                 string fieldType = fieldInfo.FieldType.Name.Split(new[] { '`', '[' })[0];
-                return !excludedTypes.Contains(fieldType) && !excludedNames.Any(s=>s.IsMatch(fieldInfo.Name));
+                return !excludedTypes.Contains(fieldType) && !excludedNames.Any(s => s.IsMatch(fieldInfo.Name));
             })
             .ToDictionary(
                 fieldInfo => fieldInfo.Name,
@@ -183,8 +189,27 @@ namespace FezGame.MultiplayerMod
         }
         private TimeSpan? lastSinceActive = null;
         private bool IsActive = false;
+        private bool LastIsActive = false;
+        private long UpdatesSinceActiveStarted = 0;
+        private TimeSpan TimeSinceActiveStarted = TimeSpan.Zero;
+        private string debugText = "Waiting for treasure...";
+        private bool showDebugText = false;
+        private static FezEngine.Services.IKeyboardStateManager keyboard = null;
+        private static Microsoft.Xna.Framework.Input.Keys ShowDebugTextKey = Microsoft.Xna.Framework.Input.Keys.F2;
+        static OpenTreasureListener()
+        {
+            _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () =>
+            {
+                keyboard = ServiceHelper.Get<FezEngine.Services.IKeyboardStateManager>();
+                keyboard.RegisterKey(ShowDebugTextKey);
+            });
+        }
         public override void Update(GameTime gameTime)
         {
+            if (keyboard?.GetKeyState(ShowDebugTextKey) == FezEngine.Structure.Input.FezButtonState.Pressed)
+            {
+                showDebugText = !showDebugText;
+            }
             if (GetValues != null)
             {
                 var sinceActive = SinceActive;
@@ -197,30 +222,44 @@ namespace FezGame.MultiplayerMod
                     IsActive = lastSinceActive < sinceActive;
                     lastSinceActive = sinceActive;
                 }
+                if (IsActive != LastIsActive)
+                {
+                    UpdatesSinceActiveStarted = 0;
+                    TimeSinceActiveStarted = TimeSpan.Zero;
+                    if (IsActive)
+                    {
+                        debugText = $"IsCollecting: {IsActive}\n"
+                                + $"Type: {(TreasureIsAo ? "Ao" : (TreasureIsMap ? "Map" : "Trile"))}\n"
+                                + $"Source: {(ServiceHelper.Get<Services.IPlayerManager>().ForcedTreasure != null ? "Forced" : (ChestAO != null ? "Chest" : (TreasureIsMap ? "Map" : "Trile")))}\n"
+                                + $"TreasureMapName: {TreasureMapName}\n"
+                                + $"ActorType: {TreasureActorType}\n"
+                                + $"ArtObjectId: {ChestAO?.Id ?? TreasureAoInstance?.Id}\n"
+                                + $"TrileEmplacement: {TreasureInstance?.OriginalEmplacement}\n"
+                                + $"TrileIsForeign: {TreasureInstance?.Foreign}\n";
+                        //Note: Foreign is for triles that get spawned in, like code cubes, heart cubes, clock cubes, and fork cubes.
+                        OnTreasureCollected(new TreasureCollectionData());
+                    }
+                }
+                UpdatesSinceActiveStarted += 1;
+                TimeSinceActiveStarted += gameTime.ElapsedGameTime;
+                LastIsActive = IsActive;
             }
         }
         public override void Draw(GameTime gameTime)
         {
-            if (GetValues != null)
+#if DEBUG
+            if (showDebugText)
             {
-                string text = $"IsCollecting: {IsActive}\n"
-                + $"Type: {(TreasureIsAo ? "Ao" : (TreasureIsMap ? "Map" : "Trile"))}\n"
-                + $"Source: {(ServiceHelper.Get<Services.IPlayerManager>().ForcedTreasure != null ? "Forced" : (ChestAO != null ? "Chest" : (TreasureIsMap ? "Map" : "Trile")))}\n"
-                + $"TreasureMapName: {TreasureMapName}\n"
-                + $"ActorType: {TreasureActorType}\n"
-                + $"ArtObjectId: {(ChestAO?.Id ?? TreasureAoInstance?.Id)}\n"
-                + $"TrileEmplacement: {(TreasureInstance?.OriginalEmplacement)}\n"
-                + $"TrileIsForeign: {(TreasureInstance?.Foreign)}\n";
-                //Note: Foreign is for triles that get spawned in, like code cubes, heart cubes, clock cubes, and fork cubes.
                 drawer.Begin();
 
                 //align to bottom
-                Vector2 pos = Vector2.UnitY * (GraphicsDevice.Viewport.Height - FontManager.Big.MeasureString(text).Y * FontManager.BigFactor);
-                
-                drawer.DrawString(FontManager.Big, text, pos + Vector2.One, Color.Black, 0, Vector2.Zero, FontManager.BigFactor, SpriteEffects.None, 0);
-                drawer.DrawString(FontManager.Big, text, pos, Color.White, 0, Vector2.Zero, FontManager.BigFactor, SpriteEffects.None, 0);
+                Vector2 pos = Vector2.UnitY * (GraphicsDevice.Viewport.Height - FontManager.Big.MeasureString(debugText).Y * FontManager.BigFactor);
+
+                drawer.DrawString(FontManager.Big, debugText, pos + Vector2.One, Color.Black, 0, Vector2.Zero, FontManager.BigFactor, SpriteEffects.None, 0);
+                drawer.DrawString(FontManager.Big, debugText, pos, Color.White, 0, Vector2.Zero, FontManager.BigFactor, SpriteEffects.None, 0);
                 drawer.End();
             }
+#endif
         }
 
         protected override void Dispose(bool disposing)
