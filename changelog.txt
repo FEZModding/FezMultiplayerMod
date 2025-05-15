@@ -61,3 +61,4 @@ Fixed player list not getting cleared on client side when reconnecting to server
 Made server player list look nicer
 Fixed a crash in SaveDataObserver when loading certain save files
 Added support for C1 codes from Unicode block Latin-1 Supplement
+more bug fixes and improvements
