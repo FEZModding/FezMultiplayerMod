@@ -444,7 +444,7 @@ namespace FezGame.MultiplayerMod
         /// <returns>A <see cref="Vector2"/> representing the size of the text.</returns>
         public static Vector2 MeasureString(SpriteFont defaultFont, float defaultFontScale, string text)
         {
-            return ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, Vector2.One, (token, positionOffset) => { });
+            return ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, Vector2.One, (token, positionOffset, tokens, tokenIndex) => { });
         }
         #endregion
         #region DrawStringOverloads
@@ -551,15 +551,9 @@ namespace FezGame.MultiplayerMod
             float lineThickness = Math.Max(scaledMinLineSize, lineheight * lineThickness_LineheightPercentage);
             float doublelineOffsetOffset = Math.Max(lineThickness + scaledMinLineSize, lineheight * doublelineOffsetOffset_LineheightPercentage);
 
-            _ = ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, scale, (token, positionOffset) =>
+            _ = ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, scale, (token, positionOffset, tokens, tokenIndex) =>
             {
                 TextDecoration decoration = token.Style.Decoration;
-
-                if ((decoration & TextDecoration.Concealed) != 0)
-                {
-                    //Don't draw the characters if they're concealed
-                    return;
-                }
 
                 FontData fontData = token.Style.FontData;
                 Color textColor = token.Style.Color;
@@ -582,39 +576,50 @@ namespace FezGame.MultiplayerMod
 
                 DrawRect(offsetPosition, tokenSize.X, tokenSize.Y, backgroundColor);
 
-                batch.DrawString(fontData.Font, token.Text, offsetPosition, textColor, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
+                bool IsConcealed = (decoration & TextDecoration.Concealed) != 0;
 
-                //Draw text decorations
-                if ((decoration & TextDecoration.Underline) != 0)
+                //Draw the characters and decorations if they're not concealed
+                if (!IsConcealed)
                 {
-                    Vector2 underlinePosition = offsetPosition + underlineOffset * Vector2.UnitY;
-                    // draw line with width of token starting at position underlinePosition
-                    DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
-                    if ((decoration & TextDecoration.DoubleUnderline) != 0)
+                    batch.DrawString(fontData.Font, token.Text, offsetPosition, textColor, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
+
+                    //Draw text decorations
+                    if ((decoration & TextDecoration.Underline) != 0)
                     {
-                        underlinePosition += doublelineOffsetOffset * Vector2.UnitY;
+                        Vector2 underlinePosition = offsetPosition + underlineOffset * Vector2.UnitY;
                         // draw line with width of token starting at position underlinePosition
                         DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
+                        if ((decoration & TextDecoration.DoubleUnderline) != 0)
+                        {
+                            underlinePosition += doublelineOffsetOffset * Vector2.UnitY;
+                            // draw line with width of token starting at position underlinePosition
+                            DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
+                        }
                     }
-                }
-                if ((decoration & TextDecoration.Strikethrough) != 0)
-                {
-                    Vector2 strikethroughPosition = offsetPosition + strikethroughOffset * Vector2.UnitY;
-                    // draw line with width of token starting at position strikethroughPosition
-                    DrawRect(strikethroughPosition, tokenWidth, lineThickness, decorationColor);
-                }
-                if ((decoration & TextDecoration.Overline) != 0)
-                {
-                    Vector2 overlinePosition = offsetPosition + overlineOffset * Vector2.UnitY;
-                    // draw line with width of token starting at position overlinePosition
-                    DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
-                    if ((decoration & TextDecoration.DoubleOverline) != 0)
+                    if ((decoration & TextDecoration.Strikethrough) != 0)
                     {
-                        overlinePosition -= doublelineOffsetOffset * Vector2.UnitY;
+                        Vector2 strikethroughPosition = offsetPosition + strikethroughOffset * Vector2.UnitY;
+                        // draw line with width of token starting at position strikethroughPosition
+                        DrawRect(strikethroughPosition, tokenWidth, lineThickness, decorationColor);
+                    }
+                    if ((decoration & TextDecoration.Overline) != 0)
+                    {
+                        Vector2 overlinePosition = offsetPosition + overlineOffset * Vector2.UnitY;
                         // draw line with width of token starting at position overlinePosition
                         DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
+                        if ((decoration & TextDecoration.DoubleOverline) != 0)
+                        {
+                            overlinePosition -= doublelineOffsetOffset * Vector2.UnitY;
+                            // draw line with width of token starting at position overlinePosition
+                            DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
+                        }
+                    }
+                    if ((decoration & TextDecoration.StressMarking) != 0)
+                    {
+                        //TODO idk what this is supposed to look like
                     }
                 }
+                //draw the frame and circle regardless of the concealed status 
                 if ((decoration & TextDecoration.Framed) != 0)
                 {
                     // draw the outline of a box around the characters
@@ -624,20 +629,24 @@ namespace FezGame.MultiplayerMod
                     float boxHeight = tokenSize.Y + padding * 2 + lineThickness * 2;
                     //top
                     DrawRect(origin, boxWidth, lineThickness, decorationColor);
-                    //left
-                    DrawRect(origin, lineThickness, boxHeight, decorationColor);
+                    //left; check the previous token isn't also framed
+                    if (tokenIndex <= 0 || !(0 != (tokens[tokenIndex - 1].Style.Decoration & TextDecoration.Framed)))
+                    {
+                        //left
+                        DrawRect(origin, lineThickness, boxHeight, decorationColor);
+                    }
                     //bottom
                     DrawRect(origin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, decorationColor);
-                    //right
-                    DrawRect(origin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
+                    //right; check the next token isn't also framed
+                    if (tokenIndex+1 >= tokens.Count || !(0 != (tokens[tokenIndex + 1].Style.Decoration & TextDecoration.Framed)))
+                    {
+                        //right
+                        DrawRect(origin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
+                    }
                 }
                 if ((decoration & TextDecoration.Encircled) != 0)
                 {
                     //TODO draw the outline of an ellipse around the characters
-                }
-                if ((decoration & TextDecoration.StressMarking) != 0)
-                {
-                    //TODO idk what this is supposed to look like
                 }
             });
         }
@@ -683,13 +692,17 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         /// <param name="text">The text to process the escape codes on</param>
         /// <param name="onToken">
-        ///         The action to perform on each token,
-        ///         accepting a <see cref="TokenizedText"/> representing the calculated presentation settings and text for the token,
-        ///         and a <see cref="Vector2"/> representing the calculated top-left corner of the token.
+        ///         The action to perform on each token,<br />
+        ///         accepting a <see cref="TokenizedText"/> representing the calculated presentation settings and text for the token, <br />
+        ///         a <see cref="Vector2"/> representing the calculated top-left corner of the token,<br />
+        ///         a <see cref="List&lt;TokenizedText&gt;"/> containing all the <see cref="TokenizedText"/> for the current line of text, <br />
+        ///         and an <see cref="int"/> indicating the index of the current <see cref="TokenizedText"/> in the aforementioned list. 
         /// </param>
         /// <inheritdoc cref="MeasureString(SpriteFont, float, string)"/>
         /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, float, float)"/>
-        private static Vector2 ProcessECMA48EscapeCodes(in SpriteFont defaultFont, in float defaultFontScale, in string text, in Color defaultColor, in Color defaultBGColor, in Vector2 scale, Action<TokenizedText, Vector2> onToken)
+        private static Vector2 ProcessECMA48EscapeCodes(in SpriteFont defaultFont, in float defaultFontScale, 
+                in string text, in Color defaultColor, in Color defaultBGColor, in Vector2 scale,
+                Action<TokenizedText, Vector2, List<TokenizedText>, int> onToken)
         {
             /*
              * Note: currently, I think tokens are drawn with vertical-align: top
@@ -715,8 +728,9 @@ namespace FezGame.MultiplayerMod
                 List<TokenizedText> tokens = TokenizeChars(line, in defaultFontData, in defaultColor, in defaultBGColor, in defaultLineSpacing,
                         currentStyle, ref currentLineSpacing, ref sizeUnit
                         );
-                foreach (TokenizedText token in tokens)
+                for (int currentTokenIndex = 0; currentTokenIndex < tokens.Count; ++currentTokenIndex)
                 {
+                    TokenizedText token = tokens[currentTokenIndex];
                     FontData fontData = token.Style.FontData;
                     Vector2 tokensize;
                     try
@@ -728,7 +742,7 @@ namespace FezGame.MultiplayerMod
                         tokensize = fontData.Font.MeasureString("" + (fontData.Font.DefaultCharacter ?? ' ')) * fontData.Scale * scale;
                         System.Diagnostics.Debugger.Launch();
                     }
-                    onToken(token, currentPositionOffset);
+                    onToken(token, currentPositionOffset, tokens, currentTokenIndex);
                     linesize.Y = Math.Max(linesize.Y, tokensize.Y);
                     float tokenSizeXWithSpacing = tokensize.X + fontData.Font.Spacing;
                     linesize.X += tokenSizeXWithSpacing;
@@ -975,11 +989,12 @@ namespace FezGame.MultiplayerMod
                                         break;
                                     case '\x5D'://SDS - START DIRECTED STRING
                                         break;
-                                    case 'm':
 
+                                    case 'm':
                                         // Parse the escape sequence to change style data
                                         ParseSGREscape(parameters, defaultFontData, defaultColor, defaultBGColor, currentStyle);
                                         break;
+
                                     default:
                                         //Not supported escape code
                                         break;
