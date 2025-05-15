@@ -576,7 +576,7 @@ namespace FezGame.MultiplayerMod
 
                 DrawRect(offsetPosition, tokenSize.X, tokenSize.Y, backgroundColor);
 
-                bool IsConcealed = (decoration & TextDecoration.Concealed) != 0;
+                bool IsConcealed = decoration.HasFlag(TextDecoration.Concealed);
 
                 //Draw the characters and decorations if they're not concealed
                 if (!IsConcealed)
@@ -584,43 +584,43 @@ namespace FezGame.MultiplayerMod
                     batch.DrawString(fontData.Font, token.Text, offsetPosition, textColor, 0f, Vector2.Zero, fontData.Scale * scale, SpriteEffects.None, layerDepth);
 
                     //Draw text decorations
-                    if ((decoration & TextDecoration.Underline) != 0)
+                    if (decoration.HasFlag(TextDecoration.Underline))
                     {
                         Vector2 underlinePosition = offsetPosition + underlineOffset * Vector2.UnitY;
                         // draw line with width of token starting at position underlinePosition
                         DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
-                        if ((decoration & TextDecoration.DoubleUnderline) != 0)
+                        if (decoration.HasFlag(TextDecoration.DoubleUnderline))
                         {
                             underlinePosition += doublelineOffsetOffset * Vector2.UnitY;
                             // draw line with width of token starting at position underlinePosition
                             DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
                         }
                     }
-                    if ((decoration & TextDecoration.Strikethrough) != 0)
+                    if (decoration.HasFlag(TextDecoration.Strikethrough))
                     {
                         Vector2 strikethroughPosition = offsetPosition + strikethroughOffset * Vector2.UnitY;
                         // draw line with width of token starting at position strikethroughPosition
                         DrawRect(strikethroughPosition, tokenWidth, lineThickness, decorationColor);
                     }
-                    if ((decoration & TextDecoration.Overline) != 0)
+                    if (decoration.HasFlag(TextDecoration.Overline))
                     {
                         Vector2 overlinePosition = offsetPosition + overlineOffset * Vector2.UnitY;
                         // draw line with width of token starting at position overlinePosition
                         DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
-                        if ((decoration & TextDecoration.DoubleOverline) != 0)
+                        if (decoration.HasFlag(TextDecoration.DoubleOverline))
                         {
                             overlinePosition -= doublelineOffsetOffset * Vector2.UnitY;
                             // draw line with width of token starting at position overlinePosition
                             DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
                         }
                     }
-                    if ((decoration & TextDecoration.StressMarking) != 0)
+                    if (decoration.HasFlag(TextDecoration.StressMarking))
                     {
                         //TODO idk what this is supposed to look like
                     }
                 }
                 //draw the frame and circle regardless of the concealed status 
-                if ((decoration & TextDecoration.Framed) != 0)
+                if (decoration.HasFlag(TextDecoration.Framed))
                 {
                     // draw the outline of a box around the characters
                     float padding = lineThickness;
@@ -644,7 +644,7 @@ namespace FezGame.MultiplayerMod
                         DrawRect(origin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
                     }
                 }
-                if ((decoration & TextDecoration.Encircled) != 0)
+                if (decoration.HasFlag(TextDecoration.Encircled))
                 {
                     //TODO draw the outline of an ellipse around the characters
                 }
