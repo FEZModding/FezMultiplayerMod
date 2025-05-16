@@ -141,6 +141,7 @@ namespace FezGame.MultiplayerMod
         private void SaveDataObserver_OnSaveDataChanged(SaveData UpdatedSaveData, SaveDataObserver.SaveDataChanges SaveDataChanges)
         {
             //TODO send SaveDataChanges to the server, wait until the update is sent to the server, then clear the changes
+            System.Diagnostics.Debug.WriteLine("Save data updated at "+DateTime.UtcNow.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fffffff'Z'"));
             System.Diagnostics.Debug.WriteLine(SaveDataChanges.ToString());
         }
 

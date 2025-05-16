@@ -292,7 +292,7 @@ namespace FezGame.MultiplayerMod
                 Fonts = ServiceHelper.Get<IFontManager>();
                 SoundManager = ServiceHelper.Get<ISoundManager>();
 
-                ContentManager contentManager = CMProvider.Get(CM.Menu);
+                ContentManager contentManager = CMProvider.Global;
                 sCancel = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/Cancel");
                 sConfirm = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/Confirm");
                 sCursorUp = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/CursorUp");
@@ -590,19 +590,16 @@ namespace FezGame.MultiplayerMod
                 if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed)
                 {
                     var menuitem = cachedMenuListOptions.ElementAt(currentIndex);
-                    if (menuitem.Enabled)
+                    if (!justGotFocus && menuitem.Enabled)
                     {
                         menuitem.Action.Invoke();
-                        if(!justGotFocus)
+                        if (menuitem.DisplayText.Equals(OptionBack.DisplayText))
                         {
-                            if (menuitem.DisplayText.Equals(OptionBack.DisplayText))
-                            {
-                                sCancel.Emit();
-                            }
-                            else
-                            {
-                                sConfirm.Emit();
-                            }
+                            sCancel.Emit();
+                        }
+                        else
+                        {
+                            sConfirm.Emit();
                         }
                     }
                     //Note: having  here can cause the sound to play twice when opening the server list menu
