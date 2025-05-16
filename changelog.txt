@@ -49,7 +49,7 @@ Added support for CJK characters in player names
 fixed "Connected players: " always on the screen
 countless bug fixes and improvements
 
-0.5.0
+0.5.0 - 2025-05-16T00:42:45Z
 Added in-game multiplayer server menu
 Breaking change: the "ServerList" client setting replaces the old "MainEndpoint" setting. Please use the new in-game menu to modify the server list.
 Added rudimentary LAN server discovery
@@ -62,3 +62,4 @@ Made server player list look nicer
 Fixed a crash in SaveDataObserver when loading certain save files
 Added support for C1 codes from Unicode block Latin-1 Supplement
 more bug fixes and improvements
+
