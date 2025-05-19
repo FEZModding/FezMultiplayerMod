@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace FezGame.MultiplayerMod
 {
@@ -332,48 +333,45 @@ namespace FezGame.MultiplayerMod
 
         static RichTextRenderer()
         {
-
-            const int size = 1000;
-            const float cx = size / 2f;
-            const float cy = size / 2f;
-            const double circleThicknessHalved = size / 100.0;
-            double circleRadius = size / 2.0 - circleThicknessHalved;//ensure circle is entirely in the target area
-            double outerRadius = circleRadius + circleThicknessHalved;
-            double innerRadius = circleRadius - circleThicknessHalved;
-
-            Color[] colors = new Color[size * size];
-
-            for (int y = 0; y < size; y++)
+            _ = Waiters.Wait(() => FezMultiplayerMod.Instance?.GraphicsDevice != null,
+            () =>
             {
-                for (int x = 0; x < size; x++)
-                {
-                    int index = x + y * size;
-                    // Calculate distance from the center
-                    float dx = x - cx;
-                    float dy = y - cy;
-                    double distance = Math.Sqrt(dx * dx + dy * dy);
-                    if (distance >= innerRadius && distance <= outerRadius)
-                    {
-                        // Inside the circle
-                        colors[index] = Color.White;
-                    }
-                    else
-                    {
-                        // Outside the circle - transparent background
-                        colors[index] = Color.Transparent;
-                    }
-                }
-            }
+                    const int size = 1000;
+                    const float cx = size / 2f;
+                    const float cy = size / 2f;
+                    const double circleThicknessHalved = size / 100.0;
+                    const double circleRadius = size / 2.0 - circleThicknessHalved;//ensure circle is entirely in the target area
+                    const double outerRadius = circleRadius + circleThicknessHalved;
+                    const double innerRadius = circleRadius - circleThicknessHalved;
 
-                _ = Waiters.Wait(() => FezMultiplayerMod.Instance?.GraphicsDevice != null,
-                () =>
-                {
-            DrawActionScheduler.Schedule(() =>
-            {
                     GraphicsDevice graphicsDevice = FezMultiplayerMod.Instance.GraphicsDevice;
                     CircleTexture = new Texture2D(graphicsDevice, size, size, false, SurfaceFormat.Color);
+
+                    Color[] colors = new Color[size * size];
+
+                    for (int y = 0; y < size; y++)
+                    {
+                        for (int x = 0; x < size; x++)
+                        {
+                            int index = x + y * size;
+                            // Calculate distance from the center
+                            float dx = x - cx;
+                            float dy = y - cy;
+                            double distance = Math.Sqrt(dx * dx + dy * dy);
+                            if (distance >= innerRadius && distance <= outerRadius)
+                            {
+                                // Inside the circle
+                                colors[index] = Color.White;
+                            }
+                            else
+                            {
+                                // Outside the circle - transparent background
+                                colors[index] = Color.Transparent;
+                            }
+                        }
+                    }
+
                     CircleTexture.SetData(colors);
-                });
             });
         }
         private static Texture2D CircleTexture = null;
@@ -683,28 +681,29 @@ namespace FezGame.MultiplayerMod
                     }
                 }
                 //draw the frame and circle regardless of the concealed status 
+                float padding = lineThickness;
+                Vector2 boxOrigin = offsetPosition - new Vector2(padding + lineThickness, padding + lineThickness);
+                float boxBottomRightOffset = padding * 2 + lineThickness * 2;
+                // draw the outline of a box around the characters
+                float boxWidth = tokenSize.X + boxBottomRightOffset;
+                float boxHeight = tokenSize.Y + boxBottomRightOffset;
                 if (decoration.HasFlag(TextDecoration.Framed))
                 {
-                    // draw the outline of a box around the characters
-                    float padding = lineThickness;
-                    Vector2 origin = offsetPosition - new Vector2(padding + lineThickness, padding + lineThickness);
-                    float boxWidth = tokenSize.X + padding * 2 + lineThickness * 2;
-                    float boxHeight = tokenSize.Y + padding * 2 + lineThickness * 2;
                     //top
-                    DrawRect(origin, boxWidth, lineThickness, decorationColor);
+                    DrawRect(boxOrigin, boxWidth, lineThickness, decorationColor);
                     //left; check the previous token isn't also framed
                     if (tokenIndex <= 0 || !tokens[tokenIndex - 1].Style.Decoration.HasFlag(TextDecoration.Framed))
                     {
                         //left
-                        DrawRect(origin, lineThickness, boxHeight, decorationColor);
+                        DrawRect(boxOrigin, lineThickness, boxHeight, decorationColor);
                     }
                     //bottom
-                    DrawRect(origin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, decorationColor);
+                    DrawRect(boxOrigin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, decorationColor);
                     //right; check the next token isn't also framed
                     if (tokenIndex+1 >= tokens.Count || !tokens[tokenIndex + 1].Style.Decoration.HasFlag(TextDecoration.Framed))
                     {
                         //right
-                        DrawRect(origin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
+                        DrawRect(boxOrigin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
                     }
                 }
                 //check the previous token isn't also circled
@@ -722,16 +721,16 @@ namespace FezGame.MultiplayerMod
                             break;
                         }
                     }
-                    //TODO draw the outline of an ellipse around the characters
-                    float height = lineheight;
-                    float width = tokens
+                    //draw the outline of an ellipse around the characters
+                    float height = boxHeight;
+                    float width = boxWidth + tokens
                             .Where((t, i)=>(circleStartTokenIndex < i && i < circleEndTokenIndex))
                             .Sum(t =>
                             {
                                 FontData f = t.Style.FontData;
                                 return (f.Font.MeasureString(t.Text) * f.Scale * scale).X;
-                            }) + tokenSize.X;
-                    DrawEllipse(batch, decorationColor, in offsetPosition, in height, in width);
+                            });
+                    DrawEllipse(batch, decorationColor, in boxOrigin, in height, in width);
                 }
             });
         }
