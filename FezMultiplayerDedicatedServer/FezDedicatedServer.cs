@@ -152,6 +152,24 @@ namespace FezMultiplayerDedicatedServer
                             Console.WriteLine(settings.AllowList);
                         })
                     },
+                    {
+                        "kick".ToLowerInvariant(),
+                        ("kick a player", () =>
+                        {
+                            Console.WriteLine("Which player? (supply the Guid)");
+                            string arg = Console.ReadLine().Trim().ToLowerInvariant();
+                            if(Guid.TryParse(arg, out Guid puid) && server.Players.TryGetValue(puid, out var pdat))
+                            {
+                                var client = pdat.client;
+                                // forcibly terminate the connection
+                                client.Shutdown(System.Net.Sockets.SocketShutdown.Both);
+                                client.Close();
+                                Console.WriteLine("kicked player " + arg);
+                                //TODO rn the client can reconnect immediately, so we should make it so they can't reconnect for like 30 seconds or so
+                            }
+                            Console.WriteLine("player Guid not found: " + arg);
+                        })
+                    },
                 };
                 int maxCommandLength = cliActions.Max(kv => kv.Key.Length);
                 (string desc, Action action) HelpCommand;
