@@ -138,6 +138,20 @@ namespace FezMultiplayerDedicatedServer
                             Console.WriteLine(s);
                         })
                     },
+                    {
+                        "blocklist".ToLowerInvariant(),
+                        ("Prints out the blocklsit", () =>
+                        {
+                            Console.WriteLine(settings.BlockList);
+                        })
+                    },
+                    {
+                        "allowlist".ToLowerInvariant(),
+                        ("Prints out the allowlist", () =>
+                        {
+                            Console.WriteLine(settings.AllowList);
+                        })
+                    },
                 };
                 int maxCommandLength = cliActions.Max(kv => kv.Key.Length);
                 (string desc, Action action) HelpCommand;
@@ -245,11 +259,18 @@ namespace FezMultiplayerDedicatedServer
             // column header row
             sb.AppendLine(string.Join(T_GAP_COL, colNames.Select(colName => colName.PadRight(tDatLen[colName]))));
 
-            int c = tDat.First().Value.Count;
-            for (int i = 0; i < c; ++i)
+            if (tDat.Any())
             {
-                // data rows
-                sb.AppendLine(string.Join(T_GAP_COL, colNames.Select(colName => tDat[colName][i].PadRight(tDatLen[colName]))));
+                int c = tDat.FirstOrDefault().Value.Count;
+                for (int i = 0; i < c; ++i)
+                {
+                    // data rows
+                    sb.AppendLine(string.Join(T_GAP_COL, colNames.Select(colName => tDat[colName][i].PadRight(tDatLen[colName]))));
+                }
+            }
+            else //no players 
+            {
+
             }
             return sb.ToString();
         }
