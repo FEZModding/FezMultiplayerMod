@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
 
 namespace FezMultiplayerDedicatedServer
@@ -32,6 +33,7 @@ namespace FezMultiplayerDedicatedServer
                 if (str.Contains(":"))
                 {
                     throw new NotImplementedException("IPv6 is currently not supported");
+                    //TODO
                 }
                 IPAddress low = null, high = null;
                 if (Regex.IsMatch(str, @"\A\d+\.\d+\.\d+\.\d+\Z"))
@@ -106,32 +108,41 @@ namespace FezMultiplayerDedicatedServer
             }
         }
 
-        private static UInt32 IPAddressToHostUInt32(IPAddress address)
-        {
-            if (address.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
-            {
-                throw new ArgumentException("Expected an IPv4 address, got " + address + " instead");
-            }
-            return (UInt32)IPAddress.NetworkToHostOrder((Int32)BitConverter.ToUInt32(address.GetAddressBytes(), 0));
-        }
         private struct IPAddressRange
         {
-            private readonly UInt32 low;
-            private readonly UInt32 high;
+            private readonly byte[] low;
+            private readonly byte[] high;
+            private readonly AddressFamily family;
 
             public IPAddressRange(IPAddress low, IPAddress high)
             {
-                this.low = IPAddressToHostUInt32(low);
-                this.high = IPAddressToHostUInt32(high);
+                this.low = low.GetAddressBytes();
+                this.high = high.GetAddressBytes();
+                this.family = low.AddressFamily;
+                if(low.AddressFamily != high.AddressFamily)
+                {
+                    throw new ArgumentException("Address family mismatch!");
+                }
             }
             public bool Contains(IPAddress address)
             {
-                if(address.IsIPv4MappedToIPv6) 
+                if(family == AddressFamily.InterNetwork && address.IsIPv4MappedToIPv6) 
                 {
                     address = address.MapToIPv4();
                 }
-                uint val = IPAddressToHostUInt32(address);
-                return val >= low && val <= high;
+                if(family != address.AddressFamily)
+                {
+                    return false;
+                }
+                byte[] addr = address.GetAddressBytes();
+                for(int i = 0; i< addr.Length; ++i)
+                {
+                    if(addr[i] < low[i] || addr[i] > high[i])
+                    {
+                        return false;
+                    }
+                }
+                return true;
             }
         }
 
