@@ -126,6 +126,10 @@ namespace FezMultiplayerDedicatedServer
             }
             public bool Contains(IPAddress address)
             {
+                if(address.IsIPv4MappedToIPv6) 
+                {
+                    address = address.MapToIPv4();
+                }
                 uint val = IPAddressToHostUInt32(address);
                 return val >= low && val <= high;
             }
