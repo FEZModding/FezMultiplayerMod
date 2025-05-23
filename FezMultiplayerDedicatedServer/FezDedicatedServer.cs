@@ -142,14 +142,14 @@ namespace FezMultiplayerDedicatedServer
                         "blocklist".ToLowerInvariant(),
                         ("Prints out the blocklsit", () =>
                         {
-                            Console.WriteLine(settings.BlockList);
+                            Console.WriteLine(settings.BlockList.ToDetailedString());
                         })
                     },
                     {
                         "allowlist".ToLowerInvariant(),
                         ("Prints out the allowlist", () =>
                         {
-                            Console.WriteLine(settings.AllowList);
+                            Console.WriteLine(settings.AllowList.ToDetailedString());
                         })
                     },
                     {

@@ -144,6 +144,10 @@ namespace FezMultiplayerDedicatedServer
                 }
                 return true;
             }
+            public override string ToString()
+            {
+                return new IPAddress(low).ToString() + " to " + new IPAddress(high).ToString();
+            }
         }
 
         /// <summary>
@@ -189,6 +193,17 @@ namespace FezMultiplayerDedicatedServer
         public override string ToString()
         {
             return FilterString;
+        }
+        public string[] ToStringArray()
+        {
+            return ranges.Select(a => a.ToString()).ToArray();
+        }
+        public string ToDetailedString()
+        {
+            const string indent = ">  ";
+            return $"Raw filter string: {FilterString}\n" +
+                    $"Parsed as the following ranges:\n" +
+                    $"{indent}{string.Join(",\n" + indent, ToStringArray())}\nEnd";
         }
     }
 }
