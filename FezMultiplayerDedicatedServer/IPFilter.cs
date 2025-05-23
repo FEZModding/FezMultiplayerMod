@@ -23,6 +23,49 @@ namespace FezMultiplayerDedicatedServer
         }
 
         private readonly List<IPAddressRange> ranges = new List<IPAddressRange>();
+        private static string[] IPv6StringToParts(string ipv6String)
+        {
+            const int ipV6Parts = 8;
+            string[] parts = ipv6String.Split(':');
+            //remove the spaces that occur of there's a ':' at the start or end of the string
+            parts = parts.Where((part, index) => !(part == "" && (index == 0 || index == (parts.Length - 1)))).ToArray();
+            List<string> partsAdjusted = new List<string>();
+            bool hasHadZeroCompression = false;
+            bool isIPv4Combo = Regex.IsMatch(parts[parts.Length - 1], @"\A\d+\.\d+\.\d+\.\d+\Z");
+            for (int i = 0; i < parts.Length; ++i)
+            {
+                bool isLast = i == (parts.Length - 1);
+                string currentPart = parts[i];
+                if (currentPart == "")
+                {
+                    if (hasHadZeroCompression)
+                    {
+                        throw new FormatException("IPv6 address contains multiple occurances of zero compression");
+                    }
+                    hasHadZeroCompression = true;
+                    int partsToAdd = ipV6Parts - parts.Length + 1;
+                    if (isIPv4Combo)
+                    {
+                        partsToAdd -= 1;
+                    }
+                    for (int j = 0; j < partsToAdd; ++j)
+                    {
+                        partsAdjusted.Add("0");
+                    }
+                }
+                else
+                {
+                    if (isIPv4Combo && isLast)
+                    {
+                        System.Diagnostics.Debugger.Break();
+                        //TODO
+                    }
+                    partsAdjusted.Add(currentPart);
+                }
+            }
+            const string hexPartMatcher = @"\b([A-F0-9]{1,2})?([A-F0-9]{1,2})\b";
+            return partsAdjusted.ToArray();
+        }
         private void ReloadFilterString()
         {
             ranges.Clear();
@@ -32,8 +75,14 @@ namespace FezMultiplayerDedicatedServer
                 string str = entry.Trim();
                 if (str.Contains(":"))
                 {
+                    System.Diagnostics.Debugger.Launch();
+                    string[] ipV6Parts = IPv6StringToParts(str);
+                    //TODO add support for IPv6 format addresses, CIDR format IPv6, and IPv6 ranges
+                    //TODO add support for CIDR format IPv6
+                    //TODO add support for IPv6 ranges
+                    System.Diagnostics.Debugger.Break();
+                    continue;
                     throw new NotImplementedException("IPv6 is currently not supported");
-                    //TODO
                 }
                 IPAddress low = null, high = null;
                 if (Regex.IsMatch(str, @"\A\d+\.\d+\.\d+\.\d+\Z"))
