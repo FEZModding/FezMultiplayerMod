@@ -66,4 +66,5 @@ more bug fixes and improvements
 TBD
 add blocklist and allowlist commands
 fixed a bug where querying the player list as the server would crash the server
+added IPv6 support for allowlist and blocklist
 

@@ -30,11 +30,11 @@ namespace FezMultiplayerDedicatedServer
         public bool UseAllowList = false;
 
         private const string IPFilterDesc = "Supports comma-separated entries of any combination of the following formats: " +
-        "Single IP address (e.g., 10.5.3.33), " +
-        "Range (e.g., 10.5.3.3-10.5.3.40), " +
-        "Implied range (e.g., 10.5.3.3-40), " +
+        "Single IPv4 or IPv6 address (e.g., 10.5.3.33), " +
+        "IPv4 or IPv6 Range (e.g., 10.5.3.3-10.5.3.40), " +
+        "Implied IPv4 range (e.g., 10.5.3.3-40), " +
         "CIDR format, " +
-        "or Implied IP address (for example, 10. filters all IP addresses that start with 10.)";
+        "or Implied IPv4 address (for example, 10. filters all IP addresses that start with 10.)";
         /// <summary>
         /// If useAllowList is true, only packets from IP addresses included in this list will be accepted.
         /// <inheritdoc cref='IPFilter.IPFilter(string)'/>
