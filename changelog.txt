@@ -64,7 +64,8 @@ Added support for C1 codes from Unicode block Latin-1 Supplement
 more bug fixes and improvements
 
 0.6.0
-add blocklist and allowlist commands
-fixed a bug where querying the player list as the server would crash the server
-added IPv6 support for allowlist and blocklist
+Add blocklist and allowlist commands
+Fixed a bug where querying the player list as the server would crash the server
+Added IPv6 support for allowlist and blocklist
+Various optimizations
 
