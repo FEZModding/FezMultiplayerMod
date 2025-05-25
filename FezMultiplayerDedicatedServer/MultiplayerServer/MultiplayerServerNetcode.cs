@@ -38,8 +38,6 @@ namespace FezMultiplayerDedicatedServer
         }
 
         private readonly Socket listenerSocket;
-        private readonly Task listenerTask;
-        private readonly Task timeoutTask;
         private readonly int listenPort;
         protected readonly int overduetimeout;
         private readonly bool useAllowList;
@@ -105,8 +103,8 @@ namespace FezMultiplayerDedicatedServer
                     }
                 }
             }
-            listenerTask = StartAcceptTcpClients();
-            timeoutTask = Task.Factory.StartNew(RemoveOldClients, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            _ = StartAcceptTcpClients();
+            _ = Task.Factory.StartNew(RemoveOldClients, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 
             if (settings.DoAdvertiseServer)
             {
