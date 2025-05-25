@@ -44,11 +44,6 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         private bool TreasureIsMap => GetCastedValueByNameOrDefault<bool>("treasureIsMap", false);
         /// <summary>
-        /// if the item collected is a trile (cubes and keys)
-        /// <seealso cref="TreasureInstance"/>
-        /// </summary>
-        private bool TreasureIsTrile => !(TreasureIsAo || TreasureIsMap);
-        /// <summary>
         /// the chest the player is in front of
         /// </summary>
         private ArtObjectInstance ChestAO => GetCastedValueByNameOrDefault<ArtObjectInstance>("chestAO", null);
@@ -190,8 +185,6 @@ namespace FezGame.MultiplayerMod
         private TimeSpan? lastSinceActive = null;
         private bool IsActive = false;
         private bool LastIsActive = false;
-        private long UpdatesSinceActiveStarted = 0;
-        private TimeSpan TimeSinceActiveStarted = TimeSpan.Zero;
         private string debugText = "Waiting for treasure...";
         private bool showDebugText = false;
         private static FezEngine.Services.IKeyboardStateManager keyboard = null;
@@ -224,8 +217,6 @@ namespace FezGame.MultiplayerMod
                 }
                 if (IsActive != LastIsActive)
                 {
-                    UpdatesSinceActiveStarted = 0;
-                    TimeSinceActiveStarted = TimeSpan.Zero;
                     if (IsActive)
                     {
                         debugText = $"IsCollecting: {IsActive}\n"
@@ -240,8 +231,6 @@ namespace FezGame.MultiplayerMod
                         OnTreasureCollected(new TreasureCollectionData());
                     }
                 }
-                UpdatesSinceActiveStarted += 1;
-                TimeSinceActiveStarted += gameTime.ElapsedGameTime;
                 LastIsActive = IsActive;
             }
         }

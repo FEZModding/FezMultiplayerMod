@@ -135,12 +135,9 @@ namespace FezGame.MultiplayerMod
         }
 
         #region Service dependencies
-        private IKeyboardStateManager KeyboardState { get; set; }
         private IContentManagerProvider CMProvider { get; set; }
         private IInputManager InputManager { get; set; }
-        private IGameStateManager GameState { get; set; }
         private IFontManager Fonts { get; set; }
-        private ISoundManager SoundManager { get; set; }
         #endregion
 
         public static ServerListMenu Instance;
@@ -285,12 +282,9 @@ namespace FezGame.MultiplayerMod
             },
             () =>
             {
-                KeyboardState = ServiceHelper.Get<IKeyboardStateManager>();
                 CMProvider = ServiceHelper.Get<IContentManagerProvider>();
                 InputManager = ServiceHelper.Get<IInputManager>();
-                GameState = ServiceHelper.Get<IGameStateManager>();
                 Fonts = ServiceHelper.Get<IFontManager>();
-                SoundManager = ServiceHelper.Get<ISoundManager>();
 
                 ContentManager contentManager = CMProvider.Global;
                 sCancel = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/Cancel");
