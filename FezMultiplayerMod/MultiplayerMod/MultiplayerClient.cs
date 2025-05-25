@@ -71,22 +71,14 @@ namespace FezGame.MultiplayerMod
             MyPlayerMetadata = p;
         }
 
-        protected override SaveDataUpdate? GetSaveDataUpdate()
+        protected override SaveDataUpdate GetSaveDataUpdate()
         {
-            if (!SyncWorldState)
-            {
-                return null;
-            }
             //TODO not yet implemented
             throw new NotImplementedException();
         }
 
-        protected override ActiveLevelState? GetCurrentLevelState()
+        protected override ActiveLevelState GetCurrentLevelState()
         {
-            if (!SyncWorldState)
-            {
-                return null;
-            }
             //TODO not yet implemented
             throw new NotImplementedException();
         }

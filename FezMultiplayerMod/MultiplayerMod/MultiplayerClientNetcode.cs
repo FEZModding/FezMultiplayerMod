@@ -165,7 +165,7 @@ namespace FezGame.MultiplayerMod
                                     appearance = MyAppearance;
                                     MyAppearanceChanged = false;
                                 }
-                                ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, GetSaveDataUpdate(), activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false);
+                                ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, saveDataUpdate, activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false);
                             }
                             else
                             {
@@ -262,8 +262,8 @@ namespace FezGame.MultiplayerMod
             LogStatus(LogSeverity.Information, "Disconnect complete");
         }
 
-        protected abstract SaveDataUpdate? GetSaveDataUpdate();
-        protected abstract ActiveLevelState? GetCurrentLevelState();
+        protected abstract SaveDataUpdate GetSaveDataUpdate();
+        protected abstract ActiveLevelState GetCurrentLevelState();
 
         // I was told "Your Dispose implementation needs work https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern"
         // and stuff like "It technically works but is dangerous" and "always use an internal protected Dispose method" and "always call GC.SuppressFinalize(this) in the public Dispose method"
