@@ -40,7 +40,6 @@
       <HintPath>..\libs\ContentSerialization.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="System.Drawing" />
     <Reference Include="XnaWordWrapCore">
       <HintPath>..\libs\XnaWordWrapCore.dll</HintPath>
       <Private>False</Private>
@@ -53,7 +52,6 @@
       <HintPath>..\libs\FezEngine.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="mscorlib" />
     <Reference Include="EasyStorage">
       <HintPath>..\libs\EasyStorage.dll</HintPath>
       <Private>False</Private>
