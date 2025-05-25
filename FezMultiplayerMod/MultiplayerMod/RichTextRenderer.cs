@@ -1171,7 +1171,7 @@ namespace FezGame.MultiplayerMod
                                 i += 2; // Skip the next two parameters
                                 if (TryGetColorFrom8BitIndex(colorIndex, out Color newColor))
                                 {
-                                    return color = newColor;
+                                    return newColor;
                                 };
                             }
                         }

@@ -188,7 +188,7 @@ namespace FezGame.MultiplayerMod
         private string debugText = "Waiting for treasure...";
         private bool showDebugText = false;
         private static FezEngine.Services.IKeyboardStateManager keyboard = null;
-        private static Microsoft.Xna.Framework.Input.Keys ShowDebugTextKey = Microsoft.Xna.Framework.Input.Keys.F2;
+        private static readonly Microsoft.Xna.Framework.Input.Keys ShowDebugTextKey = Microsoft.Xna.Framework.Input.Keys.F2;
         static OpenTreasureListener()
         {
             _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () =>

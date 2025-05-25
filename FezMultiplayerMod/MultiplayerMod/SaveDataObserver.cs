@@ -281,7 +281,7 @@ namespace FezGame.MultiplayerMod
                 }
             }
         }
-        private static Dictionary<Type, FieldInfo[]> cachedTypeFieldInfoMap = new Dictionary<Type, FieldInfo[]>();
+        private static readonly Dictionary<Type, FieldInfo[]> cachedTypeFieldInfoMap = new Dictionary<Type, FieldInfo[]>();
         /// <summary>
         /// Uses reflection to recursively iterate through all the values for all the fields 
         /// and add the changes to the supplied <see cref="SaveDataChanges"/> object.
@@ -293,7 +293,10 @@ namespace FezGame.MultiplayerMod
         /// <param name="oldObject">The old object to find changes</param>
         private static void CheckType(SaveDataChanges changes, Type containingType, string containerIdentifier, object currentObject, object oldObject)
         {
+#pragma warning disable IDE0018 // Inline variable declaration
             FieldInfo[] fields;
+#pragma warning restore IDE0018 // Inline variable declaration
+
             //Note: .NET has a built-in RuntimeTypeCache, so we might not even need cachedTypeFieldInfoMap
             if (!cachedTypeFieldInfoMap.TryGetValue(containingType, out fields))
             {
