@@ -372,8 +372,7 @@ namespace FezGame.MultiplayerMod
                             }
                             catch (Exception e)
                             {
-                                Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, e.ToString());
-                                Console.WriteLine("Warning: " + e);
+                                FezSharedTools.SharedTools.LogWarning(typeof(FezMultiplayerMod).Name, e.ToString());
 #if DEBUG
                                 System.Diagnostics.Debugger.Launch();
 #endif

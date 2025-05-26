@@ -26,13 +26,7 @@ namespace FezGame.MultiplayerMod
     {
         protected static void LogStatus(LogSeverity severity, string message)
         {
-            string ComponentName = nameof(MultiplayerClientNetcode);
-            string ThreadName = Thread.CurrentThread.Name ?? String.Empty;
-            if(ThreadName.Length > 0)
-            {
-                message = $"({ThreadName}) " + message;
-            }
-            Logger.Log(ComponentName, severity, message);
+            FezSharedTools.SharedTools.LogWarning(typeof(MultiplayerClientNetcode).Name, message, (int)severity);
         }
 
         private Thread listenerThread;
@@ -207,7 +201,7 @@ namespace FezGame.MultiplayerMod
                     //}
                     catch (Exception e)//Connection failed, data read error, connection terminated by server, etc.
                     {
-                        LogStatus(LogSeverity.Warning, $"Lost connection to {RemoteEndpoint}");
+                        LogStatus(LogSeverity.Warning, $"Lost connection to {RemoteEndpoint}. Reason: {e.Message}");
                         //TODO this does not properly handle scenarios where the connection is successful but an error occurs consistently after the initial connection.
                         if (wasSuccessfullyConnected)
                         {

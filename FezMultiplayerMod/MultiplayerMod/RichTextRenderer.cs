@@ -824,8 +824,7 @@ namespace FezGame.MultiplayerMod
                     catch (Exception e)
                     {
                         tokensize = fontData.Font.MeasureString("" + (fontData.Font.DefaultCharacter ?? ' ')) * fontData.Scale * scale;
-                        Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, e.ToString());
-                        Console.WriteLine("Warning: " + e);
+                        FezSharedTools.SharedTools.LogWarning(typeof(RichTextRenderer).Name, e.ToString());
                         System.Diagnostics.Debugger.Launch();
                     }
                     onToken(token, currentPositionOffset, tokens, currentTokenIndex);

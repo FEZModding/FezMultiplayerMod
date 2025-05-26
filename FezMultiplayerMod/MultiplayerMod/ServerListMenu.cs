@@ -205,7 +205,7 @@ namespace FezGame.MultiplayerMod
 
                 if (MenuRoot == null)
                 {
-                    Logger.Log("FezMultiplayerMod", LogSeverity.Warning, "Unable to create multiplayer menu!");
+                    SharedTools.LogWarning("FezMultiplayerMod", "Unable to create multiplayer menu!");
                     return;
                 }
 

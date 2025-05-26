@@ -22,6 +22,22 @@ using Vector3 = FezMultiplayerDedicatedServer.Vector3;
 #endif
 namespace FezSharedTools
 {
+    internal sealed class SharedTools
+    {
+        public static void LogWarning(string ComponentName, string message, int LogSeverity = 1)
+        {
+            string ThreadName = System.Threading.Thread.CurrentThread.Name ?? String.Empty;
+            if (ThreadName.Length > 0)
+            {
+                message = $"({ThreadName}) " + message;
+            }
+#if FEZCLIENT
+            Common.Logger.Log(ComponentName, (Common.LogSeverity)LogSeverity, message);
+#endif
+            Console.WriteLine("Warning: " + message);
+            System.Diagnostics.Debug.WriteLine("Warning: " + message);
+        }
+    }
     internal sealed class SharedConstants
     {
         public static readonly int DefaultPort = 7777;

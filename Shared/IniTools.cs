@@ -50,10 +50,7 @@ namespace FezSharedTools
                 if (!suppressWarnings)
                 {
                     string msg = $"port for endpoint \"{str}\" not found. Using default port ({SharedConstants.DefaultPort})";
-#if FEZCLIENT
-                    Common.Logger.Log("MultiplayerClientSettings", Common.LogSeverity.Warning, msg);
-#endif
-                    Console.WriteLine("Warning: " + msg);
+                    SharedTools.LogWarning("IniTools", msg);
                 }
             }
             else
