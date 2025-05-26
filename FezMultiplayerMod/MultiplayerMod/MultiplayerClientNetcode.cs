@@ -137,8 +137,15 @@ namespace FezGame.MultiplayerMod
                     using (BinaryNetworkWriter writer = new BinaryNetworkWriter(tcpStream))
                     {
                         bool retransmitAppearanceRequested = false;
-                        ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
-                        ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
+                        try
+                        {
+                            ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
+                            ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
+                        }
+                        catch (System.IO.EndOfStreamException e)
+                        {
+                            throw new Exception("Could not connect to server", e);
+                        }
                         ConnectionSuccessful = true;
                         LogStatus(LogSeverity.Information, $"Connection to {endpoint} successful");
                         OnConnect();
