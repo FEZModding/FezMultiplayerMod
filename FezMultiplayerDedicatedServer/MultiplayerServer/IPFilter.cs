@@ -139,11 +139,12 @@ namespace FezMultiplayerDedicatedServer
                 {
                     if (str.Contains("/"))//CIDR
                     {
+                        const int IPv6_Total_Bits = 128;
                         string[] parts = str.Split('/');
                         if (IPAddress.TryParse(parts[0], out var address))
                         {
                             byte[] addressBytes = address.GetAddressBytes();
-                            int maskBitCount = Math.Min(int.Parse(parts[1]), addressBytes.Length * 8);
+                            int maskBitCount = IPv6_Total_Bits - Math.Min(int.Parse(parts[1]), addressBytes.Length * 8);
                             byte[] highBytes = (byte[])addressBytes.Clone(),
                                     lowBytes = (byte[])addressBytes.Clone();
                             int byteIndex = addressBytes.Length;
