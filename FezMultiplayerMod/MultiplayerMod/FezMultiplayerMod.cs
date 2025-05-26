@@ -407,7 +407,7 @@ namespace FezGame.MultiplayerMod
                 s += "\nWarning: " + mp.FatalException.Message;
 
 
-                if ((gameTime.TotalGameTime - ShowingFatalExceptionStartTimestamp).TotalSeconds > 10.0f)
+                if ((gameTime.TotalGameTime - ShowingFatalExceptionStartTimestamp).TotalSeconds > 5.0f)
                 {
                     mp.FatalException = null;
                     ShowingFatalException = false;
