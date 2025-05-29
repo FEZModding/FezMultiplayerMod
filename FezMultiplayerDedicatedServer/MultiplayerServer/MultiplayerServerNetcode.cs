@@ -40,9 +40,9 @@ namespace FezMultiplayerDedicatedServer
         private readonly Socket listenerSocket;
         private readonly int listenPort;
         protected readonly int overduetimeout;
-        private readonly bool useAllowList;
-        private readonly IPFilter AllowList;
-        private readonly IPFilter BlockList;
+        public readonly bool useAllowList;
+        public readonly IPFilter AllowList;
+        public readonly IPFilter BlockList;
         public bool SyncWorldState;
 
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();

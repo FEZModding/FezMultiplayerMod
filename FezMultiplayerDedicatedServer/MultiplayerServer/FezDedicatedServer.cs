@@ -169,6 +169,42 @@ namespace FezMultiplayerDedicatedServer
                             Console.WriteLine("player Guid not found: " + arg);
                         })
                     },
+                    {
+                        "ban".ToLowerInvariant(),
+                        ("IP ban", () =>
+                        {
+                            Console.WriteLine("Which IP?");
+                            string arg = Console.ReadLine().Trim().ToLowerInvariant();
+                            if(IPAddress.TryParse(arg, out IPAddress address))
+                            {
+                                if(address.IsIPv4MappedToIPv6)
+                                {
+                                    address = address.MapToIPv4();
+                                }
+                                //Note: server.BlockList and settings.BlockList point to the same object
+                                settings.BlockList.FilterString += ","+address.ToString();
+                                //TODO write the changes to settings to the server settings file
+                                Console.WriteLine("banned IP " + address);
+
+                                var matchingPlayers = server.Players.Where(player => {
+                                    IPAddress a = ((IPEndPoint)player.Value.client?.RemoteEndPoint)?.Address;
+                                    if(a.IsIPv4MappedToIPv6){
+                                        a = a.MapToIPv4();
+                                    }
+                                    return address.Equals(a);
+                                });
+                                foreach(var player in matchingPlayers)
+                                {
+                                    // forcibly terminate the connections
+                                    player.Value.client.ForceDisconnect();
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("Invalid IP: \"" + arg + "\"");
+                            }
+                        })
+                    },
                 };
                 int maxCommandLength = cliActions.Max(kv => kv.Key.Length);
                 (string desc, Action action) HelpCommand;
