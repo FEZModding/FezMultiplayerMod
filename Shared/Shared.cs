@@ -43,7 +43,7 @@ namespace FezSharedTools
             socket.Close();
         }
     }
-    internal sealed class SharedConstants
+    internal static class SharedConstants
     {
         public static readonly int DefaultPort = 7777;
         /// <summary>

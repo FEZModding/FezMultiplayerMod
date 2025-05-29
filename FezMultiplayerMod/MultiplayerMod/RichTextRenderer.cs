@@ -62,7 +62,7 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// CSI Commands with no Intermediate byte
         /// </summary>
-        public sealed class CSICommands
+        public static class CSICommands
         {
             public static readonly char
             StartReversedString = '\x5B',
@@ -75,7 +75,7 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// CSI Commands with \x20 as the Intermediate byte
         /// </summary>
-        public sealed class CSICommands20
+        public static class CSICommands20
         {
             public static readonly char
             GraphicSizeModification = '\x42',
@@ -123,7 +123,7 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// Select Graphic Rendition parameters 
         /// </summary>
-        public sealed class SGRParameters
+        public static class SGRParameters
         {
             public const int
             Reset = 0,
