@@ -39,7 +39,7 @@ namespace FezGame.MultiplayerMod
     {
         #region PublicEnums
         public const char ESC = '\x1B';
-        public sealed class C1_EscapeSequences
+        public static class C1_EscapeSequences
         {
             public static readonly char
             ControlSequenceIntroducer = '[',
@@ -49,7 +49,7 @@ namespace FezGame.MultiplayerMod
             PrivateUseTwo = 'R',
             PU2 = PrivateUseTwo;
         }
-        public sealed class C1_8BitCodes
+        public static class C1_8BitCodes
         {
             public static readonly char
             ControlSequenceIntroducer = '\x9B',
