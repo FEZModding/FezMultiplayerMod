@@ -68,4 +68,5 @@ Add blocklist and allowlist commands
 Fixed a bug where querying the player list as the server would crash the server
 Added IPv6 support for allowlist and blocklist
 Various optimizations
+Made ServerDiscover non-blocking 
 

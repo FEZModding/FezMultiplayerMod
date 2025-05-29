@@ -43,42 +43,56 @@ namespace FezGame.MultiplayerMod
             {
                 try
                 {
+                    IAsyncResult asyncResult = null;
                     while (!disposing)
                     {
-                        IPEndPoint remoteEndPoint = new IPEndPoint(MulticastEndpoint.Address, MulticastEndpoint.Port);
-                        byte[] receivedBytes = client.Receive(ref remoteEndPoint);
-                        string receivedMessage = Encoding.UTF8.GetString(receivedBytes);
+                        if (asyncResult == null || asyncResult.IsCompleted)
+                        {
+                            IPEndPoint remoteEndPoint = new IPEndPoint(MulticastEndpoint.Address, MulticastEndpoint.Port);
+                            asyncResult = client.BeginReceive((result) =>
+                            {
+                                if (this.disposing)
+                                {
+                                    return;
+                                }
+                                byte[] receivedBytes = client.EndReceive(result, ref remoteEndPoint);
+                                string receivedMessage = Encoding.UTF8.GetString(receivedBytes);
 
-                        try
-                        {
-                            OnReceiveData(remoteEndPoint, receivedMessage
-                                        .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
-                                        .Select(a => a.Split(new[] { FezSharedTools.SharedConstants.ServerDiscoveryEntrySeparator }, 2, StringSplitOptions.None))
-                                        .GroupBy(p => p[0])
-                                        .ToDictionary(g => g.Key, g =>
-                                        {
-                                            var p = g.FirstOrDefault();
-                                            return (p.Length > 1 ? p[1].Trim() : "");
-                                        })
-                                    );
+                                try
+                                {
+                                    OnReceiveData(remoteEndPoint, receivedMessage
+                                                .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
+                                                .Select(a => a.Split(new[] { FezSharedTools.SharedConstants.ServerDiscoveryEntrySeparator }, 2, StringSplitOptions.None))
+                                                .GroupBy(p => p[0])
+                                                .ToDictionary(g => g.Key, g =>
+                                                {
+                                                    var p = g.FirstOrDefault();
+                                                    return (p.Length > 1 ? p[1].Trim() : "");
+                                                })
+                                            );
+                                }
+                                catch (Exception e)
+                                {
+                                    FezSharedTools.SharedTools.LogWarning(typeof(ServerDiscoverer).Name, e.ToString());
+                                    System.Diagnostics.Debugger.Launch();
+                                }
+                            }, null);
                         }
-                        catch(Exception e)
+                        else //waiting to receive data
                         {
-                            FezSharedTools.SharedTools.LogWarning(typeof(ServerDiscoverer).Name, e.ToString());
-                            System.Diagnostics.Debugger.Launch();
+                            Thread.Sleep(10);
                         }
                     }
                 }
                 catch (Exception e)
                 {
-                    if (e.Message != "Thread was being aborted.")
-                    {
-                        //TODO
-                        System.Diagnostics.Debugger.Break();
-                        throw e;
-                    }
+                    System.Diagnostics.Debugger.Break();
+                    throw e;
                 }
-            });
+            })
+            {
+                Name = "Server Discovery Thread"
+            };
             listenerThread.Start();
         }
         /// <summary>
@@ -93,11 +107,6 @@ namespace FezGame.MultiplayerMod
                 if (disposing)
                 {
                     this.disposing = true;//let child threads know it's disposing time
-                    Thread.Sleep(1000);//try to wait for child threads to stop on their own
-                    if (listenerThread.IsAlive)
-                    {
-                        listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
-                    }
                     client.DropMulticastGroup(MulticastEndpoint.Address);
                     client.Close();
                     // dispose managed state (managed objects)
