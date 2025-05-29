@@ -162,8 +162,7 @@ namespace FezMultiplayerDedicatedServer
                             {
                                 var client = pdat.client;
                                 // forcibly terminate the connection
-                                client.Shutdown(System.Net.Sockets.SocketShutdown.Both);
-                                client.Close();
+                                client.ForceDisconnect();
                                 Console.WriteLine("kicked player " + arg);
                                 //TODO rn the client can reconnect immediately, so we should make it so they can't reconnect for like 30 seconds or so
                             }

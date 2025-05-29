@@ -173,8 +173,7 @@ namespace FezMultiplayerDedicatedServer
                                 || (useAllowList && !AllowList.Contains(remoteEndpoint.Address))
                                     )
                             {
-                                client.Shutdown(SocketShutdown.Both);
-                                client.Close();
+                                client.ForceDisconnect();
                                 return;
                             }
                             OnNewClientConnect(client);

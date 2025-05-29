@@ -22,7 +22,7 @@ using Vector3 = FezMultiplayerDedicatedServer.Vector3;
 #endif
 namespace FezSharedTools
 {
-    internal sealed class SharedTools
+    internal static class SharedTools
     {
         public static void LogWarning(string ComponentName, string message, int LogSeverity = 1)
         {
@@ -36,6 +36,11 @@ namespace FezSharedTools
 #endif
             Console.WriteLine("Warning: " + message);
             System.Diagnostics.Debug.WriteLine("Warning: " + message);
+        }
+        public static void ForceDisconnect(this System.Net.Sockets.Socket socket)
+        {
+            socket.Shutdown(System.Net.Sockets.SocketShutdown.Both);
+            socket.Close();
         }
     }
     internal sealed class SharedConstants
