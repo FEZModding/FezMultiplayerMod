@@ -65,8 +65,9 @@ more bug fixes and improvements
 
 0.6.0
 Add blocklist and allowlist commands
-Fixed a bug where querying the player list as the server would crash the server
+Added ban IP command to server
 Added IPv6 support for allowlist and blocklist
+Fixed a bug where querying the player list as the server would crash the server
 Various optimizations
 Made ServerDiscover non-blocking 
 
