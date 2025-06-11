@@ -10,12 +10,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using FezSharedTools;
 
 namespace FezGame.MultiplayerMod
 {
-    internal class OpenTreasureListener : DrawableGameComponent
+    internal class OpenTreasureListener : GameComponent
     {
-        private readonly Hook ActHook;
         private Func<string> GetValues;
         private Func<string, object> GetValueByNameOrFail;
         private T GetCastedValueByNameOrDefault<T>(string name, T defaultValue)
@@ -30,8 +30,6 @@ namespace FezGame.MultiplayerMod
                 return defaultValue;
             }
         }
-        private readonly SpriteBatch drawer;
-        private IFontManager FontManager;
         private TimeSpan SinceActive => GetCastedValueByNameOrDefault<TimeSpan>("sinceActive", TimeSpan.Zero);
         private ActorType TreasureActorType => GetCastedValueByNameOrDefault<ActorType>("treasureActorType", ActorType.None);
         /// <summary>
@@ -64,26 +62,12 @@ namespace FezGame.MultiplayerMod
          */
         private string TreasureMapName => ChestAO?.ActorSettings?.TreasureMapName ?? TreasureAoInstance?.ActorSettings?.TreasureMapName ?? null;
 
-        public struct TreasureCollectionData
-        {
-            //TODO
-        }
         public event Action<TreasureCollectionData> OnTreasureCollected = (data) => { };
 
         public OpenTreasureListener(Game game) : base(game)
         {
-            DrawOrder = int.MaxValue;
             Type openTreasureType = typeof(Fez).Assembly.GetType("FezGame.Components.Actions.OpenTreasure");
 
-            MethodInfo actMethod = openTreasureType.GetMethod("Act", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-            ActHook = new Hook(
-                    actMethod,
-                    new Func<Func<object, TimeSpan, bool>, object, TimeSpan, bool>((orig, self, elapsed) =>
-                    {
-                        return orig(self, elapsed);
-                    })
-                );
-            ;
             var excludedTypes = new[] { "SoundEffect", "Texture2D", "Quaternion", "List", "Group", "Mesh" };
             var excludedNames = new[] { "^[Oo]ld", "^SinceCreated$", "^lastZoom$", "Service", "__BackingField",
                     "^treasureTrile$", "^treasureAo$"}.Select(s => new Regex(s));
@@ -97,10 +81,8 @@ namespace FezGame.MultiplayerMod
                 fieldInfo => fieldInfo.Name,
                 fieldInfo => fieldInfo
             );
-            drawer = new SpriteBatch(GraphicsDevice);
             _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () =>
             {
-                FontManager = ServiceHelper.Get<IFontManager>();
                 object openTreasure = ServiceHelper.Game.Components.FirstOrDefault(c => c.GetType() == openTreasureType);
                 GetValueByNameOrFail = (name) =>
                 {
@@ -114,8 +96,6 @@ namespace FezGame.MultiplayerMod
                     }));
                 };
             });
-
-            //TODO so something with this data, like send it to an event or something
 
             /*
              * unique IDs: 
@@ -185,24 +165,8 @@ namespace FezGame.MultiplayerMod
         private TimeSpan? lastSinceActive = null;
         private bool IsActive = false;
         private bool LastIsActive = false;
-        private string debugText = "Waiting for treasure...";
-        private bool showDebugText = false;
-        private static FezEngine.Services.IKeyboardStateManager keyboard = null;
-        private static readonly Microsoft.Xna.Framework.Input.Keys ShowDebugTextKey = Microsoft.Xna.Framework.Input.Keys.F2;
-        static OpenTreasureListener()
-        {
-            _ = Waiters.Wait(() => ServiceHelper.FirstLoadDone, () =>
-            {
-                keyboard = ServiceHelper.Get<FezEngine.Services.IKeyboardStateManager>();
-                keyboard.RegisterKey(ShowDebugTextKey);
-            });
-        }
         public override void Update(GameTime gameTime)
         {
-            if (keyboard?.GetKeyState(ShowDebugTextKey) == FezEngine.Structure.Input.FezButtonState.Pressed)
-            {
-                showDebugText = !showDebugText;
-            }
             if (GetValues != null)
             {
                 var sinceActive = SinceActive;
@@ -219,43 +183,23 @@ namespace FezGame.MultiplayerMod
                 {
                     if (IsActive)
                     {
-                        debugText = $"IsCollecting: {IsActive}\n"
-                                + $"Type: {(TreasureIsAo ? "Ao" : (TreasureIsMap ? "Map" : "Trile"))}\n"
-                                + $"Source: {(ServiceHelper.Get<Services.IPlayerManager>().ForcedTreasure != null ? "Forced" : (ChestAO != null ? "Chest" : (TreasureIsMap ? "Map" : "Trile")))}\n"
-                                + $"TreasureMapName: {TreasureMapName}\n"
-                                + $"ActorType: {TreasureActorType}\n"
-                                + $"ArtObjectId: {ChestAO?.Id ?? TreasureAoInstance?.Id}\n"
-                                + $"TrileEmplacement: {TreasureInstance?.OriginalEmplacement}\n"
-                                + $"TrileIsForeign: {TreasureInstance?.Foreign}\n";
+                        TreasureCollectionData treasureCollectionData = new TreasureCollectionData(
+                            type: TreasureIsAo ? TreasureType.Ao : (TreasureIsMap ? TreasureType.Map : TreasureType.Trile),
+                            source: ServiceHelper.Get<Services.IPlayerManager>().ForcedTreasure != null ? TreasureSource.Forced
+                                        : (ChestAO != null ? TreasureSource.Chest
+                                                    : (TreasureIsMap ? TreasureSource.Map : TreasureSource.Trile)
+                                        ),
+                            treasureMapName: TreasureMapName,
+                            treasureActorType: TreasureActorType,
+                            artObjectId: ChestAO?.Id ?? TreasureAoInstance?.Id,
+                            trileEmplacement: TreasureInstance?.OriginalEmplacement,
+                            trileIsForeign: TreasureInstance?.Foreign
+                        );
                         //Note: Foreign is for triles that get spawned in, like code cubes, heart cubes, clock cubes, and fork cubes.
-                        OnTreasureCollected(new TreasureCollectionData());
+                        OnTreasureCollected(treasureCollectionData);
                     }
                 }
                 LastIsActive = IsActive;
-            }
-        }
-        public override void Draw(GameTime gameTime)
-        {
-#if DEBUG
-            if (showDebugText)
-            {
-                drawer.Begin();
-
-                //align to bottom
-                Vector2 pos = Vector2.UnitY * (GraphicsDevice.Viewport.Height - FontManager.Big.MeasureString(debugText).Y * FontManager.BigFactor);
-
-                drawer.DrawString(FontManager.Big, debugText, pos + Vector2.One, Color.Black, 0, Vector2.Zero, FontManager.BigFactor, SpriteEffects.None, 0);
-                drawer.DrawString(FontManager.Big, debugText, pos, Color.White, 0, Vector2.Zero, FontManager.BigFactor, SpriteEffects.None, 0);
-                drawer.End();
-            }
-#endif
-        }
-
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                ActHook.Dispose();
             }
         }
     }

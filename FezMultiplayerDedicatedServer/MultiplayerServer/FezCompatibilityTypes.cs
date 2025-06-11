@@ -19,6 +19,19 @@ namespace FezMultiplayerDedicatedServer
             return new Vector3((float)Math.Round(X, d), (float)Math.Round(Y, d), (float)Math.Round(Z, d));
         }
     }
+    public struct TrileEmplacement
+    {
+        public int X, Y, Z;
+        public TrileEmplacement(int x, int y, int z)
+        {
+            X = x; Y = y; Z = z;
+        }
+        public override string ToString()
+        {
+            string separator = System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberGroupSeparator;
+            return $"<{X}{separator} {Y}{separator} {this.Z}>";
+        }
+    }
     public enum HorizontalDirection
     {
         None,
@@ -35,6 +48,10 @@ namespace FezMultiplayerDedicatedServer
         Up,
         Down,
         Perspective
+    }
+    public enum ActorType
+    {
+        //TODO?
     }
     public enum ActionType
     {

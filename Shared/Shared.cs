@@ -11,14 +11,18 @@ using System.Diagnostics;
 
 #if FEZCLIENT
 using ActionType = FezGame.Structure.ActionType;
+using ActorType = FezEngine.Structure.ActorType;
+using TrileEmplacement = FezEngine.Structure.TrileEmplacement;
 using HorizontalDirection = FezEngine.HorizontalDirection;
 using Viewpoint = FezEngine.Viewpoint;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
 #else
 using ActionType = FezMultiplayerDedicatedServer.ActionType;
+using ActorType = FezMultiplayerDedicatedServer.ActorType;
 using HorizontalDirection = FezMultiplayerDedicatedServer.HorizontalDirection;
 using Viewpoint = FezMultiplayerDedicatedServer.Viewpoint;
 using Vector3 = FezMultiplayerDedicatedServer.Vector3;
+using TrileEmplacement = FezMultiplayerDedicatedServer.TrileEmplacement;
 #endif
 namespace FezSharedTools
 {
@@ -110,6 +114,50 @@ namespace FezSharedTools
         {
             PlayerName = playerName;
             CustomCharacterAppearance = appearance;
+        }
+    }
+    public enum TreasureType
+    {
+        Ao, Map, Trile
+    }
+    public enum TreasureSource
+    {
+        Forced, Chest, Map, Trile
+    }
+    public struct TreasureCollectionData
+    {
+        public readonly TreasureType Type;
+        public readonly TreasureSource Source;
+        public readonly string TreasureMapName;
+        public readonly ActorType TreasureActorType;
+        public readonly int? ArtObjectId;
+        public readonly TrileEmplacement? TrileEmplacement;
+        public readonly bool? TrileIsForeign;
+        public TreasureCollectionData(TreasureType type,
+                                      TreasureSource source,
+                                      string treasureMapName,
+                                      ActorType treasureActorType,
+                                      int? artObjectId,
+                                      TrileEmplacement? trileEmplacement,
+                                      bool? trileIsForeign)
+        {
+            Type = type;
+            Source = source;
+            TreasureMapName = treasureMapName;
+            TreasureActorType = treasureActorType;
+            ArtObjectId = artObjectId;
+            TrileEmplacement = trileEmplacement;
+            TrileIsForeign = trileIsForeign;
+        }
+        public override string ToString()
+        {
+            return $"Type: {Type}\n"
+                            + $"Source: {Source}\n"
+                            + $"TreasureMapName: {TreasureMapName}\n"
+                            + $"ActorType: {TreasureActorType}\n"
+                            + $"ArtObjectId: {ArtObjectId}\n"
+                            + $"TrileEmplacement: {TrileEmplacement}\n"
+                            + $"TrileIsForeign: {TrileIsForeign}\n";
         }
     }
     [Serializable]
