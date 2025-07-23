@@ -17,9 +17,7 @@
 
 - [ ] add a "kick" option to the server's interface, to forcibly disconnect players
 
-- [ ] Add something like a Dictionary<string, object> to represent custom client data for any mods that want to add support for FezMultiplayerMod
-
-- [ ] Convert the WriteClientGameTickPacket and WriteServerGameTickPacket functions to use a single argument instead of a bajillion arguments, to improve readability and make it more extendable
+- [ ] Add something like a Dictionary<string, object> to PlayerMetadata or PlayerAppearance to represent custom client data for any mods that want to add support for FezMultiplayerMod?
 
 - [ ] add option to sync world save data & level states. this would also sync inventory 
 

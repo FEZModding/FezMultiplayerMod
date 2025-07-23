@@ -189,44 +189,32 @@ namespace FezSharedTools
 
     public static class FezMultiplayerBinaryIOExtensions
     {
-        //
-        // For player names and whatnot
-        // should be an inclusive list of all characters supported by all of the languages' game fonts
-        // probably should restrict certain characters for internal use (like punctuation and symbols)
-        // also need to figure out how to handle people using characters that are not in this list
-        //
-        // Complete list of common chars: (?<=")[A-Za-z0-9 !"#$%&'()*+,\-./:;<>=?@\[\]\\^_`{}|~]+(?=")
-        //
-        // Common punctuation characters: [ !"#$%&'()*+,\-./:;<>=?@\[\]^_`{}|~]
-        // Potential reserved characters: [ #$&\\`]
-        //
-        // TODO add a universal font?
-        // Note the hanzi/kanji/hanja (Chinese characters) look slightly different in Chinese vs Japanese vs Korean;
-        //     Might be worth making a system that can write the player name using multiple fonts
-
-        //unused
-        //public static readonly System.Text.RegularExpressions.Regex commonCharRegex = new System.Text.RegularExpressions.Regex(@"[^\x20-\x7E]");
-
-        //more strict so we can potentially add features (such as colors and effects) using special characters later
-        public static readonly System.Text.RegularExpressions.Regex nameInvalidCharRegex = new System.Text.RegularExpressions.Regex(@"[^0-9A-Za-z]");
-
         public static readonly int MaxPlayerNameLength = 32;
         public static readonly int MaxLevelNameLength = 256;
 
         /// <summary>
-        /// Reads a string from the given <see cref="BinaryNetworkReader"/> as a byte array with an explicit length,
-        /// throwing an <see cref="ArgumentOutOfRangeException"/> if the string length is larger than <paramref name="maxLength"/>.
-        /// <br /> 
-        /// Note: do NOT use <see cref="BinaryNetworkReader.ReadString()"/> for network data, as the string length can be maliciously manipulated to hog network traffic.
-        /// <br /> See <a href="https://cwe.mitre.org/data/definitions/130.html">CWE-130</a> and <a href="https://cwe.mitre.org/data/definitions/400.html">CWE-400</a>
+        ///     Reads a string from the given <see cref="BinaryNetworkReader"/> as a byte array with an explicit length,
+        ///     throwing an <see cref="ArgumentOutOfRangeException"/> if the string length is larger than <paramref name="maxLength"/>.
+        ///     <br /> 
+        ///     Note: do NOT use <see cref="BinaryNetworkReader.ReadString()"/> for network data, as the string length can be maliciously manipulated to hog network traffic.
+        ///     <br /> See <a href="https://cwe.mitre.org/data/definitions/130.html">CWE-130</a> and <a href="https://cwe.mitre.org/data/definitions/400.html">CWE-400</a>
         /// </summary>
-        /// <param name="reader">The <see cref="BinaryNetworkReader"/> from which to read the string.</param>
-        /// <param name="maxLength">The maximum allowable length for the string. Any length greater than this will result in an exception.</param>
-        /// <returns>A string read from the binary stream, decoded using UTF-8.</returns>
+        /// <param name="reader">
+        ///     The <see cref="BinaryNetworkReader"/> from which to read the string.
+        /// </param>
+        /// <param name="maxLength">
+        ///     The maximum allowable length for the string. Any length greater than this will result in an exception.
+        /// </param>
+        /// <returns>
+        ///     A string read from the binary stream, decoded using UTF-8.
+        /// </returns>
         /// <exception cref="InvalidDataException">
-        /// Thrown when the length of the string read (specified by the first 4 bytes) is outside the allowed range of 0 to <paramref name="maxLength"/>.
-        /// This exception is raised to prevent the application from processing excessively long data, which could lead to denial of service or allocate undue resources.
+        ///     Thrown when the length of the string read (specified by the first 4 bytes) is outside the allowed range of 0 to <paramref name="maxLength"/>.
+        ///     This exception is raised to prevent the application from processing excessively long data, which could lead to denial of service or allocate undue resources.
         /// </exception>
+        /// <remarks>
+        ///     See also: <seealso cref="WriteStringAsByteArrayWithLength"/>
+        /// </remarks>
         public static string ReadStringAsByteArrayWithLength(this BinaryNetworkReader reader, int maxLength)
         {
             const int minLength = 0;
@@ -241,12 +229,16 @@ namespace FezSharedTools
             }
         }
         /// <summary>
-        /// Writes the string to the writer as a byte array, preceded by the array length.
+        ///     Writes the string to the writer as a byte array, preceded by the array length.
         /// </summary>
-        /// <param name="writer">The writer to write to</param>
-        /// <param name="str">The string to send as a byte array</param>
+        /// <param name="writer">
+        ///     The writer to write to
+        /// </param>
+        /// <param name="str">
+        ///     The string to send as a byte array
+        /// </param>
         /// <remarks>
-        /// See also: <seealso cref="ReadStringAsByteArrayWithLength"/>
+        ///     See also: <seealso cref="ReadStringAsByteArrayWithLength"/>
         /// </remarks>
         public static void WriteStringAsByteArrayWithLength(this BinaryNetworkWriter writer, string str)
         {
@@ -398,11 +390,12 @@ namespace FezSharedTools
                 this.RequestedAppearances = RequestedAppearances;
             }
         }
-        /// <summary>
-        /// 
-        /// </summary>
+        /// <summary>Reads the data sent by the player/client</summary>
         /// <param name="reader">The BinaryNetworkReader to read data from</param>
         /// <param name="retval">The value to store the return values in</param>
+        /// <remarks>
+        ///     Note: The data written by this method should be written by <seealso cref="WriteClientGameTickPacket"/>
+        /// </remarks>
         /// <returns>the amount of time, in ticks, it took to read the data to the network</returns>
         protected long ReadClientGameTickPacket(BinaryNetworkReader reader, ref MiscClientData retval, Guid playerUuid)
         {
@@ -443,8 +436,13 @@ namespace FezSharedTools
             retval.Disconnecting = Disconnecting;
             return sw.ElapsedTicks;
         }
-        /// 
-        /// 
+        /// <summary>
+        ///     Writes the supplied player/client data to network stream that is connected to the multiplayer server represented by <paramref name="writer0"/>
+        /// </summary>
+        /// <remarks>
+        ///     Note: This method has a lot of arguments so it is more easily identifiable if one of the arguments is unused.<br />
+        ///     Note: The data written by this method should be read by <seealso cref="ReadClientGameTickPacket"/>
+        /// </remarks>
         /// <returns>the amount of time, in ticks, it took to write the data to the network</returns>
         protected long WriteClientGameTickPacket(BinaryNetworkWriter writer0, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState,
                 PlayerAppearance? appearance, ICollection<Guid> requestPlayerAppearance, bool Disconnecting)
@@ -490,8 +488,10 @@ namespace FezSharedTools
             }
             return sw.ElapsedTicks;
         }
-        /// 
-        /// 
+        /// <summary>Reads the data sent from the server</summary>
+        /// <remarks>
+        ///     Note: The data written by this method should be written by <seealso cref="WriteServerGameTickPacket"/>
+        /// </remarks>
         /// <returns>the amount of time, in ticks, it took to read the data from the network</returns>
         protected long ReadServerGameTickPacket(BinaryNetworkReader reader, ref bool RetransmitAppearance)
         {
@@ -543,8 +543,11 @@ namespace FezSharedTools
             RetransmitAppearance = reader.ReadBoolean();
             return sw.ElapsedTicks;
         }
-        /// 
-        /// 
+        /// <summary>Writes the supplied server data to client's network stream <paramref name="writer0"/></summary>
+        /// <remarks>
+        ///     Note: This method has a lot of arguments so it is more easily identifiable if one of the arguments is unused.<br />
+        ///     Note: The data written by this method should be read by <seealso cref="ReadServerGameTickPacket"/>
+        /// </remarks>
         /// <returns>the amount of time, in ticks, it took to write the data to the network</returns>
         protected long WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
                                                             ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,

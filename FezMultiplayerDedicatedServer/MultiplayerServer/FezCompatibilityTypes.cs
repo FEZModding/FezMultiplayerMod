@@ -51,7 +51,7 @@ namespace FezMultiplayerDedicatedServer
     }
     public enum ActorType
     {
-        //TODO?
+        //TODO? only used for treasure actor type
     }
     public enum ActionType
     {
