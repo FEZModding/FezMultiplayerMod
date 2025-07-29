@@ -34,13 +34,13 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// This class is mainly so we can get text to display over everything else but still have the other players render on the correct layer. 
         /// </summary>
-        private sealed class DebugTextDrawer : DrawableGameComponent
+        private sealed class OverlaidTextDrawer : DrawableGameComponent
         {
             private readonly FezMultiplayerMod mod;
             public string Text = "";
             public Color Color = Color.Gray;
 
-            public DebugTextDrawer(Game game, FezMultiplayerMod mod)
+            public OverlaidTextDrawer(Game game, FezMultiplayerMod mod)
                 : base(game)
             {
                 this.mod = mod;
@@ -95,7 +95,12 @@ namespace FezGame.MultiplayerMod
         public static FezMultiplayerMod Instance;
 
         private readonly MultiplayerClient mp;
-        public volatile bool ShowDebugInfo = true;
+        public volatile bool ShowDebugInfo = 
+#if DEBUG
+            true;
+#else
+            false;
+#endif
         private const Microsoft.Xna.Framework.Input.Keys ToggleMPDebug = Microsoft.Xna.Framework.Input.Keys.F3,
                         LeftAlt = Microsoft.Xna.Framework.Input.Keys.LeftAlt,
                         ToggleFontTest1 = Microsoft.Xna.Framework.Input.Keys.D1,
@@ -103,7 +108,7 @@ namespace FezGame.MultiplayerMod
                         ToggleFontTest3 = Microsoft.Xna.Framework.Input.Keys.D3,
                         ScaleFontTestDown = Microsoft.Xna.Framework.Input.Keys.D4,
                         ScaleFontTestUp = Microsoft.Xna.Framework.Input.Keys.D5;
-        private readonly DebugTextDrawer debugTextDrawer;
+        private readonly OverlaidTextDrawer statusTextDrawer;
 
         public FezMultiplayerMod(Game game)
             : base(game)
@@ -111,7 +116,7 @@ namespace FezGame.MultiplayerMod
             //System.Diagnostics.Debugger.Launch();
             //Fez.SkipIntro = true;
             Instance = this;
-            ServiceHelper.AddComponent(debugTextDrawer = new DebugTextDrawer(game, Instance), false);
+            ServiceHelper.AddComponent(statusTextDrawer = new OverlaidTextDrawer(game, Instance), false);
 
             SaveDataObserver saveDataObserver;
             ServiceHelper.AddComponent(saveDataObserver = new SaveDataObserver(game));
@@ -339,7 +344,7 @@ namespace FezGame.MultiplayerMod
             }
             if (mp.ErrorMessage != null)
             {
-                debugTextDrawer.Color = Color.Red;
+                statusTextDrawer.Color = Color.Red;
                 s += $"{mp.ErrorMessage}\n";
             }
             switch (mp.ActiveConnectionState)
@@ -349,7 +354,7 @@ namespace FezGame.MultiplayerMod
                 {
                     s += $"Connected players: \n";
                 }
-                debugTextDrawer.Color = Color.Gray;
+                statusTextDrawer.Color = Color.Gray;
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 try
                 {
@@ -419,7 +424,7 @@ namespace FezGame.MultiplayerMod
                     ShowingFatalException = false;
                 }
             }
-            debugTextDrawer.Text = s;
+            statusTextDrawer.Text = s;
         }
         private bool ShowingFatalException = false;
         private TimeSpan ShowingFatalExceptionStartTimestamp = TimeSpan.Zero;
