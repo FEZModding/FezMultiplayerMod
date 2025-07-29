@@ -145,6 +145,12 @@ namespace FezGame.MultiplayerMod
                 IniTools.WriteSettingsFile(SettingsFilePath, settings);
             });
 
+            serverListMenu.OnPlayerNameChange += (newName =>
+            {
+                settings.MyPlayerName = newName;
+                IniTools.WriteSettingsFile(SettingsFilePath, settings);
+            });
+
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
         }

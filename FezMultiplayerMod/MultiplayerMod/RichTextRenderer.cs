@@ -27,6 +27,26 @@ namespace FezGame.MultiplayerMod
                 return field.FieldType.IsAssignableFrom(typeof(int)) && value == (int)field.GetValue(null);
             });
         }
+        private static readonly System.Text.RegularExpressions.Regex escapeCodeRegex = new System.Text.RegularExpressions.Regex(@"(\x1B\[|\x9B)([0-9\x3A;]*)(\x20?[\x40-\x7F])", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        public static string StripAnsiEscapeSequences(this string str)
+        {
+            return escapeCodeRegex.Replace(str, "");
+        }
+        public static int LengthWithoutAnsiEscapeSequences(this string str)
+        {
+            return str.StripAnsiEscapeSequences().Length;
+        }
+        /// <summary>
+        /// Pad right, accounting for Ansi Escape Sequences
+        /// </summary>
+        /// <param name="str"></param>
+        /// <param name="totalWidth">total width ignoring escape sequences</param>
+        /// <returns></returns>
+        public static string PadRightAnsi(this string str, int totalWidth)
+        {
+            int dif = str.Length - str.LengthWithoutAnsiEscapeSequences();
+            return str.PadRight(totalWidth + dif);
+        }
     }
     /// <summary>
     /// Uses format codes to stylize, format, and display text.

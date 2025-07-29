@@ -70,4 +70,6 @@ Added IPv6 support for allowlist and blocklist
 Fixed a bug where querying the player list as the server would crash the server
 Various optimizations
 Made ServerDiscover non-blocking 
+Added in-game option to change name
+various bug fixes and improvements
 

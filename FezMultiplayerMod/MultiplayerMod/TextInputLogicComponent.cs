@@ -17,14 +17,25 @@ namespace FezGame.MultiplayerMod
     internal class TextInputLogicComponent : GameComponent
     {
         public static int TextboxPadRight = 30;
-        public string Value = "";
+        private string value = "";
         private bool showCaret = false;
         private const string caret = "|";
         private static readonly string noCaret = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Obfuscate}{RichTextRenderer.CSICommands.SGR}"
                 + caret + $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.NotObfuscated}{RichTextRenderer.CSICommands.SGR}";
         private int caretPosition = 0;
         private readonly double caretBlinksPerSecond = 0.8d;
-        public string DisplayValue => HasFocus ? Value.PadRight(TextboxPadRight - caret.Length).Insert(ConstrainCaretPosition(), showCaret ? caret : noCaret) : Value.PadRight(TextboxPadRight);
+
+        public string Value
+        {
+            get => value;
+            set
+            {
+                this.value = value;
+                _ = ConstrainCaretPosition();
+                OnUpdate();
+            }
+        }
+        public string DisplayValue => HasFocus ? Value.PadRightAnsi(TextboxPadRight - caret.Length).Insert(ConstrainCaretPosition(), showCaret ? caret : noCaret) : Value.PadRightAnsi(TextboxPadRight);
 
         public int MaxLength = 10000;
         public event Action OnUpdate = () => { };

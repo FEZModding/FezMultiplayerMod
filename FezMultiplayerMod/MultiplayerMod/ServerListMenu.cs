@@ -73,35 +73,41 @@ namespace FezGame.MultiplayerMod
                 this.Action = action;
                 this.OnMoveToOtherOption = onMoveToOtherOption;
             }
-            public MenuListOption(string text, Func<MenuLevel> submenuSupplier)
+            public MenuListOption(string text, Func<MenuLevel> submenuSupplier, Action onMoveToOtherOption = null, Action onSelect = null)
             {
                 this.DisplayText = text;
-                this.Action = ()=> { Instance.CurrentMenuLevel = submenuSupplier.Invoke(); };
+                this.Action = () => { Instance.CurrentMenuLevel = submenuSupplier.Invoke(); onSelect?.Invoke(); };
+                this.OnMoveToOtherOption = onMoveToOtherOption;
             }
         }
         private class MenuListTextInput
         {
             private static readonly string framedTextEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}";
-            private static readonly string framedTextDisableEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.NotFramedNotEncircled}{RichTextRenderer.CSICommands.SGR}";
+            private static readonly string textResetFormattingEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Reset}{RichTextRenderer.CSICommands.SGR}";
             public static int TextboxPadRight
             {
                 get => TextInputLogicComponent.TextboxPadRight;
                 set => TextInputLogicComponent.TextboxPadRight = value;
             }
-            public string Value => hiddenInputElement.Value;
+            public string Value
+            {
+                get => hiddenInputElement.Value;
+                set => hiddenInputElement.Value = value;
+            }
+
             public readonly MenuListOption MenuListOption;
             private readonly TextInputLogicComponent hiddenInputElement;
 
             public MenuListTextInput(Game game, string label, Action<string> OnUpdate = null)
             {
-                string textboxInitialText = framedTextEscapeCode.PadRight(TextboxPadRight) + framedTextDisableEscapeCode;
+                string textboxInitialText = framedTextEscapeCode.PadRight(TextboxPadRight) + textResetFormattingEscapeCode;
                 string baseName = label + framedTextEscapeCode;
                 hiddenInputElement = new TextInputLogicComponent(game);
                 ServiceHelper.AddComponent(hiddenInputElement);
                 MenuListOption = new MenuListOption(label + textboxInitialText, () => hiddenInputElement.HasFocus = true, () => hiddenInputElement.HasFocus = false);
                 hiddenInputElement.OnUpdate += () =>
                 {
-                    MenuListOption.DisplayText = baseName + hiddenInputElement.DisplayValue + framedTextDisableEscapeCode;
+                    MenuListOption.DisplayText = baseName + hiddenInputElement.DisplayValue + textResetFormattingEscapeCode;
                     OnUpdate?.Invoke(hiddenInputElement.Value);
                 };
             }
@@ -154,6 +160,7 @@ namespace FezGame.MultiplayerMod
         private readonly MenuListOption OptionDisconnect;
 
         private readonly MenuLevel Menu_None = new MenuLevel("", null, (list)=> { });
+        private readonly MenuLevel Menu_ChangeName;
         private readonly MenuLevel Menu_ServerList;
         private readonly MenuLevel Menu_ServerSelected;
         private readonly MenuLevel Menu_ServerAdd;
@@ -163,11 +170,12 @@ namespace FezGame.MultiplayerMod
         private readonly MenuListTextInput AddressTextbox;
 
         /// <summary>
-        /// TODO call this with <c><see cref="ServerInfoList"/>.AsReadOnly()</c> when <see cref="ServerInfoList"/> changes <br />
         /// Called when the user adds or removes a server from the server list. <br />
         /// Supplies the new server list, and does not include LAN servers.
         /// </summary>
         public event Action<ReadOnlyCollection<ServerInfo>> OnServerListChange = (serverList) => { };
+
+        public event Action<string> OnPlayerNameChange = (newName) => { };
 
         /// <summary>
         /// Loads the server list from the supplied <paramref name="settings"/> into <see cref="ServerInfoList"/>
@@ -299,13 +307,15 @@ namespace FezGame.MultiplayerMod
             //declared on class scope so we can toggle Enabled
             OptionDisconnect = new MenuListOption("Disconnect from server", LeaveServer) { Enabled = false };
 
-            MenuListOption OptionAdd = new MenuListOption("Add", () => Menu_ServerAdd);
+            MenuListOption OptionAdd = new MenuListOption("Add", () => Menu_ServerAdd, onSelect: () => { NameTextbox.Value = ""; AddressTextbox.Value = ""; });
             MenuListOption OptionRemove = new MenuListOption("Remove", () => Menu_ServerRemove);
             MenuListOption OptionRemoveConfirm = new MenuListOption("Confirm Removal", RemoveServerConfirmed);
             MenuListOption OptionAddServer = new MenuListOption("Add Server", AddServerConfirmed);
             MenuListOption OptionJoin = new MenuListOption("Join", JoinServer);
             MenuListOption OptionRefreshLAN = new MenuListOption("Refresh LAN servers", ForceRefreshOptionsList);
 
+            MenuListOption OptionChangeName = new MenuListOption("Change Name", () => Menu_ChangeName, onSelect: () => NameTextbox.Value = mp.MyPlayerName);
+            MenuListOption OptionChangeNameConfirm = new MenuListOption("Confirm Name", ChangeNameConfirmed);
 
             const int textboxPadRight = 30;
             MenuListTextInput.TextboxPadRight = textboxPadRight;
@@ -322,6 +332,7 @@ namespace FezGame.MultiplayerMod
                 list.Add(OptionDisconnect);
                 list.Add(OptionAdd);
                 list.Add(OptionRefreshLAN);
+                list.Add(OptionChangeName);
                 list.AddRange(ServerList);
             });
             Menu_ServerSelected = new MenuLevel("Selected Server", parent: Menu_ServerList, list =>
@@ -334,7 +345,6 @@ namespace FezGame.MultiplayerMod
             });
             Menu_ServerAdd = new MenuLevel("Add Server", parent: Menu_ServerList, list =>
             {
-                //TODO add textbox
                 list.Add(NameTextbox.MenuListOption);
                 list.Add(AddressTextbox.MenuListOption);
                 list.Add(OptionAddServer);
@@ -343,6 +353,13 @@ namespace FezGame.MultiplayerMod
             {
                 list.Add(OptionRemoveConfirm);
             });
+
+            Menu_ChangeName = new MenuLevel("Enter a new Name", parent: Menu_ServerList, list =>
+            {
+                list.Add(NameTextbox.MenuListOption);
+                list.Add(OptionChangeNameConfirm);
+            });
+
             CurrentMenuLevel = Menu_ServerList;
 
             serverDiscoverer = new ServerDiscoverer(SharedConstants.MulticastAddress);
@@ -491,6 +508,14 @@ namespace FezGame.MultiplayerMod
         {
             ServerInfoList.Remove(selectedInfo);
             OnServerListChange(ServerInfoList.AsReadOnly());
+            CurrentMenuLevel = Menu_ServerList;
+        }
+
+        private void ChangeNameConfirmed()
+        {
+            string newName = NameTextbox.Value;
+            mp.MyPlayerName = newName;
+            OnPlayerNameChange(newName);
             CurrentMenuLevel = Menu_ServerList;
         }
 
