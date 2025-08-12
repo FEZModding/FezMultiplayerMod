@@ -13,15 +13,47 @@ namespace FezMultiplayerDedicatedServer
 {
     sealed class FezDedicatedServer
     {
+        public struct CommandLineCommand
+        {
+            public string Description { get; }
+            public Action<string[]> Action { get; }
+
+            public CommandLineCommand(string description, Action<string[]> action)
+            {
+                Description = description;
+                Action = action;
+            }
+            public static implicit operator CommandLineCommand((string description, Action<string[]> action) tuple)
+            {
+                return new CommandLineCommand(tuple.description, tuple.action);
+            }
+        }
+
+        public static string ReadLineInvariant()
+        {
+            return Console.ReadLine()?.Trim()?.ToLowerInvariant() ?? "";
+        }
+        public static string Prompt(string text)
+        {
+            Console.WriteLine(text);
+            return ReadLineInvariant();
+        }
+        public static string GetArgOrPrompt(string[] args, int index, string text)
+        {
+            return args.Length <= index ? Prompt(text) : args[index];
+        }
+
         private static MultiplayerServerNetcode server;
-        static void Main(string[] args)
+        private static MultiplayerServerSettings settings;
+        private static volatile bool running;
+        static void Main(string[] prog_args)
         {
             //TODO add more to this, like command line parameters and connection logs
 
             Console.WriteLine($"FezMultiplayerMod server starting... (protocol ver: {MultiplayerServerNetcode.ProtocolVersion})");
 
             Queue<string> queue = new Queue<string>();
-            foreach (string item in args)
+            foreach (string item in prog_args)
             {
                 queue.Enqueue(item);
             }
@@ -44,7 +76,7 @@ namespace FezMultiplayerDedicatedServer
             }
 
             Console.WriteLine($"Loading settings from {SettingsFilePath}");
-            MultiplayerServerSettings settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerServerSettings());
+            settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerServerSettings());
             IniTools.WriteSettingsFile(SettingsFilePath, settings);
 
             Console.WriteLine("Initializing server...");
@@ -81,19 +113,19 @@ namespace FezMultiplayerDedicatedServer
             try
             {
                 string line;
-                bool running = true;
-                var cliActions = new Dictionary<string, (string desc, Action action)>
+                running = true;
+                Dictionary<string, CommandLineCommand> cliActions = new Dictionary<string, CommandLineCommand>
                 {
                     {
                         "exit".ToLowerInvariant(),
-                        ("Stops the server and closes the program", () =>
+                        ("Stops the server and closes the program", (_) =>
                         {
                             running = false;
                         })
                     },
                     {
                         "players".ToLowerInvariant(),
-                        ("Lists currently connected players", () =>
+                        ("Lists currently connected players", (_) =>
                         {
                             string s = "Connected players:\n";
                             string[] columns = { };
@@ -104,7 +136,7 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "dis".ToLowerInvariant(),
-                        ("Lists disconnected players", () =>
+                        ("Lists disconnected players", (_) =>
                         {
                             string s = "Disconnected players:\n";
                             int count = 0;
@@ -122,7 +154,7 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "appear".ToLowerInvariant(),
-                        ("Lists players appearances", () =>
+                        ("Lists players appearances", (_) =>
                         {
                             string s = "Player appearances:\n";
                             int count = 0;
@@ -140,24 +172,23 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "blocklist".ToLowerInvariant(),
-                        ("Prints out the blocklsit", () =>
+                        ("Prints out the blocklsit", (_) =>
                         {
                             Console.WriteLine(settings.BlockList.ToDetailedString());
                         })
                     },
                     {
                         "allowlist".ToLowerInvariant(),
-                        ("Prints out the allowlist", () =>
+                        ("Prints out the allowlist", (_) =>
                         {
                             Console.WriteLine(settings.AllowList.ToDetailedString());
                         })
                     },
                     {
                         "kick".ToLowerInvariant(),
-                        ("kick a player", () =>
+                        ("kick a player", (args) =>
                         {
-                            Console.WriteLine("Which player? (supply the Guid)");
-                            string arg = Console.ReadLine().Trim().ToLowerInvariant();
+                            string arg = GetArgOrPrompt(args, 1, "Which player? (supply the Guid)");
                             if(Guid.TryParse(arg, out Guid puid) && server.Players.TryGetValue(puid, out var pdat))
                             {
                                 var client = pdat.client;
@@ -171,10 +202,10 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "ban".ToLowerInvariant(),
-                        ("IP ban", () =>
+                        ("IP ban", (args) =>
                         {
-                            Console.WriteLine("Which IP?");
-                            string arg = Console.ReadLine().Trim().ToLowerInvariant();
+                            string arg = GetArgOrPrompt(args, 1, "Which IP?");
+
                             if(IPAddress.TryParse(arg, out IPAddress address))
                             {
                                 if(address.IsIPv4MappedToIPv6)
@@ -207,15 +238,15 @@ namespace FezMultiplayerDedicatedServer
                     },
                 };
                 int maxCommandLength = cliActions.Max(kv => kv.Key.Length);
-                (string desc, Action action) HelpCommand;
+                CommandLineCommand HelpCommand;
                 string helpCmdName = "help".ToLowerInvariant();
                 cliActions.Add(helpCmdName,
-                    HelpCommand = ("Lists available commands", () =>
+                    HelpCommand = ("Lists available commands", (_) =>
                     {
                         Console.WriteLine("Available commands:");
                         foreach (var kvpair in cliActions)
                         {
-                            Console.WriteLine($"{kvpair.Key.PadRight(maxCommandLength, ' ')} - {kvpair.Value.desc}");
+                            Console.WriteLine($"{kvpair.Key.PadRight(maxCommandLength, ' ')} - {kvpair.Value.Description}");
                         }
                     }
                 ));
@@ -223,16 +254,19 @@ namespace FezMultiplayerDedicatedServer
 
                 while (running)
                 {
-                    line = Console.ReadLine().Trim().ToLowerInvariant();
-                    bool validAction = cliActions.TryGetValue(line, out var tuple);
+                    line = ReadLineInvariant();
+                    MatchCollection matches = Regex.Matches(line, @"([^""'\s]+|""(?:\\.|[^""])*""|'(?:\\.|[^'])*')");
+                    string[] cmd_args = matches.Cast<Match>().Select(m=>m.Value).ToArray();
+                    string cmd_name = cmd_args.Length > 0 ? cmd_args[0] : "";
+                    bool validAction = cliActions.TryGetValue(cmd_name, out var tuple);
                     if (validAction)
                     {
-                        tuple.action();
+                        tuple.Action(cmd_args);
                     }
                     else
                     {
-                        Console.WriteLine($"Unknown command: \"{line}\"");
-                        HelpCommand.action();
+                        Console.WriteLine($"Unknown command: \"{cmd_name}\"");
+                        HelpCommand.Action(cmd_args);
                     }
                 }
             }
