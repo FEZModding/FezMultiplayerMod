@@ -43,78 +43,7 @@ namespace FezMultiplayerDedicatedServer
             return args.Length <= index ? Prompt(text) : args[index];
         }
 
-        private static MultiplayerServerNetcode server;
-        private static MultiplayerServerSettings settings;
-        private static volatile bool running;
-        static void Main(string[] prog_args)
-        {
-            //TODO add more to this, like command line parameters and connection logs
-
-            Console.WriteLine($"FezMultiplayerMod server starting... (protocol ver: {MultiplayerServerNetcode.ProtocolVersion})");
-
-            Queue<string> queue = new Queue<string>();
-            foreach (string item in prog_args)
-            {
-                queue.Enqueue(item);
-            }
-
-            string SettingsFilePath = "FezMultiplayerServer.ini";
-
-            //Note: to include spaces in the file path, enclose the entire path in double quotes ""
-            while (queue.Count > 0)
-            {
-                string val;
-                switch (val = queue.Dequeue().ToLower(CultureInfo.InvariantCulture))
-                {
-                case "--settings-file":
-                    SettingsFilePath = queue.Dequeue();
-                    break;
-                default:
-                    Console.WriteLine($"Invalid switch - \"{val}\"");
-                    break;
-                }
-            }
-
-            Console.WriteLine($"Loading settings from {SettingsFilePath}");
-            settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerServerSettings());
-            IniTools.WriteSettingsFile(SettingsFilePath, settings);
-
-            Console.WriteLine("Initializing server...");
-            server = new MultiplayerServerNetcode(settings);
-
-            //MultiplayerServerSettings.WriteSettingsFile(SettingsFilePath, settings);//TODO
-
-            //Wait for the server netcode to finish initializing
-            while (server.LocalEndPoint == null && server.FatalException == null)
-            {
-                System.Threading.Thread.Sleep(1);
-            }
-            if (server.FatalException != null)
-            {
-                Console.WriteLine(server.ErrorMessage);
-                Console.WriteLine(server.FatalException);
-            }
-
-            //Note: the following line can fail due to race conditions, since the listening thread might not be initialized yet; this is the reason of the above sleep
-            Console.WriteLine("Listening on port " + ((System.Net.IPEndPoint)server.LocalEndPoint).Port);
-
-            GetLocalIPAddresses();
-
-            Timer myTimer = new Timer();
-            myTimer.Elapsed += (a, b) => { server.Update(); };
-            myTimer.Interval = 1f / 60f * 1000; // 1000 ms is one second
-            myTimer.Start();
-
-            //Note: gotta keep the program busy otherwise it'll close
-
-            //TODO make the CLI better; see https://learn.microsoft.com/en-us/dotnet/api/system.console , particularly Console.SetCursorPosition
-            //I want a nice animated one that automatically updates what it writes on the screen
-
-            try
-            {
-                string line;
-                running = true;
-                Dictionary<string, CommandLineCommand> cliActions = new Dictionary<string, CommandLineCommand>
+        public static readonly Dictionary<string, CommandLineCommand> cliActions = new Dictionary<string, CommandLineCommand>
                 {
                     {
                         "exit".ToLowerInvariant(),
@@ -237,19 +166,93 @@ namespace FezMultiplayerDedicatedServer
                         })
                     },
                 };
-                int maxCommandLength = cliActions.Max(kv => kv.Key.Length);
-                CommandLineCommand HelpCommand;
-                string helpCmdName = "help".ToLowerInvariant();
-                cliActions.Add(helpCmdName,
-                    HelpCommand = ("Lists available commands", (_) =>
-                    {
-                        Console.WriteLine("Available commands:");
-                        foreach (var kvpair in cliActions)
+        private static MultiplayerServerNetcode server;
+        private static MultiplayerServerSettings settings;
+        private static volatile bool running;
+        private static readonly CommandLineCommand HelpCommand;
+        private static readonly string helpCmdName = "help".ToLowerInvariant();
+        static FezDedicatedServer()
+        {
+            int maxCommandLength = cliActions.Max(kv => kv.Key.Length);
+            cliActions.Add(helpCmdName,
+                HelpCommand = ("Lists available commands", (_) =>
                         {
-                            Console.WriteLine($"{kvpair.Key.PadRight(maxCommandLength, ' ')} - {kvpair.Value.Description}");
+                            Console.WriteLine("Available commands:");
+                            foreach (var kvpair in cliActions)
+                            {
+                                Console.WriteLine($"{kvpair.Key.PadRight(maxCommandLength, ' ')} - {kvpair.Value.Description}");
+                            }
                         }
-                    }
-                ));
+            ));
+        }
+        static void Main(string[] prog_args)
+        {
+            //TODO add more to this, like command line parameters and connection logs
+
+            Console.WriteLine($"FezMultiplayerMod server starting... (protocol ver: {MultiplayerServerNetcode.ProtocolVersion})");
+
+            Queue<string> queue = new Queue<string>();
+            foreach (string item in prog_args)
+            {
+                queue.Enqueue(item);
+            }
+
+            string SettingsFilePath = "FezMultiplayerServer.ini";
+
+            //Note: to include spaces in the file path, enclose the entire path in double quotes ""
+            while (queue.Count > 0)
+            {
+                string val;
+                switch (val = queue.Dequeue().ToLower(CultureInfo.InvariantCulture))
+                {
+                case "--settings-file":
+                    SettingsFilePath = queue.Dequeue();
+                    break;
+                default:
+                    Console.WriteLine($"Invalid switch - \"{val}\"");
+                    break;
+                }
+            }
+
+            Console.WriteLine($"Loading settings from {SettingsFilePath}");
+            settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerServerSettings());
+            IniTools.WriteSettingsFile(SettingsFilePath, settings);
+
+            Console.WriteLine("Initializing server...");
+            server = new MultiplayerServerNetcode(settings);
+
+            //MultiplayerServerSettings.WriteSettingsFile(SettingsFilePath, settings);//TODO
+
+            //Wait for the server netcode to finish initializing
+            while (server.LocalEndPoint == null && server.FatalException == null)
+            {
+                System.Threading.Thread.Sleep(1);
+            }
+            if (server.FatalException != null)
+            {
+                Console.WriteLine(server.ErrorMessage);
+                Console.WriteLine(server.FatalException);
+            }
+
+            //Note: the following line can fail due to race conditions, since the listening thread might not be initialized yet; this is the reason of the above sleep
+            Console.WriteLine("Listening on port " + ((System.Net.IPEndPoint)server.LocalEndPoint).Port);
+
+            GetLocalIPAddresses();
+
+            Timer myTimer = new Timer();
+            myTimer.Elapsed += (a, b) => { server.Update(); };
+            myTimer.Interval = 1f / 60f * 1000; // 1000 ms is one second
+            myTimer.Start();
+
+            //Note: gotta keep the program busy otherwise it'll close
+
+            //TODO make the CLI better; see https://learn.microsoft.com/en-us/dotnet/api/system.console , particularly Console.SetCursorPosition
+            //I want a nice animated one that automatically updates what it writes on the screen
+
+            try
+            {
+                string line;
+                running = true;
                 Console.WriteLine($"Use {helpCmdName} to list available commands");
 
                 while (running)
@@ -258,7 +261,7 @@ namespace FezMultiplayerDedicatedServer
                     MatchCollection matches = Regex.Matches(line, @"([^""'\s]+|""(?:\\.|[^""])*""|'(?:\\.|[^'])*')");
                     string[] cmd_args = matches.Cast<Match>().Select(m=>m.Value).ToArray();
                     string cmd_name = cmd_args.Length > 0 ? cmd_args[0] : "";
-                    bool validAction = cliActions.TryGetValue(cmd_name, out var tuple);
+                    bool validAction = cliActions.TryGetValue(cmd_name, out CommandLineCommand tuple);
                     if (validAction)
                     {
                         tuple.Action(cmd_args);
@@ -296,8 +299,8 @@ namespace FezMultiplayerDedicatedServer
 
             /// Contains the names of the columns (keys) in tDat and tDatLen
             List<string> colNames = new List<string>();
-            
-            var sb = new StringBuilder();
+
+            StringBuilder sb = new StringBuilder();
             count = 0;
 
             void AddToCol(string colName, string val)
