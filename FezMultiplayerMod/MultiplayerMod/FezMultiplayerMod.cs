@@ -135,6 +135,11 @@ namespace FezGame.MultiplayerMod
             mp = new MultiplayerClient(settings);
             IniTools.WriteSettingsFile(SettingsFilePath, settings);
 
+            mp.OnUpdate += () =>
+            {
+                GameState.SaveData.CanOpenMap = true;
+            };
+
             ServerListMenu serverListMenu;
             ServiceHelper.AddComponent(serverListMenu = new ServerListMenu(game, mp));
             serverListMenu.LoadServerSettings(settings);
