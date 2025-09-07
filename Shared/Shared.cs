@@ -30,16 +30,37 @@ namespace FezSharedTools
     {
         public static void LogWarning(string ComponentName, string message, int LogSeverity = 1)
         {
-            string ThreadName = System.Threading.Thread.CurrentThread.Name ?? String.Empty;
-            if (ThreadName.Length > 0)
+            string ThreadName = System.Threading.Thread.CurrentThread.Name;
+            if (!string.IsNullOrEmpty(ThreadName))
             {
                 message = $"({ThreadName}) " + message;
             }
+            LogSeverity = Math.Max(0, Math.Min(LogSeverity, 2));
 #if FEZCLIENT
             Common.Logger.Log(ComponentName, (Common.LogSeverity)LogSeverity, message);
 #endif
-            Console.WriteLine("Warning: " + message);
-            System.Diagnostics.Debug.WriteLine("Warning: " + message);
+            string msgType;
+            switch(LogSeverity)
+            {
+            case 0:
+                msgType = "Information";
+                break;
+            case 1:
+                msgType = "Warning";
+                break;
+            case 2:
+            default:
+                msgType = "Error";
+                break;
+            }
+#if FEZCLIENT
+            message = $"{msgType}: {message}";
+#else
+            string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+            message = $"{timestamp} [{msgType}] {ComponentName} - {message}";
+#endif
+            Console.WriteLine(message);
+            System.Diagnostics.Debug.WriteLine(message);
         }
         public static void ForceDisconnect(this System.Net.Sockets.Socket socket)
         {
