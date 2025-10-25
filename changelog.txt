@@ -72,4 +72,4 @@ Various optimizations
 Made ServerDiscover non-blocking 
 Added in-game option to change name
 various bug fixes and improvements
-
+Made the player name default to the name of the current user (as long as it's not a default username)
