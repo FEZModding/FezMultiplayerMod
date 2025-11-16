@@ -63,7 +63,7 @@ Fixed a crash in SaveDataObserver when loading certain save files
 Added support for C1 codes from Unicode block Latin-1 Supplement
 more bug fixes and improvements
 
-0.6.0
+0.6.0 - 2025-11-16T20:07:41Z
 Add blocklist and allowlist commands
 Added ban IP command to server
 Added IPv6 support for allowlist and blocklist
@@ -73,3 +73,6 @@ Made ServerDiscover non-blocking
 Added in-game option to change name
 various bug fixes and improvements
 Made the player name default to the name of the current user (as long as it's not a default username)
+
+0.7.0
+
