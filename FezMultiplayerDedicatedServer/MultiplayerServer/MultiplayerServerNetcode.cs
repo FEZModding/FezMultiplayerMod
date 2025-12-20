@@ -269,6 +269,7 @@ namespace FezMultiplayerDedicatedServer
         private void OnNewClientConnect(Socket client)
         {
             Guid uuid = Guid.NewGuid();
+            bool isPlayer = false;
             try
             {
                 Console.WriteLine($"Incoming connection from {client.RemoteEndPoint}...");
@@ -281,75 +282,103 @@ namespace FezMultiplayerDedicatedServer
                     {
                         try
                         {
-                            Queue<long> SpeedUp = new Queue<long>(100);
-                            Queue<long> SpeedDown = new Queue<long>(100);
-                            //send them our data and get player appearance from client
-                            SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
-                                    null, GetActiveLevelStates(), DisconnectedPlayers.Keys,
-                                    PlayerAppearances, uuid, false, sharedSaveData));
-                            MiscClientData clientData = new MiscClientData(null, false, new HashSet<Guid>(MiscClientData.MaxRequestedAppearancesSize));
-                            SpeedDown.Enqueue(ReadClientGameTickPacket(reader, ref clientData, uuid));
-                            bool Disconnecting = clientData.Disconnecting;
-                            PlayerMetadata playerMetadata = clientData.Metadata;
-
-                            ServerPlayerMetadata addValueFactory(Guid guid)
+                            if (client.Available > 0)
                             {
-                                return new ServerPlayerMetadata(client, uuid, playerMetadata.CurrentLevelName, playerMetadata.Position, playerMetadata.CameraViewpoint,
-                                            playerMetadata.Action, playerMetadata.AnimFrame, playerMetadata.LookingDirection, playerMetadata.LastUpdateTimestamp);
+                                string request = Encoding.UTF8.GetString(reader.ReadBytes(client.Available));
+                                string[] lines = request.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                                if (lines.Length > 0)
+                                {
+                                    isPlayer = false;
+
+                                    string[] line1 = lines[0].Split(' ');
+
+                                    if (line1.Length >= 3)
+                                    {
+                                        string method = line1[0];
+                                        string uri = line1[1];
+                                        string protocol = line1[2];
+
+                                        Console.WriteLine($"Web browser {method} {uri} from {client.RemoteEndPoint}. Sending response...");
+                                        writer.Write(Encoding.UTF8.GetBytes(GenerateHttpResponse(method, uri)));
+                                        Console.WriteLine($"Responded to {method} {uri} from {client.RemoteEndPoint}. Terminating connection.");
+                                    }
+                                }
+
                             }
-                            ServerPlayerMetadata updateValueFactory(Guid guid, ServerPlayerMetadata currentval)
+                            else
                             {
-                                currentval.client = client;
-                                //Note: the value of playerMetadata.Uuid received from the client is never used
-                                //We use the Guid that we assigned instead, for security reasons. 
-                                currentval.Uuid = guid;
-                                if (currentval.LastUpdateTimestamp < playerMetadata.LastUpdateTimestamp)
-                                {
-                                    currentval.CopyValuesFrom(playerMetadata);
-                                }
-                                return currentval;
-                            }
+                                isPlayer = true;
 
-                            Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
-                            Console.WriteLine($"Player connected from {client.RemoteEndPoint}. Assigned uuid {uuid}.");
-
-                            bool PlayerAppearancesFilter(KeyValuePair<Guid, ServerPlayerMetadata> p)
-                            {
-                                //get the requested PlayerAppearances from PlayerAppearances, and players that have recently joined
-                                return clientData.RequestedAppearances.Contains(p.Key) || p.Value.TimeSinceJoin < NewPlayerTimeSpan;
-                            }
-
-                            while (client.Connected && !disposing)
-                            {
-                                if (Disconnecting)
-                                {
-                                    break;
-                                }
-                                if (Players.TryGetValue(uuid, out ServerPlayerMetadata serverPlayerMetadata))
-                                {
-                                    //Note: does not produce a meaningful number for connections to loopback addresses
-                                    serverPlayerMetadata.NetworkSpeedUp = (long)Math.Round(SpeedUp.Average()) / TimeSpan.TicksPerMillisecond;
-                                    serverPlayerMetadata.NetworkSpeedDown = (long)Math.Round(SpeedDown.Average()) / TimeSpan.TicksPerMillisecond;
-                                }
-                                //if UnknownPlayerAppearanceGuids contains uuid, ask client to retransmit their PlayerAppearance
-                                bool requestAppearance = UnknownPlayerAppearanceGuids.ContainsKey(uuid);
-                                //repeat until the client disconnects or times out
-                                if (SpeedUp.Count >= 100)
-                                {
-                                    _ = SpeedUp.Dequeue();
-                                }
-                                if (SpeedDown.Count >= 100)
-                                {
-                                    _ = SpeedDown.Dequeue();
-                                }
+                                Queue<long> SpeedUp = new Queue<long>(100);
+                                Queue<long> SpeedDown = new Queue<long>(100);
+                                //send them our data and get player appearance from client
                                 SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
-                                        GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys,
-                                        GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, null));
+                                        null, GetActiveLevelStates(), DisconnectedPlayers.Keys,
+                                        PlayerAppearances, uuid, false, sharedSaveData));
+                                MiscClientData clientData = new MiscClientData(null, false, new HashSet<Guid>(MiscClientData.MaxRequestedAppearancesSize));
                                 SpeedDown.Enqueue(ReadClientGameTickPacket(reader, ref clientData, uuid));
-                                Disconnecting = clientData.Disconnecting;
-                                playerMetadata = clientData.Metadata;
+                                bool Disconnecting = clientData.Disconnecting;
+                                PlayerMetadata playerMetadata = clientData.Metadata;
+
+                                ServerPlayerMetadata addValueFactory(Guid guid)
+                                {
+                                    return new ServerPlayerMetadata(client, uuid, playerMetadata.CurrentLevelName, playerMetadata.Position, playerMetadata.CameraViewpoint,
+                                                playerMetadata.Action, playerMetadata.AnimFrame, playerMetadata.LookingDirection, playerMetadata.LastUpdateTimestamp);
+                                }
+                                ServerPlayerMetadata updateValueFactory(Guid guid, ServerPlayerMetadata currentval)
+                                {
+                                    currentval.client = client;
+                                    //Note: the value of playerMetadata.Uuid received from the client is never used
+                                    //We use the Guid that we assigned instead, for security reasons. 
+                                    currentval.Uuid = guid;
+                                    if (currentval.LastUpdateTimestamp < playerMetadata.LastUpdateTimestamp)
+                                    {
+                                        currentval.CopyValuesFrom(playerMetadata);
+                                    }
+                                    return currentval;
+                                }
+
                                 Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
-                                Thread.Sleep(10);
+                                Console.WriteLine($"Player connected from {client.RemoteEndPoint}. Assigned uuid {uuid}.");
+
+                                bool PlayerAppearancesFilter(KeyValuePair<Guid, ServerPlayerMetadata> p)
+                                {
+                                    //get the requested PlayerAppearances from PlayerAppearances, and players that have recently joined
+                                    return clientData.RequestedAppearances.Contains(p.Key) || p.Value.TimeSinceJoin < NewPlayerTimeSpan;
+                                }
+
+                                while (client.Connected && !disposing)
+                                {
+                                    if (Disconnecting)
+                                    {
+                                        break;
+                                    }
+                                    if (Players.TryGetValue(uuid, out ServerPlayerMetadata serverPlayerMetadata))
+                                    {
+                                        //Note: does not produce a meaningful number for connections to loopback addresses
+                                        serverPlayerMetadata.NetworkSpeedUp = (long)Math.Round(SpeedUp.Average()) / TimeSpan.TicksPerMillisecond;
+                                        serverPlayerMetadata.NetworkSpeedDown = (long)Math.Round(SpeedDown.Average()) / TimeSpan.TicksPerMillisecond;
+                                    }
+                                    //if UnknownPlayerAppearanceGuids contains uuid, ask client to retransmit their PlayerAppearance
+                                    bool requestAppearance = UnknownPlayerAppearanceGuids.ContainsKey(uuid);
+                                    //repeat until the client disconnects or times out
+                                    if (SpeedUp.Count >= 100)
+                                    {
+                                        _ = SpeedUp.Dequeue();
+                                    }
+                                    if (SpeedDown.Count >= 100)
+                                    {
+                                        _ = SpeedDown.Dequeue();
+                                    }
+                                    SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
+                                            GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys,
+                                            GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, null));
+                                    SpeedDown.Enqueue(ReadClientGameTickPacket(reader, ref clientData, uuid));
+                                    Disconnecting = clientData.Disconnecting;
+                                    playerMetadata = clientData.Metadata;
+                                    Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
+                                    Thread.Sleep(10);
+                                }
                             }
                         }
                         catch (Exception e)
@@ -373,12 +402,45 @@ namespace FezMultiplayerDedicatedServer
             }
             finally
             {
-                long disconnectTime = DateTime.UtcNow.Ticks;
-                DisconnectedPlayers.AddOrUpdate(uuid, disconnectTime, (puid, oldTime) => disconnectTime);
-                ProcessDisconnect(uuid);
+                if (isPlayer)
+                {
+                    long disconnectTime = DateTime.UtcNow.Ticks;
+                    DisconnectedPlayers.AddOrUpdate(uuid, disconnectTime, (puid, oldTime) => disconnectTime);
+                    ProcessDisconnect(uuid);
+                }
                 client.Close();
                 client.Dispose();
             }
+        }
+
+        private string GenerateHttpResponse(string method, string uri)
+        {
+            // see https://datatracker.ietf.org/doc/html/rfc2616
+
+            const string CRLF = "\r\n";
+            string statusText = "200 OK";
+            string title = nameof(FezMultiplayerDedicatedServer);
+            
+            //TODO
+            string body = $"<!DOCTYPE html>{CRLF}<html lang=\"en\">" +
+            $"<head>" +
+            $"<meta name=\"generator\" content=\"FezMultiplayerMod via https://github.com/FEZModding/FezMultiplayerMod\" />" +
+            $"<title>{title}</title>" +
+            $"</head>" +
+            $"<body>" +
+            $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"\nMethod: {method}\nURI: {uri}</pre>" +
+            $"</body>" +
+            $"</html>";
+
+            string headers = string.Join(CRLF, new string[]{
+                $"Date: {DateTime.UtcNow:R}",
+                $"Cache-Control: no-store, no-cache, must-revalidate, max-age=0",
+                $"Pragma: no-cache",
+                $"Content-Type: text/html",
+                $"Content-Length: {Encoding.UTF8.GetByteCount(body)}",
+            }) + CRLF;
+
+            return $"HTTP/1.1 {statusText}{CRLF}{headers}{CRLF}{body}";
         }
 
         protected override void ProcessDisconnect(Guid puid)
