@@ -165,6 +165,29 @@ namespace FezMultiplayerDedicatedServer
                             }
                         })
                     },
+                    #if DEBUG
+                    {
+                        "restart".ToLowerInvariant(),
+                        ("(debug) restarts the server", (args) =>
+                        {
+                            #if DEBUG
+                            // deferred launch so the compiler can finish compiling the application before it restarts
+                            // so the exe file isn't in use so it can be updated
+                            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+                            {
+                                System.Diagnostics.Process.Start("cmd.exe", "/c \"timeout /t 2 >nul && cd \"" + AppDomain.CurrentDomain.BaseDirectory + "\" && \""+Environment.GetCommandLineArgs()[0] + "\"\"");
+                            }
+                            else
+                            {
+                                System.Diagnostics.Process.Start("bash", "-c \"sleep 2 && cd '" + AppDomain.CurrentDomain.BaseDirectory + "' && '" + Environment.GetCommandLineArgs()[0] + "'\"");
+                            }
+                            #else
+                            System.Diagnostics.Process.Start(Environment.GetCommandLineArgs()[0]);
+                            #endif
+                            Environment.Exit(0);
+                        })
+                    },
+                    #endif
                 };
         private static MultiplayerServerNetcode server;
         private static MultiplayerServerSettings settings;
