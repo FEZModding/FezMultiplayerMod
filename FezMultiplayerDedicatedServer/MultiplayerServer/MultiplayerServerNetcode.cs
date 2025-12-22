@@ -272,7 +272,7 @@ namespace FezMultiplayerDedicatedServer
             bool isPlayer = false;
             try
             {
-                Console.WriteLine($"Incoming connection from {client.RemoteEndPoint}...");
+                //Console.WriteLine($"Incoming connection from {client.RemoteEndPoint}...");
                 using (NetworkStream stream = new NetworkStream(client))
                 {
                     stream.ReadTimeout = overduetimeout;
@@ -298,9 +298,9 @@ namespace FezMultiplayerDedicatedServer
                                         string uri = line1[1];
                                         string protocol = line1[2];
 
-                                        Console.WriteLine($"Web browser {method} {uri} from {client.RemoteEndPoint}. Sending response...");
+                                        //Console.WriteLine($"Web browser {method} {uri} from {client.RemoteEndPoint}. Sending response...");
                                         writer.Write(Encoding.UTF8.GetBytes(GenerateHttpResponse(method, uri)));
-                                        Console.WriteLine($"Responded to {method} {uri} from {client.RemoteEndPoint}. Terminating connection.");
+                                        //Console.WriteLine($"Responded to {method} {uri} from {client.RemoteEndPoint}. Terminating connection.");
                                     }
                                 }
 
@@ -420,25 +420,57 @@ namespace FezMultiplayerDedicatedServer
             const string CRLF = "\r\n";
             string statusText = "200 OK";
             string title = nameof(FezMultiplayerDedicatedServer);
-            
-            //TODO
-            string body = $"<!DOCTYPE html>{CRLF}<html lang=\"en\">" +
-            $"<head>" +
-            $"<meta name=\"generator\" content=\"FezMultiplayerMod via https://github.com/FEZModding/FezMultiplayerMod\" />" +
-            $"<title>{title}</title>" +
-            $"</head>" +
-            $"<body>" +
-            $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"\nMethod: {method}\nURI: {uri}</pre>" +
-            $"</body>" +
-            $"</html>";
 
-            string headers = string.Join(CRLF, new string[]{
+            if(uri.StartsWith("/"))
+            {
+                uri = uri.Substring(1);
+            }
+
+            const string Uri_players = "players.dat";
+            Dictionary<string, (string ContentType, Func<string> Generator)> uriProviders = new Dictionary<string, (string, Func<string>)>(){
+                {"favicon.ico", ("image/png", ()=>"") },
+                {Uri_players, ("text/plain", ()=>string.Join("\n", Players.Select(kv => string.Join("\t", IniTools.GenerateIni(kv.Value, false, false))))) },
+                //TODO
+            };
+            string body;
+            string contentType;
+            if (uriProviders.TryGetValue(uri, out var provider))
+            {
+                body = provider.Generator();
+                contentType = provider.ContentType;
+            }
+            else
+            {
+                body = $"<!DOCTYPE html>{CRLF}<html lang=\"en\">" +
+                $"<head>" +
+                $"<meta name=\"generator\" content=\"FezMultiplayerMod via https://github.com/FEZModding/FezMultiplayerMod\" />" +
+                $"<title>{title}</title>" +
+                $"<script>" +
+                //TODO use WebSockets to get the player data instead, since the request can fail for whatever reason
+                $@"function refreshData(){{
+                    fetch('{Uri_players}').then(a=>a.text().then(a=>{{
+                        document.getElementById('playerData').textContent=a;
+                    }}));
+                }}
+                window.setInterval(refreshData, 1000)" +
+                $"</script>" +
+                $"</head>" +
+                $"<body>" +
+                $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"\nMethod: {method}\nURI: {uri}</pre>" +
+                $"<pre id=\"playerData\"></pre>" +
+                $"</body>" +
+                $"</html>";
+                contentType = "text/html";
+            }
+            System.Diagnostics.Debugger.Break();
+            string[] headersArr = new string[]{
                 $"Date: {DateTime.UtcNow:R}",
                 $"Cache-Control: no-store, no-cache, must-revalidate, max-age=0",
                 $"Pragma: no-cache",
-                $"Content-Type: text/html",
+                $"Content-Type: {contentType}",
                 $"Content-Length: {Encoding.UTF8.GetByteCount(body)}",
-            }) + CRLF;
+            };
+            string headers = string.Join(CRLF, headersArr) + CRLF;
 
             return $"HTTP/1.1 {statusText}{CRLF}{headers}{CRLF}{body}";
         }
