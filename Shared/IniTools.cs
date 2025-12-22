@@ -115,15 +115,14 @@ namespace FezSharedTools
             return settings;
         }
         /// <summary>
-        /// Writes the names and <c>DescriptionAttributes</c> of all public fields in class <c>T</c> to a file at location filepath in INI format.
+        /// Writes the names and <c>DescriptionAttributes</c> of all public fields in class <c>T</c>
         /// </summary>
         /// <typeparam name="T">The type of the settings object</typeparam>
-        /// <param name="filepath">The file to write to.</param>
         /// <param name="settings">The object to write to the file.</param>
         /// <remarks>
         /// See also <seealso cref="IniTools.ReadSettingsFile{T}(string, T)"/>
         /// </remarks>
-        public static void WriteSettingsFile<T>(string filepath, T settings)
+        public static List<string> GenerateIni<T>(T settings, bool includeHeaders = true, bool verbose = true)
         {
             Type TClass = typeof(T);
             List<string> lines = new List<string>()
@@ -136,18 +135,40 @@ namespace FezSharedTools
                 "",
                 "[Settings]",
             };
+            if (!includeHeaders)
+            {
+                lines.Clear();
+            }
 
             FieldInfo[] fields = typeof(T).GetFields();
             foreach (FieldInfo field in fields)
             {
-                string desc = "; " + (field.GetCustomAttributes(typeof(DescriptionAttribute), true).FirstOrDefault() as DescriptionAttribute)?.Description;
-                // desc = Regex.Replace(desc, @"(?<=[a-z]\. )", "\n; ");
-                lines.Add(desc);
+                if (verbose)
+                {
+                    string desc = "; " + (field.GetCustomAttributes(typeof(DescriptionAttribute), true).FirstOrDefault() as DescriptionAttribute)?.Description;
+                    // desc = Regex.Replace(desc, @"(?<=[a-z]\. )", "\n; ");
+                    lines.Add(desc);
+                }
                 lines.Add(field.Name + IniKeyValDelimiter + FormatObject(field.GetValue(settings)));
-                lines.Add("");
+                if (verbose)
+                {
+                    lines.Add("");
+                }
             }
-
-            File.WriteAllLines(filepath, lines, System.Text.Encoding.UTF8);
+            return lines;
+        }
+        /// <summary>
+        /// Writes the names and <c>DescriptionAttributes</c> of all public fields in class <c>T</c> to a file at location filepath in INI format.
+        /// </summary>
+        /// <typeparam name="T">The type of the settings object</typeparam>
+        /// <param name="filepath">The file to write to.</param>
+        /// <param name="settings">The object to write to the file.</param>
+        /// <remarks>
+        /// See also <seealso cref="IniTools.ReadSettingsFile{T}(string, T)"/>
+        /// </remarks>
+        public static void WriteSettingsFile<T>(string filepath, T settings)
+        {
+            File.WriteAllLines(filepath, GenerateIni(settings), System.Text.Encoding.UTF8);
         }
         private const char RecordSeparator = '\x1E';
         private static string FormatObject(object obj)
