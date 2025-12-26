@@ -21,6 +21,9 @@ namespace FezMultiplayerDedicatedServer
     /// </summary>
     public class MultiplayerServerNetcode : SharedNetcode<ServerPlayerMetadata>, IDisposable
     {
+        private const string CRLF = "\r\n";
+        private const char WebSocketReplyMessageSeparator = '\uE001';
+
         [Serializable]
         public class ServerPlayerMetadata : PlayerMetadata
         {
@@ -298,12 +301,70 @@ namespace FezMultiplayerDedicatedServer
                                         string uri = line1[1];
                                         string protocol = line1[2];
 
-                                        //Console.WriteLine($"Web browser {method} {uri} from {client.RemoteEndPoint}. Sending response...");
-                                        writer.Write(Encoding.UTF8.GetBytes(GenerateHttpResponse(method, uri)));
-                                        //Console.WriteLine($"Responded to {method} {uri} from {client.RemoteEndPoint}. Terminating connection.");
+                                        Dictionary<string, string> parseHeaders(IEnumerable<string> headerLines)
+                                        {
+                                            var h = headerLines.Select(line => line.Split(new char[] { ':' }, 2));
+                                            Dictionary<string, string> headerDict = new Dictionary<string, string>();
+                                            foreach (string[] entry in h)
+                                            {
+                                                string k = entry[0];
+                                                string v = entry.Length > 1 ? entry[1] : "";
+                                                if (v.StartsWith(" "))
+                                                {
+                                                    v = v.Substring(1);
+                                                }
+                                                if (headerDict.TryGetValue(k, out string headerval) && headerval.Length > 0)
+                                                {
+                                                    headerDict[k] += ", " + headerval;
+                                                }
+                                                else
+                                                {
+                                                    headerDict[k] = v;
+                                                }
+                                            }
+                                            return headerDict;
+                                        }
+
+                                        var headers = parseHeaders(lines.Skip(1).TakeWhile(line => line.Length > 0));
+
+                                        if (headers.TryGetValue("Upgrade", out string ug) && ug.Equals("websocket")
+                                                && headers.TryGetValue("Sec-WebSocket-Key", out string wskey))
+                                        {
+                                            writer.Write(Encoding.UTF8.GetBytes("HTTP/1.1 101 Switching Protocols" + CRLF
+                                                + "Connection: Upgrade" + CRLF
+                                                + "Upgrade: websocket" + CRLF
+                                                + "Sec-WebSocket-Accept: " + Convert.ToBase64String(
+                                                    System.Security.Cryptography.SHA1.Create().ComputeHash(
+                                                        Encoding.UTF8.GetBytes(wskey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+                                                        )
+                                                    )
+                                                ) + CRLF
+                                                + CRLF));
+                                            Stopwatch timeoutTimer = Stopwatch.StartNew();
+                                            while (client.Connected && !disposing)
+                                            {
+                                                if(timeoutTimer.ElapsedMilliseconds > 5000)
+                                                {
+                                                    break;//terminate connection
+                                                }
+                                                if (client.Available <= 0)
+                                                {
+                                                    Thread.Sleep(10);
+                                                    continue;
+                                                }
+                                                timeoutTimer.Restart();
+                                                string message = DecodeWebSocketMessage(reader.ReadBytes(client.Available));
+                                                SendWebSocketMessage(writer, message + WebSocketReplyMessageSeparator + GenerateWebResponse(method, message, http: false, isWebsocket: true));
+                                            }
+                                        }
+                                        else
+                                        {
+                                            //Console.WriteLine($"Web browser {method} {uri} from {client.RemoteEndPoint}. Sending response...");
+                                            writer.Write(Encoding.UTF8.GetBytes(GenerateWebResponse(method, uri, http: true, closing: true)));
+                                            //Console.WriteLine($"Responded to {method} {uri} from {client.RemoteEndPoint}. Terminating connection.");
+                                        }
                                     }
                                 }
-
                             }
                             else
                             {
@@ -413,23 +474,104 @@ namespace FezMultiplayerDedicatedServer
             }
         }
 
-        private string GenerateHttpResponse(string method, string uri)
+        private static string DecodeWebSocketMessage(byte[] bytes)
+        {
+
+            bool fin = (bytes[0] & 0b10000000) != 0,
+                mask = (bytes[1] & 0b10000000) != 0; // must be true, "All messages from the client to the server have this bit set"
+            int opcode = bytes[0] & 0b00001111; // expecting 1 - text message
+            ulong offset = 2,
+                  msgLen = bytes[1] & (ulong)0b01111111;
+
+            if (msgLen == 126)
+            {
+                // bytes are reversed because websocket will print them in Big-Endian, whereas
+                // BitConverter will want them arranged in little-endian on windows
+                msgLen = BitConverter.ToUInt16(new byte[] { bytes[3], bytes[2] }, 0);
+                offset = 4;
+            }
+            else if (msgLen == 127)
+            {
+                // To test the below code, we need to manually buffer larger messages — since the NIC's autobuffering
+                // may be too latency-friendly for this code to run (that is, we may have only some of the bytes in this
+                // websocket frame available through client.Available).
+                msgLen = BitConverter.ToUInt64(new byte[] { bytes[9], bytes[8], bytes[7], bytes[6], bytes[5], bytes[4], bytes[3], bytes[2] }, 0);
+                offset = 10;
+            }
+
+            if (mask)
+            {
+                byte[] decoded = new byte[msgLen];
+                byte[] masks = new byte[4] { bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3] };
+                offset += 4;
+
+                for (ulong i = 0; i < msgLen; ++i)
+                    decoded[i] = (byte)(bytes[offset + i] ^ masks[i % 4]);
+
+                string text = Encoding.UTF8.GetString(decoded);
+                return text;
+            }
+            return null;
+        }
+        private static void SendWebSocketMessage(BinaryNetworkWriter writer, string message)
+        {
+            byte[] rawData = Encoding.UTF8.GetBytes(message);
+            int length = rawData.Length;
+            byte[] frame;
+            int indexStartData = 0;
+
+            // A text message frame starts with opcode 0x81 (FIN bit set + Text opcode)
+            if (length <= 125)
+            {
+                frame = new byte[2 + length];
+                frame[0] = 129; // 0x81
+                frame[1] = (byte)length;
+                indexStartData = 2;
+            }
+            else if (length >= 126 && length <= 65535)
+            {
+                frame = new byte[4 + length];
+                frame[0] = 129; // 0x81
+                frame[1] = 126; // Extended payload length marker
+                frame[2] = (byte)((length >> 8) & 255);
+                frame[3] = (byte)(length & 255);
+                indexStartData = 4;
+            }
+            else
+            {
+                // For very large messages, use 8-byte extended payload length
+                // (omitted for brevity, but follows the same pattern as above)
+                throw new NotSupportedException("Messages larger than 65535 bytes not implemented in this example.");
+            }
+
+            // Copy the raw message data into the frame
+            for (int i = 0; i < length; i++)
+            {
+                frame[i + indexStartData] = rawData[i];
+            }
+
+            // Send the framed data over the TCP stream
+            writer.Write(frame);
+        }
+
+        private string GenerateWebResponse(string method, string uri, bool closing = false, bool http = true, bool isWebsocket = false)
         {
             // see https://datatracker.ietf.org/doc/html/rfc2616
 
-            const string CRLF = "\r\n";
             string statusText = "200 OK";
             string title = nameof(FezMultiplayerDedicatedServer);
 
-            if(uri.StartsWith("/"))
+            if (uri.StartsWith("/"))
             {
                 uri = uri.Substring(1);
             }
 
             const string Uri_players = "players.dat";
+            const string Uri_appearances = "appearances.dat";
             Dictionary<string, (string ContentType, Func<string> Generator)> uriProviders = new Dictionary<string, (string, Func<string>)>(){
                 {"favicon.ico", ("image/png", ()=>"") },
                 {Uri_players, ("text/plain", ()=>string.Join("\n", Players.Select(kv => string.Join("\t", IniTools.GenerateIni(kv.Value, false, false))))) },
+                {Uri_appearances, ("text/plain", ()=>string.Join("\n", PlayerAppearances.Select(kv => string.Join("\t", IniTools.GenerateIni(kv.Value, false, false))))) },
                 //TODO
             };
             string body;
@@ -446,23 +588,47 @@ namespace FezMultiplayerDedicatedServer
                 $"<meta name=\"generator\" content=\"FezMultiplayerMod via https://github.com/FEZModding/FezMultiplayerMod\" />" +
                 $"<title>{title}</title>" +
                 $"<script>" +
-                //TODO use WebSockets to get the player data instead, since the request can fail for whatever reason
-                $@"function refreshData(){{
-                    fetch('{Uri_players}').then(a=>a.text().then(a=>{{
-                        document.getElementById('playerData').textContent=a;
-                    }}));
-                }}
-                window.setInterval(refreshData, 1000)" +
+                $@"
+                const wsUri = 'ws://'+location.host+'/{Uri_players}';
+                const websocket = new WebSocket(wsUri);
+                websocket.addEventListener('open', () => {{
+                    console.log('CONNECTED');
+                    pingInterval = setInterval(() => {{
+                        websocket.send('{Uri_appearances}');
+                    }}, 1000);
+                    websocket.send('{Uri_players}');
+                }});
+                websocket.addEventListener('error', (e) => {{
+                    console.log('ERROR');
+                }});
+                var lastAppearenceCheck = 0;
+                websocket.addEventListener('message', (e) => {{
+                    var dat = e.data;
+                    var sepLoc = dat.indexOf('\u{(int)WebSocketReplyMessageSeparator:X4}');
+                    var responseTo = dat.slice(0,sepLoc);
+                    message = dat.slice(sepLoc + 1);
+                    document.getElementById(responseTo).textContent=message;
+                    if(performance.now() - lastAppearenceCheck > 1000){{
+                        lastAppearenceCheck = performance.now();
+                        websocket.send('{Uri_appearances}');
+                    }}else{{
+                        websocket.send('{Uri_players}');}}
+                }}); " +
                 $"</script>" +
                 $"</head>" +
-                $"<body>" +
-                $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"\nMethod: {method}\nURI: {uri}</pre>" +
-                $"<pre id=\"playerData\"></pre>" +
+                $"<body>TODO: make this page look nicer" +
+                $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"</pre>" +
+                $"<pre id=\"{Uri_players}\"></pre>" +
+                $"<pre id=\"{Uri_appearances}\"></pre>" +
                 $"</body>" +
                 $"</html>";
                 contentType = "text/html";
             }
-            System.Diagnostics.Debugger.Break();
+            if (!http)
+            {
+                return body;
+            }
+
             string[] headersArr = new string[]{
                 $"Date: {DateTime.UtcNow:R}",
                 $"Cache-Control: no-store, no-cache, must-revalidate, max-age=0",
@@ -470,6 +636,10 @@ namespace FezMultiplayerDedicatedServer
                 $"Content-Type: {contentType}",
                 $"Content-Length: {Encoding.UTF8.GetByteCount(body)}",
             };
+            if (closing)
+            {
+                headersArr = headersArr.Append("Connection: close").ToArray();
+            }
             string headers = string.Join(CRLF, headersArr) + CRLF;
 
             return $"HTTP/1.1 {statusText}{CRLF}{headers}{CRLF}{body}";
