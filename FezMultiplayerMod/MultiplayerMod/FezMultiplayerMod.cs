@@ -102,6 +102,7 @@ namespace FezGame.MultiplayerMod
             false;
 #endif
         private const Microsoft.Xna.Framework.Input.Keys ToggleMPDebug = Microsoft.Xna.Framework.Input.Keys.F3,
+                        TestHostServerConnectionKey = Microsoft.Xna.Framework.Input.Keys.F5,
                         LeftAlt = Microsoft.Xna.Framework.Input.Keys.LeftAlt,
                         ToggleFontTest1 = Microsoft.Xna.Framework.Input.Keys.D1,
                         ToggleFontTest2 = Microsoft.Xna.Framework.Input.Keys.D2,
@@ -203,6 +204,7 @@ namespace FezGame.MultiplayerMod
             });
 
             KeyboardState.RegisterKey(ToggleMPDebug);
+            KeyboardState.RegisterKey(TestHostServerConnectionKey);
             KeyboardState.RegisterKey(LeftAlt);
             KeyboardState.RegisterKey(ToggleFontTest1);
             KeyboardState.RegisterKey(ToggleFontTest2);
@@ -216,6 +218,12 @@ namespace FezGame.MultiplayerMod
         {
             base.Update(gameTime);
 
+#if DEBUG
+            if (KeyboardState.GetKeyState(TestHostServerConnectionKey) == FezButtonState.Pressed)
+            {
+                mp.ConnectToServerAsync(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, SharedConstants.DefaultPort));
+            }
+#endif
             if (KeyboardState.GetKeyState(ToggleMPDebug) == FezButtonState.Pressed)
             {
                 ShowDebugInfo = !ShowDebugInfo;
