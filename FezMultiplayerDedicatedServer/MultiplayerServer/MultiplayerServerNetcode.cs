@@ -568,10 +568,12 @@ namespace FezMultiplayerDedicatedServer
 
             const string Uri_players = "players.dat";
             const string Uri_appearances = "appearances.dat";
+            const string Uri_disconnects = "disconnects.dat";
             Dictionary<string, (string ContentType, Func<string> Generator)> uriProviders = new Dictionary<string, (string, Func<string>)>(){
                 {"favicon.ico", ("image/png", ()=>"") },
                 {Uri_players, ("text/plain", ()=>string.Join("\n", Players.Select(kv => string.Join("\t", IniTools.GenerateIni(kv.Value, false, false))))) },
-                {Uri_appearances, ("text/plain", ()=>string.Join("\n", PlayerAppearances.Select(kv => string.Join("\t", IniTools.GenerateIni(kv.Value, false, false))))) },
+                {Uri_appearances, ("text/plain", ()=>string.Join("\n", PlayerAppearances.Select(kv => kv.Key+"\t"+kv.Value.PlayerName))) },
+                {Uri_disconnects, ("text/plain", ()=>string.Join("\n", DisconnectedPlayers.Keys)) },
                 //TODO
             };
             string body;
@@ -587,8 +589,32 @@ namespace FezMultiplayerDedicatedServer
                 $"<head>" +
                 $"<meta name=\"generator\" content=\"FezMultiplayerMod via https://github.com/FEZModding/FezMultiplayerMod\" />" +
                 $"<title>{title}</title>" +
+                $"<style>" +
+                $@"
+                table, thead, tbody, tr, th, td {{
+                    border: 1px solid black;
+                    border: 1px solid CurrentColor;
+                    border-collapse: collapse;
+                    th, td {{
+                        padding: 0.3ex;
+                    }}
+                }}
+                " +
+                $"</style>" +
                 $"<script>" +
                 $@"
+                const colNames=['Uuid','PlayerName','CurrentLevelName','Action','CameraViewpoint','Position','joinTime','LastUpdateTimestamp','NetworkSpeedUp','NetworkSpeedDown','ping'];
+                document.addEventListener('DOMContentLoaded',()=>{{
+                    var pdat=document.getElementById('playerData');
+	                var thr=pdat.createTHead().insertRow();
+                    colNames.forEach(a=>{{
+                        var th=document.createElement('th');
+	                    th.textContent=a.split(/(?=[A-Z])/).join(' ').toLowerCase().replace(/\b\w/g, s => s.toUpperCase());
+                        th.scope='col';
+	                    thr.appendChild(th);
+                    }});
+
+                }});
                 const wsUri = 'ws://'+location.host+'/{Uri_players}';
                 const websocket = new WebSocket(wsUri);
                 websocket.addEventListener('open', () => {{
@@ -601,25 +627,72 @@ namespace FezMultiplayerDedicatedServer
                 websocket.addEventListener('error', (e) => {{
                     console.log('ERROR');
                 }});
-                var lastAppearenceCheck = 0;
+                var lastAppearenceCheck = -Infinity;
+                var lastDisconnectCheck = -Infinity;
                 websocket.addEventListener('message', (e) => {{
                     var dat = e.data;
                     var sepLoc = dat.indexOf('\u{(int)WebSocketReplyMessageSeparator:X4}');
                     var responseTo = dat.slice(0,sepLoc);
                     message = dat.slice(sepLoc + 1);
-                    document.getElementById(responseTo).textContent=message;
+                    var pdat=document.getElementById('playerData');
+                    var tbod = pdat.tBodies[0] ?? pdat.createTBody();
+                    switch(responseTo){{
+                        case '{Uri_players}':
+                            var p=null;
+                            (p=message.split(""\n"")).forEach(m=>{{
+                                var o=Object.fromEntries(m.split(""\t"").map(aa=>aa.split('=')));
+                                delete o.client;
+                                var tr = tbod.querySelector('[data-uuid=""'+o.Uuid+'""]');
+                                if(!tr){{
+                                    tr = tbod.insertRow();
+	                                tr.dataset.uuid=o.Uuid;
+                                    colNames.forEach(c=>tr.insertCell().textContent=o[c]);
+                                }}
+                                else colNames.forEach((c,i)=>{{
+                                    if(i>2 && i<colNames.length-1){{
+                                        if(tr.cells[i].textContent!=o[c]){{
+                                            tr.cells[i].textContent=o[c];
+                                            if(c=='LastUpdateTimestamp'){{
+                                                tr.cells[colNames.length-1].textContent = (((performance.timeOrigin + performance.now()) - (o[c]/10000-62135596800000))/1000).toFixed(6);
+                                            }}
+                                        }}
+                                    }}
+                                }});
+                            }});
+                            document.getElementById('playerCount').textContent = p.length;
+                            break;
+                        case '{Uri_disconnects}':
+                            message.split(""\n"").forEach(uuid=>tbod.querySelector('[data-uuid=""'+uuid+'""]')?.remove());
+                            break;
+                        case '{Uri_appearances}':
+                            message.split(""\n"").forEach(a=>{{
+                                var sepLoc = a.indexOf(""\t"");
+                                var uuid = a.slice(0,sepLoc);
+                                var name = a.slice(sepLoc + 1);
+                                var c=tbod.querySelector('[data-uuid=""'+uuid+'""]').cells[1];
+                                if(c.textContent!=name){{
+                                    c.textContent=name;
+                                }}
+                            }});
+                            break;
+                        default:
+                            document.getElementById(responseTo).textContent=message;
+                    }}
                     if(performance.now() - lastAppearenceCheck > 1000){{
                         lastAppearenceCheck = performance.now();
                         websocket.send('{Uri_appearances}');
+                    }}else if(performance.now() - lastDisconnectCheck > 1000){{
+                        lastDisconnectCheck = performance.now();
+                        websocket.send('{Uri_disconnects}');
                     }}else{{
                         websocket.send('{Uri_players}');}}
                 }}); " +
                 $"</script>" +
                 $"</head>" +
-                $"<body>TODO: make this page look nicer" +
+                $"<body>TODO: if this page is opened on localhost, add buttons do kick/ban players?" +
                 $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"</pre>" +
-                $"<pre id=\"{Uri_players}\"></pre>" +
-                $"<pre id=\"{Uri_appearances}\"></pre>" +
+                $"Player Count:<span id=\"playerCount\"></span><br />" +
+                $"Player Data:<table id=\"playerData\"></table>" +
                 $"</body>" +
                 $"</html>";
                 contentType = "text/html";
