@@ -591,13 +591,48 @@ namespace FezMultiplayerDedicatedServer
                 $"<title>{title}</title>" +
                 $"<style>" +
                 $@"
+                #wrapper {{
+                    resize: horizontal;
+                    overflow: auto;
+                }}
                 table, thead, tbody, tr, th, td {{
+                    table-layout: fixed;
                     border: 1px solid black;
                     border: 1px solid CurrentColor;
                     border-collapse: collapse;
                     th, td {{
                         padding: 0.3ex;
+                        font-variant-numeric: tabular-nums;
+                        font-family: monospace;
                     }}
+                    th:nth-child(1), td:nth-child(1) {{/*uuid*/
+                        overflow: hidden;
+                        max-width: 6ch;
+                        text-wrap: nowrap;
+                    }}
+                    td:nth-child(2) {{/*player name*/
+                        overflow: hidden;
+                        max-width: 16ch;
+                        text-wrap: nowrap;
+                    }}
+                    td:nth-child(3) {{/*level name*/
+                    }}
+                    td:nth-child(4) {{/*action*/
+                        overflow: hidden;
+                        min-width: 15ch;
+                        max-width: 15ch;
+                        text-wrap: nowrap;
+                    }}
+                    th:nth-child(5), td:nth-child(5) {{/*viewpoint*/
+                        overflow: hidden;
+                        max-width: 6ch;
+                        text-wrap: nowrap;
+                    }}
+                }}
+                td:empty::after {{
+                    content: 'null';
+                    color: gray;
+                    color: color-mix(in srgb, currentColor 33%, transparent);
                 }}
                 " +
                 $"</style>" +
@@ -614,98 +649,131 @@ namespace FezMultiplayerDedicatedServer
                         th.scope='col';
 	                    thr.appendChild(th);
                     }});
-
                 }});
-                const wsUri = 'ws://'+location.host+'/{Uri_players}';
-                const websocket = new WebSocket(wsUri);
-                websocket.addEventListener('open', () => {{
-                    console.log('CONNECTED');
-                    websocket.send('{Uri_players}');
-                }});
-                websocket.addEventListener('error', (e) => {{
-                    console.log('ERROR');
-                }});
-                var lastAppearenceCheck = -Infinity;
-                var lastDisconnectCheck = -Infinity;
-                websocket.addEventListener('message', (e) => {{
-                    try{{
-                    var dat = e.data;
-                    var sepLoc = dat.indexOf('\u{(int)WebSocketReplyMessageSeparator:X4}');
-                    var responseTo = dat.slice(0,sepLoc);
-                    message = dat.slice(sepLoc + 1);
-                    var pdat=document.getElementById('playerData');
-                    var tbod = pdat.tBodies[0] ?? pdat.createTBody();
-                    switch(responseTo){{
-                        case '{Uri_players}':
-                            var p=null;
-                            if(message.length<=0)break;
-                            (p=message.split(""\n"")).forEach(m=>{{
-                                var o=Object.fromEntries(m.split(""\t"").map(aa=>aa.split('=')));
-                                delete o.client;
-                                var tr = tbod.querySelector('[data-uuid=""'+o.Uuid+'""]');
-                                if(!tr){{
-                                    tr = tbod.insertRow();
-	                                tr.dataset.uuid=o.Uuid;
-                                    colNames.forEach(c=>tr.insertCell().textContent=o[c]);
-                                }}
-                                else colNames.forEach((c,i)=>{{
-                                    if(i>2 && i<colNames.length-1){{
-                                        if(tr.cells[i].textContent!=o[c]){{
-                                            tr.cells[i].textContent=o[c];
-                                            if(c=='LastUpdateTimestamp'){{
-                                                tr.cells[colNames.length-1].textContent = (((performance.timeOrigin + performance.now()) - (o[c]/10000-62135596800000))/1000).toFixed(6);
+                var consecutiveErrors = 0;
+                function connect(){{
+                    const wsUri = 'ws://'+location.host+'/{Uri_players}';
+                    const websocket = new WebSocket(wsUri);
+                    websocket.addEventListener('open', () => {{
+                        consecutiveErrors = 0;
+                        var tbod = pdat.tBodies[0] ?? pdat.createTBody();
+                        tbod.innerHTML = '';
+                        console.log('CONNECTED');
+                        websocket.send('{Uri_players}');
+                    }});
+                    websocket.addEventListener('error', (e) => {{
+                        consecutiveErrors += 1;
+                        console.log('ERROR');
+                        console.log(e);
+                        var pdat=document.getElementById('playerData');
+                        var tbod = pdat.tBodies[0] ?? pdat.createTBody();
+                        tbod.innerHTML = '';
+                        if(consecutiveErrors >= 3){{
+                            console.log('Failed to connect to server');
+                            tbod.innerHTML = 'Failed to connect to server';
+                        }}else{{
+                            window.setTimeout(()=>connect(),1000);
+                        }}
+                    }});
+                    var lastAppearenceCheck = -Infinity;
+                    var lastDisconnectCheck = -Infinity;
+                    websocket.addEventListener('message', (e) => {{
+                        try{{
+                        var dat = e.data;
+                        var sepLoc = dat.indexOf('\u{(int)WebSocketReplyMessageSeparator:X4}');
+                        var responseTo = dat.slice(0,sepLoc);
+                        message = dat.slice(sepLoc + 1);
+                        var pdat=document.getElementById('playerData');
+                        var tbod = pdat.tBodies[0] ?? pdat.createTBody();
+                        switch(responseTo){{
+                            case '{Uri_players}':
+                                var p=null;
+                                if(message.length<=0)break;
+                                (p=message.split(""\n"")).forEach(m=>{{
+                                    var o=Object.fromEntries(m.split(""\t"").map(aa=>aa.split('=')));
+                                    delete o.client;
+                                    var tr = tbod.querySelector('[data-uuid=""'+o.Uuid+'""]');
+                                    function setData(cell,c){{
+                                        if(cell.textContent!=o[c]){{
+                                            if(c=='Position'){{
+                                                const fixed = '<'+o[c].match(/\d+(\.\d+)?/g).map(a=>parseFloat(a).toFixed(3)).join(', ')+'>';
+                                                if(cell.textContent!=fixed)
+                                                    cell.textContent=fixed;
+                                            }}else if(c=='Action'){{
+                                                cell.innerHTML=o[c].split(/(?=[A-Z])/g).join('<wbr />');
+                                            }}else{{
+                                                cell.textContent=o[c];
                                             }}
+                                            if(c=='LastUpdateTimestamp'){{
+                                                if(tr.cells[colNames.length-1])
+                                                    tr.cells[colNames.length-1].textContent = (((performance.timeOrigin + performance.now()) - (o[c]/10000-62135596800000))/1000).toFixed(6);
+                                            }}
+                                            cell.title = cell.textContent;
+                                        }}
+                                    }}
+                                    if(!tr){{
+                                        tr = tbod.insertRow();
+	                                    tr.dataset.uuid=o.Uuid;
+                                        colNames.forEach(c=>setData(tr.insertCell(),c));
+                                    }}
+                                    else colNames.forEach((c,i)=>{{
+                                        if(i>1 && i<colNames.length-1){{
+                                            setData(tr.cells[i],c);
+                                        }}
+                                    }});
+                                }});
+                                const pCountElem = document.getElementById('playerCount');
+                                if(pCountElem.textContent != p.length)
+                                    pCountElem.textContent = p.length;
+                                break;
+                            case '{Uri_disconnects}':
+                                message.split(""\n"").forEach(uuid=>tbod.querySelector('[data-uuid=""'+uuid+'""]')?.remove());
+                                break;
+                            case '{Uri_appearances}':
+                                message.split(""\n"").forEach(a=>{{
+                                    var sepLoc = a.indexOf(""\t"");
+                                    var uuid = a.slice(0,sepLoc);
+                                    var name = a.slice(sepLoc + 1);
+                                    var q=tbod.querySelector('[data-uuid=""'+uuid+'""]');
+                                    if(!q)return;
+                                    var c=q.cells[1];
+                                    if(c.dataset.name!=name){{
+                                        c.dataset.name=name;
+                                        if(RenderRichText){{
+                                            c.innerHTML = '';
+                                            c.appendChild(RenderRichText(name).elemTree);
+                                            c.title = c.textContent;
+                                        }}else{{
+                                            c.textContent=name;
                                         }}
                                     }}
                                 }});
-                            }});
-                            document.getElementById('playerCount').textContent = p.length;
-                            break;
-                        case '{Uri_disconnects}':
-                            message.split(""\n"").forEach(uuid=>tbod.querySelector('[data-uuid=""'+uuid+'""]')?.remove());
-                            break;
-                        case '{Uri_appearances}':
-                            message.split(""\n"").forEach(a=>{{
-                                var sepLoc = a.indexOf(""\t"");
-                                var uuid = a.slice(0,sepLoc);
-                                var name = a.slice(sepLoc + 1);
-                                var q=tbod.querySelector('[data-uuid=""'+uuid+'""]');
-                                if(!q)return;
-                                var c=q.cells[1];
-                                if(c.dataset.name!=name){{
-                                    c.dataset.name=name;
-                                    if(RenderRichText){{
-                                        c.innerHTML = '';
-                                        c.appendChild(RenderRichText(name).elemTree);
-                                    }}else{{
-                                        c.textContent=name;
-                                    }}
-                                }}
-                            }});
-                            break;
-                        default:
-                            document.getElementById(responseTo).textContent=message;
-                    }}
-                    }}catch(e){{
-                        console.log(e);
-                    }}finally{{
-                    if(performance.now() - lastAppearenceCheck > 1000){{
-                        lastAppearenceCheck = performance.now();
-                        websocket.send('{Uri_appearances}');
-                    }}else if(performance.now() - lastDisconnectCheck > 1000){{
-                        lastDisconnectCheck = performance.now();
-                        websocket.send('{Uri_disconnects}');
-                    }}else{{
-                        websocket.send('{Uri_players}');
-                    }}
-                    }}
-                }}); " +
+                                break;
+                            default:
+                                document.getElementById(responseTo).textContent=message;
+                        }}
+                        }}catch(e){{
+                            console.log(e);
+                        }}finally{{
+                        if(performance.now() - lastAppearenceCheck > 1000){{
+                            lastAppearenceCheck = performance.now();
+                            websocket.send('{Uri_appearances}');
+                        }}else if(performance.now() - lastDisconnectCheck > 1000){{
+                            lastDisconnectCheck = performance.now();
+                            websocket.send('{Uri_disconnects}');
+                        }}else{{
+                            websocket.send('{Uri_players}');
+                        }}
+                        }}
+                    }});
+                }}
+                connect();" +
                 $"</script>" +
                 $"</head>" +
                 $"<body>TODO: if this page is opened on localhost, add buttons do kick/ban players?" +
                 $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"</pre>" +
                 $"Player Count:<span id=\"playerCount\"></span><br />" +
-                $"Player Data:<table id=\"playerData\"></table>" +
+                $"Player Data:<div id=\"wrapper\"><table id=\"playerData\"></table></div>" +
                 $"</body>" +
                 $"</html>";
                 contentType = "text/html";

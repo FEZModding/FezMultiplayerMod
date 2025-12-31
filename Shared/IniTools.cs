@@ -190,6 +190,10 @@ namespace FezSharedTools
                 }
                 return s;
             }
+            if (typeof(DateTime).Equals(obj.GetType()))
+            {
+                return ((DateTime)obj).ToString("o");
+            }
             return "" + obj;
         }
         private static object ParseObject(Type t, string str, FieldInfo fieldInfo, object containingObject)
