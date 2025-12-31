@@ -601,6 +601,7 @@ namespace FezMultiplayerDedicatedServer
                 }}
                 " +
                 $"</style>" +
+                $"<script src=\"https://jenna1337.github.io/tools/RichTextRenderer.js\"></script>\n" +
                 $"<script>" +
                 $@"
                 const colNames=['Uuid','PlayerName','CurrentLevelName','Action','CameraViewpoint','Position','joinTime','LastUpdateTimestamp','NetworkSpeedUp','NetworkSpeedDown','ping'];
@@ -619,9 +620,6 @@ namespace FezMultiplayerDedicatedServer
                 const websocket = new WebSocket(wsUri);
                 websocket.addEventListener('open', () => {{
                     console.log('CONNECTED');
-                    pingInterval = setInterval(() => {{
-                        websocket.send('{Uri_appearances}');
-                    }}, 1000);
                     websocket.send('{Uri_players}');
                 }});
                 websocket.addEventListener('error', (e) => {{
@@ -630,6 +628,7 @@ namespace FezMultiplayerDedicatedServer
                 var lastAppearenceCheck = -Infinity;
                 var lastDisconnectCheck = -Infinity;
                 websocket.addEventListener('message', (e) => {{
+                    try{{
                     var dat = e.data;
                     var sepLoc = dat.indexOf('\u{(int)WebSocketReplyMessageSeparator:X4}');
                     var responseTo = dat.slice(0,sepLoc);
@@ -639,6 +638,7 @@ namespace FezMultiplayerDedicatedServer
                     switch(responseTo){{
                         case '{Uri_players}':
                             var p=null;
+                            if(message.length<=0)break;
                             (p=message.split(""\n"")).forEach(m=>{{
                                 var o=Object.fromEntries(m.split(""\t"").map(aa=>aa.split('=')));
                                 delete o.client;
@@ -669,15 +669,26 @@ namespace FezMultiplayerDedicatedServer
                                 var sepLoc = a.indexOf(""\t"");
                                 var uuid = a.slice(0,sepLoc);
                                 var name = a.slice(sepLoc + 1);
-                                var c=tbod.querySelector('[data-uuid=""'+uuid+'""]').cells[1];
-                                if(c.textContent!=name){{
-                                    c.textContent=name;
+                                var q=tbod.querySelector('[data-uuid=""'+uuid+'""]');
+                                if(!q)return;
+                                var c=q.cells[1];
+                                if(c.dataset.name!=name){{
+                                    c.dataset.name=name;
+                                    if(RenderRichText){{
+                                        c.innerHTML = '';
+                                        c.appendChild(RenderRichText(name).elemTree);
+                                    }}else{{
+                                        c.textContent=name;
+                                    }}
                                 }}
                             }});
                             break;
                         default:
                             document.getElementById(responseTo).textContent=message;
                     }}
+                    }}catch(e){{
+                        console.log(e);
+                    }}finally{{
                     if(performance.now() - lastAppearenceCheck > 1000){{
                         lastAppearenceCheck = performance.now();
                         websocket.send('{Uri_appearances}');
@@ -685,7 +696,9 @@ namespace FezMultiplayerDedicatedServer
                         lastDisconnectCheck = performance.now();
                         websocket.send('{Uri_disconnects}');
                     }}else{{
-                        websocket.send('{Uri_players}');}}
+                        websocket.send('{Uri_players}');
+                    }}
+                    }}
                 }}); " +
                 $"</script>" +
                 $"</head>" +
