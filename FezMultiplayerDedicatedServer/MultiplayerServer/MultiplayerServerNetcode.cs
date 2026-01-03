@@ -341,9 +341,10 @@ namespace FezMultiplayerDedicatedServer
                                                 ) + CRLF
                                                 + CRLF));
                                             Stopwatch timeoutTimer = Stopwatch.StartNew();
-                                            while (client.Connected && !disposing)
+                                            bool closing = false;
+                                            while (client.Connected && !disposing && !closing)
                                             {
-                                                if(timeoutTimer.ElapsedMilliseconds > 5000)
+                                                if (timeoutTimer.ElapsedMilliseconds > 5000)
                                                 {
                                                     break;//terminate connection
                                                 }
@@ -353,8 +354,28 @@ namespace FezMultiplayerDedicatedServer
                                                     continue;
                                                 }
                                                 timeoutTimer.Restart();
-                                                string message = DecodeWebSocketMessage(reader.ReadBytes(client.Available));
-                                                SendWebSocketMessage(writer, message + WebSocketReplyMessageSeparator + GenerateWebResponse(method, message, http: false, isWebsocket: true));
+                                                string message = DecodeWebSocketMessage(reader.ReadBytes(client.Available), out closing, out bool ping);
+                                                if (closing)
+                                                {
+                                                    break;
+                                                }
+                                                else if (ping)
+                                                {
+                                                    System.Diagnostics.Debugger.Launch();
+                                                    System.Diagnostics.Debugger.Break();
+                                                    SendWebSocketMessage(writer, message, opcode: 0xA);
+                                                }
+                                                else if (message.Length > 0)
+                                                {
+                                                    SendWebSocketMessage(writer, message + WebSocketReplyMessageSeparator + GenerateWebResponse(method, message, http: false, isWebsocket: true));
+                                                }
+                                            }
+                                            if (client.Connected)
+                                            {
+                                                //send close message
+                                                short closeStatus = (short)(disposing ? 1001 : 1000);
+                                                byte[] bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)closeStatus));
+                                                SendWebSocketMessage(writer, "", opcode: 0x8, bytes);
                                             }
                                         }
                                         else
@@ -368,7 +389,6 @@ namespace FezMultiplayerDedicatedServer
                             }
                             else
                             {
-                                isPlayer = true;
 
                                 Queue<long> SpeedUp = new Queue<long>(100);
                                 Queue<long> SpeedDown = new Queue<long>(100);
@@ -399,6 +419,7 @@ namespace FezMultiplayerDedicatedServer
                                     return currentval;
                                 }
 
+                                isPlayer = true;
                                 Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
                                 Console.WriteLine($"Player connected from {client.RemoteEndPoint}. Assigned uuid {uuid}.");
 
@@ -444,8 +465,30 @@ namespace FezMultiplayerDedicatedServer
                         }
                         catch (Exception e)
                         {
-                            //TODO handle exception
-                            Console.WriteLine(e);
+                            //ignore exceptions that aren't from players
+                            if (isPlayer)
+                            {
+                                SocketException se = e.InnerException as SocketException;
+                                if (se != null)
+                                {
+#pragma warning disable IDE0010 // Add missing cases
+                                    switch (se.SocketErrorCode)
+                                    {
+                                    case SocketError.TimedOut:
+                                        break;
+                                    default:
+                                        Console.WriteLine(e);
+                                        Console.WriteLine(e.InnerException);
+                                        break;
+                                    }
+#pragma warning restore IDE0010 // Add missing cases
+                                }
+                                else
+                                {
+                                    Console.WriteLine(e);
+                                    Console.WriteLine(e.InnerException);
+                                }
+                            }
                         }
                         finally
                         {
@@ -474,7 +517,7 @@ namespace FezMultiplayerDedicatedServer
             }
         }
 
-        private static string DecodeWebSocketMessage(byte[] bytes)
+        private static string DecodeWebSocketMessage(byte[] bytes, out bool closing, out bool ping)
         {
 
             bool fin = (bytes[0] & 0b10000000) != 0,
@@ -498,7 +541,8 @@ namespace FezMultiplayerDedicatedServer
                 msgLen = BitConverter.ToUInt64(new byte[] { bytes[9], bytes[8], bytes[7], bytes[6], bytes[5], bytes[4], bytes[3], bytes[2] }, 0);
                 offset = 10;
             }
-
+            closing = opcode == 8;
+            ping = opcode == 9;
             if (mask)
             {
                 byte[] decoded = new byte[msgLen];
@@ -513,25 +557,34 @@ namespace FezMultiplayerDedicatedServer
             }
             return null;
         }
-        private static void SendWebSocketMessage(BinaryNetworkWriter writer, string message)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="writer"></param>
+        /// <param name="message"></param>
+        /// <param name="opcode">Defaults to 1 (text message). For more options, see <see href="https://datatracker.ietf.org/doc/html/rfc6455#section-11.8"/></param>
+        private static void SendWebSocketMessage(BinaryNetworkWriter writer, string message, byte opcode = 1, byte[] rawBytes = null)
         {
-            byte[] rawData = Encoding.UTF8.GetBytes(message);
+            byte[] rawData = rawBytes ?? Encoding.UTF8.GetBytes(message);
             int length = rawData.Length;
             byte[] frame;
             int indexStartData = 0;
 
             // A text message frame starts with opcode 0x81 (FIN bit set + Text opcode)
+            byte opcodeByte = (byte)(0x80 | opcode);
+
+            // A text message frame starts with opcode 0x81 (FIN bit set + Text opcode)
             if (length <= 125)
             {
                 frame = new byte[2 + length];
-                frame[0] = 129; // 0x81
+                frame[0] = opcodeByte;
                 frame[1] = (byte)length;
                 indexStartData = 2;
             }
             else if (length >= 126 && length <= 65535)
             {
                 frame = new byte[4 + length];
-                frame[0] = 129; // 0x81
+                frame[0] = opcodeByte;
                 frame[1] = 126; // Extended payload length marker
                 frame[2] = (byte)((length >> 8) & 255);
                 frame[3] = (byte)(length & 255);
@@ -552,6 +605,7 @@ namespace FezMultiplayerDedicatedServer
 
             // Send the framed data over the TCP stream
             writer.Write(frame);
+            writer.Flush();
         }
 
         private string GenerateWebResponse(string method, string uri, bool closing = false, bool http = true, bool isWebsocket = false)
@@ -588,6 +642,8 @@ namespace FezMultiplayerDedicatedServer
                 body = $"<!DOCTYPE html>{CRLF}<html lang=\"en\">" +
                 $"<head>" +
                 $"<meta name=\"generator\" content=\"FezMultiplayerMod via https://github.com/FEZModding/FezMultiplayerMod\" />" +
+                $"<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />" +
+                $"<meta name=\"color-scheme\" content=\"dark light\" />" +
                 $"<title>{title}</title>" +
                 $"<style>" +
                 $@"
@@ -629,10 +685,33 @@ namespace FezMultiplayerDedicatedServer
                         text-wrap: nowrap;
                     }}
                 }}
+                tbody:empty::after {{
+                    content: 'No data';
+                    color: gray;
+                    color: color-mix(in srgb, currentColor 33%, transparent);
+                }}
                 td:empty::after {{
                     content: 'null';
                     color: gray;
                     color: color-mix(in srgb, currentColor 33%, transparent);
+                }}
+                span[data-status] {{
+                    --status-color: #FF0;
+                    background-color: color-mix(in srgb, var(--status-color), transparent 60%);
+                    color: color-mix(in srgb, var(--status-color), currentColor 77%);
+                    border: 1px solid currentColor;
+                    padding-inline: calc(1lh - 1ic);
+                    text-transform: uppercase;
+                    display: inline-block;
+                }}
+                span[data-status=""CONNECTED""] {{
+                    --status-color: #0F0;
+                }}
+                span[data-status=""ERROR""] {{
+                    --status-color: #F00;
+                }}
+                #reconnectButton {{
+                    vertical-align: middle;
                 }}
                 " +
                 $"</style>" +
@@ -649,32 +728,73 @@ namespace FezMultiplayerDedicatedServer
                         th.scope='col';
 	                    thr.appendChild(th);
                     }});
+                    connect();
                 }});
-                var consecutiveErrors = 0;
+                let consecutiveErrors = 0;
+                let websocket;
                 function connect(){{
+                    const pCountElem = document.getElementById('playerCount');
+                    const pdat=document.getElementById('playerData');
+                    const connStatus=document.getElementById('connStatus');
+                    const connStatusDesc=document.getElementById('connStatusDesc');
+                    const reconnectButton=document.getElementById('reconnectButton');
+                    const tbod = pdat.tBodies[0] ?? pdat.createTBody();
                     const wsUri = 'ws://'+location.host+'/{Uri_players}';
-                    const websocket = new WebSocket(wsUri);
+                    reconnectButton.style.display = 'none';
+                    connStatus.textContent = 'CONNECTING...';
+                    websocket = new WebSocket(wsUri);
+                    let errored = false;
                     websocket.addEventListener('open', () => {{
+                        errored = false;
+                        connStatusDesc.textContent = '';
                         consecutiveErrors = 0;
-                        var tbod = pdat.tBodies[0] ?? pdat.createTBody();
                         tbod.innerHTML = '';
-                        console.log('CONNECTED');
+                        console.log(connStatus.textContent = 'CONNECTED');
+                        connStatus.dataset.status = 'CONNECTED';
+                        reconnectButton.style.display = 'none';
+                        pCountElem.textContent = 'Loading...';
                         websocket.send('{Uri_players}');
                     }});
+                    const MAX_RETRIES = 3;
                     websocket.addEventListener('error', (e) => {{
+                        errored = true;
                         consecutiveErrors += 1;
-                        console.log('ERROR');
+                        console.log(connStatus.textContent = 'ERROR');
+                        connStatus.dataset.status = 'ERROR';
                         console.log(e);
-                        var pdat=document.getElementById('playerData');
-                        var tbod = pdat.tBodies[0] ?? pdat.createTBody();
+                        pCountElem.textContent = '???';
                         tbod.innerHTML = '';
-                        if(consecutiveErrors >= 3){{
+                        if(consecutiveErrors >= MAX_RETRIES){{
+                            connStatus.textContent = 'DISCONNECTED';
+                            connStatusDesc.textContent = 'Failed to connect after '+consecutiveErrors+' attempts';
                             console.log('Failed to connect to server');
                             tbod.innerHTML = 'Failed to connect to server';
+                            reconnectButton.style.display = '';
                         }}else{{
+                            connStatus.textContent = 'DISCONNECTED';
+                            connStatusDesc.textContent = 'Retrying... (attempt '+consecutiveErrors+'/'+MAX_RETRIES+')';
                             window.setTimeout(()=>connect(),1000);
                         }}
                     }});
+                    websocket.addEventListener('close', (e) => {{
+                        if (websocket.readyState == WebSocket.CLOSING || websocket.readyState == WebSocket.CLOSED){{
+                            console.log(connStatus.textContent = 'DISCONNECTED');
+                            connStatus.dataset.status = 'DISCONNECTED';
+                            pCountElem.textContent = '???';
+                            tbod.innerHTML = '';
+                            if(consecutiveErrors >= MAX_RETRIES || !errored)
+                                reconnectButton.style.display = '';
+                        }}
+                    }});
+                    document.onvisibilitychange = (event) => {{
+                        if (document.visibilityState === 'hidden') {{
+                            websocket.close();
+                            console.log('Page is hidden.');
+                        }} else {{
+                            if (websocket.readyState == WebSocket.CLOSING || websocket.readyState == WebSocket.CLOSED) 
+                                connect();
+                        }}
+                    }};
                     var lastAppearenceCheck = -Infinity;
                     var lastDisconnectCheck = -Infinity;
                     websocket.addEventListener('message', (e) => {{
@@ -683,13 +803,10 @@ namespace FezMultiplayerDedicatedServer
                         var sepLoc = dat.indexOf('\u{(int)WebSocketReplyMessageSeparator:X4}');
                         var responseTo = dat.slice(0,sepLoc);
                         message = dat.slice(sepLoc + 1);
-                        var pdat=document.getElementById('playerData');
-                        var tbod = pdat.tBodies[0] ?? pdat.createTBody();
                         switch(responseTo){{
                             case '{Uri_players}':
                                 var p=null;
-                                if(message.length<=0)break;
-                                (p=message.split(""\n"")).forEach(m=>{{
+                                (p=message.split(""\n"").filter(a=>a.length>0)).forEach(m=>{{
                                     var o=Object.fromEntries(m.split(""\t"").map(aa=>aa.split('=')));
                                     delete o.client;
                                     var tr = tbod.querySelector('[data-uuid=""'+o.Uuid+'""]');
@@ -722,8 +839,7 @@ namespace FezMultiplayerDedicatedServer
                                         }}
                                     }});
                                 }});
-                                const pCountElem = document.getElementById('playerCount');
-                                if(pCountElem.textContent != p.length)
+                                if(pCountElem.textContent != p.length.toString())
                                     pCountElem.textContent = p.length;
                                 break;
                             case '{Uri_disconnects}':
@@ -767,12 +883,14 @@ namespace FezMultiplayerDedicatedServer
                         }}
                     }});
                 }}
-                connect();" +
+                " +
                 $"</script>" +
                 $"</head>" +
                 $"<body>TODO: if this page is opened on localhost, add buttons do kick/ban players?" +
                 $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"</pre>" +
-                $"Player Count:<span id=\"playerCount\"></span><br />" +
+                $"Connection status:<span id=\"connStatus\" data-status=\"\">Unknown</span> <span id=\"connStatusDesc\"></span> " +
+                $"<button style=\"display: none\" id=\"reconnectButton\" type=\"button\" onclick=\"connect()\">Reconnect</button><br />" +
+                $"Player Count: <span id=\"playerCount\">Unknown</span><br />" +
                 $"Player Data:<div id=\"wrapper\"><table id=\"playerData\"></table></div>" +
                 $"</body>" +
                 $"</html>";
