@@ -188,6 +188,17 @@ namespace FezMultiplayerDedicatedServer
                         })
                     },
                     #endif
+                    {
+                        "netstatus".ToLowerInvariant(),
+                        ("Displays the network status", NetworkStatus)
+                    },
+                    {
+                        "cls".ToLowerInvariant(),
+                        ("Clears console output screen", (args) =>
+                        {
+                            Console.Clear();
+                        })
+                    },
                 };
         private static MultiplayerServerNetcode server;
         private static MultiplayerServerSettings settings;
@@ -413,6 +424,37 @@ namespace FezMultiplayerDedicatedServer
                 return 0;
             }
         };
+        private static void NetworkStatus(string[] args)
+        {
+            NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+            foreach (NetworkInterface networkInterface in networkInterfaces)
+            {
+                if (args.Length <= 1 || !(args[1].Equals("--all") || args[1].Equals("-a")))
+                {
+                    if (networkInterface.OperationalStatus != OperationalStatus.Up)
+                    {
+                        continue;
+                    }
+                }
+                Console.WriteLine($"[{networkInterface.NetworkInterfaceType}] \"{networkInterface.Name}\" ({networkInterface.Description})");
+                Console.WriteLine($"Status: {networkInterface.OperationalStatus}");
+                Console.WriteLine($"Speed: {networkInterface.Speed} bps ({networkInterface.Speed / 1000000} mbps)");
+                // Check if the network interface is up and operational
+                if (networkInterface.OperationalStatus == OperationalStatus.Up)
+                {
+                    // Get the IP properties of the network interface
+                    var unicastAddresses = networkInterface.GetIPProperties().UnicastAddresses;
+                    var addrs = string.Join(", ", unicastAddresses.Select(unicastAddress =>
+                    {
+                        var addr = unicastAddress.Address;
+                        return (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
+                            ? "[" + addr.ToString() + "]" : addr.ToString();
+                    }));
+                    Console.WriteLine($"IP Address{(addrs.Length == 1 ? "" : "es")}: {addrs}");
+                }
+                Console.WriteLine();
+            }
+        }
         private static readonly IPAddressComparer AddressComparer = new IPAddressComparer();
         private const bool HIDE_LOOPBACK_ADDRS = true;
         private const bool HIDE_V6LINK_LOCAL = false;
