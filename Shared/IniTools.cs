@@ -55,7 +55,11 @@ namespace FezSharedTools
             }
             else
             {
-                port = int.Parse(str.Substring(portsepindex + 1));
+                if(!int.TryParse(str.Substring(portsepindex + 1), out port))
+                {
+                    ipEndpoint = default;
+                    return false;
+                }
             }
             addr = str.Substring(0, portsepindex).Replace("[", "").Replace("]", "");//Note: the replaces are for IPv6
             bool validIP = IPAddress.TryParse(addr, out IPAddress ipAddress);
