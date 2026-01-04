@@ -520,6 +520,9 @@ namespace FezMultiplayerDedicatedServer
                                     Console.WriteLine(e.InnerException);
                                 }
                             }
+                            else if(!(e is IOException)){
+                                Console.WriteLine(e);
+                            }
                         }
                         finally
                         {
