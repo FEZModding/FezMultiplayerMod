@@ -446,9 +446,7 @@ namespace FezMultiplayerDedicatedServer
                     var unicastAddresses = networkInterface.GetIPProperties().UnicastAddresses;
                     var addrs = string.Join(", ", unicastAddresses.Select(unicastAddress =>
                     {
-                        var addr = unicastAddress.Address;
-                        return (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetworkV6)
-                            ? "[" + addr.ToString() + "]" : addr.ToString();
+                        return unicastAddress.Address.ToCommonString();
                     }));
                     Console.WriteLine($"IP Address{(addrs.Length == 1 ? "" : "es")}: {addrs}");
                 }

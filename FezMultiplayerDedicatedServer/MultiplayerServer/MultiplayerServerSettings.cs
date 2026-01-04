@@ -59,5 +59,11 @@ namespace FezMultiplayerDedicatedServer
         /// </summary>
         [Description("If true, advertises the existence of this server over LAN.")]
         public bool DoAdvertiseServer = true;
+
+        /// <summary>
+        /// If true, allows the access to view the player data via HTTP.
+        /// </summary>
+        [Description("If true, allows the access to view the player data via HTTP.")]
+        public bool AllowRemoteWebInterface = true;
     }
 }

@@ -14,6 +14,23 @@ using static FezMultiplayerDedicatedServer.MultiplayerServerNetcode;
 
 namespace FezMultiplayerDedicatedServer
 {
+    public static class IPAddressExtensions
+    {
+        public static string ToCommonString(this IPAddress addr)
+        {
+            if (addr.IsIPv4MappedToIPv6)
+            {
+                addr = addr.MapToIPv4();
+            }
+            return (addr.AddressFamily == AddressFamily.InterNetworkV6)
+                            ? "[" + addr.ToString() + "]" : addr.ToString();
+        }
+        public static string ToCommonString(this IPEndPoint ep)
+        {
+            return ep.Address.ToCommonString() + ':' + ep.Port;
+        }
+    }
+
     /// <summary>
     /// The class that contains all the networking stuff
     /// 
@@ -47,6 +64,7 @@ namespace FezMultiplayerDedicatedServer
         public readonly IPFilter AllowList;
         public readonly IPFilter BlockList;
         public bool SyncWorldState;
+        public bool AllowRemoteWebInterface;
 
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
@@ -73,6 +91,7 @@ namespace FezMultiplayerDedicatedServer
             this.AllowList = settings.AllowList;
             this.BlockList = settings.BlockList;
             this.SyncWorldState = settings.SyncWorldState;
+            this.AllowRemoteWebInterface = settings.AllowRemoteWebInterface;
 
             bool initializing = true;
             int retries = 0;
@@ -273,6 +292,7 @@ namespace FezMultiplayerDedicatedServer
         {
             Guid uuid = Guid.NewGuid();
             bool isPlayer = false;
+            bool isLoopback = IPAddress.IsLoopback(((IPEndPoint)client.RemoteEndPoint).Address);
             try
             {
                 //Console.WriteLine($"Incoming connection from {client.RemoteEndPoint}...");
@@ -287,102 +307,107 @@ namespace FezMultiplayerDedicatedServer
                         {
                             if (client.Available > 0)
                             {
-                                string request = Encoding.UTF8.GetString(reader.ReadBytes(client.Available));
-                                string[] lines = request.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-                                if (lines.Length > 0)
+                                //if it's a web request but the web interface is disabled, close the connection without sending back any data
+                                if (isLoopback || AllowRemoteWebInterface)
                                 {
-                                    isPlayer = false;
-
-                                    string[] line1 = lines[0].Split(' ');
-
-                                    if (line1.Length >= 3)
+                                    string request = Encoding.UTF8.GetString(reader.ReadBytes(client.Available));
+                                    string[] lines = request.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+                                    if (lines.Length > 0)
                                     {
-                                        string method = line1[0];
-                                        string uri = line1[1];
-                                        string protocol = line1[2];
+                                        isPlayer = false;
 
-                                        Dictionary<string, string> parseHeaders(IEnumerable<string> headerLines)
+                                        string[] line1 = lines[0].Split(' ');
+
+                                        if (line1.Length >= 3)
                                         {
-                                            var h = headerLines.Select(line => line.Split(new char[] { ':' }, 2));
-                                            Dictionary<string, string> headerDict = new Dictionary<string, string>();
-                                            foreach (string[] entry in h)
+                                            string method = line1[0];
+                                            string uri = line1[1];
+                                            string protocol = line1[2];
+
+                                            Dictionary<string, string> parseHeaders(IEnumerable<string> headerLines)
                                             {
-                                                string k = entry[0];
-                                                string v = entry.Length > 1 ? entry[1] : "";
-                                                if (v.StartsWith(" "))
+                                                var h = headerLines.Select(line => line.Split(new char[] { ':' }, 2));
+                                                Dictionary<string, string> headerDict = new Dictionary<string, string>();
+                                                foreach (string[] entry in h)
                                                 {
-                                                    v = v.Substring(1);
+                                                    string k = entry[0];
+                                                    string v = entry.Length > 1 ? entry[1] : "";
+                                                    if (v.StartsWith(" "))
+                                                    {
+                                                        v = v.Substring(1);
+                                                    }
+                                                    if (headerDict.TryGetValue(k, out string headerval) && headerval.Length > 0)
+                                                    {
+                                                        headerDict[k] += ", " + headerval;
+                                                    }
+                                                    else
+                                                    {
+                                                        headerDict[k] = v;
+                                                    }
                                                 }
-                                                if (headerDict.TryGetValue(k, out string headerval) && headerval.Length > 0)
-                                                {
-                                                    headerDict[k] += ", " + headerval;
-                                                }
-                                                else
-                                                {
-                                                    headerDict[k] = v;
-                                                }
+                                                return headerDict;
                                             }
-                                            return headerDict;
-                                        }
 
-                                        var headers = parseHeaders(lines.Skip(1).TakeWhile(line => line.Length > 0));
+                                            var headers = parseHeaders(lines.Skip(1).TakeWhile(line => line.Length > 0));
 
-                                        if (headers.TryGetValue("Upgrade", out string ug) && ug.Equals("websocket")
-                                                && headers.TryGetValue("Sec-WebSocket-Key", out string wskey))
-                                        {
-                                            writer.Write(Encoding.UTF8.GetBytes("HTTP/1.1 101 Switching Protocols" + CRLF
-                                                + "Connection: Upgrade" + CRLF
-                                                + "Upgrade: websocket" + CRLF
-                                                + "Sec-WebSocket-Accept: " + Convert.ToBase64String(
-                                                    System.Security.Cryptography.SHA1.Create().ComputeHash(
-                                                        Encoding.UTF8.GetBytes(wskey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+                                            if (headers.TryGetValue("Upgrade", out string ug) && ug.Equals("websocket")
+                                                    && headers.TryGetValue("Sec-WebSocket-Key", out string wskey))
+                                            {
+                                                writer.Write(Encoding.UTF8.GetBytes("HTTP/1.1 101 Switching Protocols" + CRLF
+                                                    + "Connection: Upgrade" + CRLF
+                                                    + $"Date: {DateTime.UtcNow:R}{CRLF}"
+                                                    + "Upgrade: websocket" + CRLF
+                                                    + "Sec-WebSocket-Accept: " + Convert.ToBase64String(
+                                                        System.Security.Cryptography.SHA1.Create().ComputeHash(
+                                                            Encoding.UTF8.GetBytes(wskey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+                                                            )
                                                         )
-                                                    )
-                                                ) + CRLF
-                                                + CRLF));
-                                            Stopwatch timeoutTimer = Stopwatch.StartNew();
-                                            bool closing = false;
-                                            while (client.Connected && !disposing && !closing)
-                                            {
-                                                if (timeoutTimer.ElapsedMilliseconds > 5000)
+                                                    ) + CRLF
+                                                    + CRLF));
+                                                Stopwatch timeoutTimer = Stopwatch.StartNew();
+                                                bool closing = false;
+                                                while (client.Connected && !disposing && !closing)
                                                 {
-                                                    break;//terminate connection
+                                                    if (timeoutTimer.ElapsedMilliseconds > 5000)
+                                                    {
+                                                        break;//terminate connection
+                                                    }
+                                                    if (client.Available <= 0)
+                                                    {
+                                                        Thread.Sleep(10);
+                                                        continue;
+                                                    }
+                                                    timeoutTimer.Restart();
+                                                    string message = DecodeWebSocketMessage(reader.ReadBytes(client.Available), out closing, out bool ping);
+                                                    if (closing)
+                                                    {
+                                                        break;
+                                                    }
+                                                    else if (ping)
+                                                    {
+                                                        System.Diagnostics.Debugger.Launch();
+                                                        System.Diagnostics.Debugger.Break();
+                                                        SendWebSocketMessage(writer, message, opcode: 0xA);
+                                                    }
+                                                    else if (message.Length > 0)
+                                                    {
+                                                        SendWebSocketMessage(writer, message + WebSocketReplyMessageSeparator + GenerateWebResponse(method, message, isLoopback: isLoopback, includeHttpHeaders: false));
+                                                    }
                                                 }
-                                                if (client.Available <= 0)
+                                                if (client.Connected)
                                                 {
-                                                    Thread.Sleep(10);
-                                                    continue;
-                                                }
-                                                timeoutTimer.Restart();
-                                                string message = DecodeWebSocketMessage(reader.ReadBytes(client.Available), out closing, out bool ping);
-                                                if (closing)
-                                                {
-                                                    break;
-                                                }
-                                                else if (ping)
-                                                {
-                                                    System.Diagnostics.Debugger.Launch();
-                                                    System.Diagnostics.Debugger.Break();
-                                                    SendWebSocketMessage(writer, message, opcode: 0xA);
-                                                }
-                                                else if (message.Length > 0)
-                                                {
-                                                    SendWebSocketMessage(writer, message + WebSocketReplyMessageSeparator + GenerateWebResponse(method, message, http: false, isWebsocket: true));
+                                                    //send close message
+                                                    short closeStatus = (short)(disposing ? 1001 : 1000);
+                                                    byte[] bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)closeStatus));
+                                                    SendWebSocketMessage(writer, "", opcode: 0x8, bytes);
                                                 }
                                             }
-                                            if (client.Connected)
+                                            else
                                             {
-                                                //send close message
-                                                short closeStatus = (short)(disposing ? 1001 : 1000);
-                                                byte[] bytes = BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)closeStatus));
-                                                SendWebSocketMessage(writer, "", opcode: 0x8, bytes);
+                                                //Console.WriteLine($"Web browser {method} {uri} from {client.RemoteEndPoint}. Sending response...");
+                                                writer.Write(Encoding.UTF8.GetBytes(GenerateWebResponse(method, uri, isLoopback: isLoopback, includeHttpHeaders: true, closing: true)));
+                                                //Console.WriteLine($"Responded to {method} {uri} from {client.RemoteEndPoint}. Terminating connection.");
                                             }
-                                        }
-                                        else
-                                        {
-                                            //Console.WriteLine($"Web browser {method} {uri} from {client.RemoteEndPoint}. Sending response...");
-                                            writer.Write(Encoding.UTF8.GetBytes(GenerateWebResponse(method, uri, http: true, closing: true)));
-                                            //Console.WriteLine($"Responded to {method} {uri} from {client.RemoteEndPoint}. Terminating connection.");
                                         }
                                     }
                                 }
@@ -608,7 +633,7 @@ namespace FezMultiplayerDedicatedServer
             writer.Flush();
         }
 
-        private string GenerateWebResponse(string method, string uri, bool closing = false, bool http = true, bool isWebsocket = false)
+        private string GenerateWebResponse(string method, string uri, bool isLoopback, bool closing = false, bool includeHttpHeaders = true)
         {
             // see https://datatracker.ietf.org/doc/html/rfc2616
 
@@ -625,7 +650,14 @@ namespace FezMultiplayerDedicatedServer
             const string Uri_disconnects = "disconnects.dat";
             Dictionary<string, (string ContentType, Func<string> Generator)> uriProviders = new Dictionary<string, (string, Func<string>)>(){
                 {"favicon.ico", ("image/png", ()=>"") },
-                {Uri_players, ("text/plain", ()=>string.Join("\n", Players.Select(kv => string.Join("\t", IniTools.GenerateIni(kv.Value, false, false))))) },
+                {Uri_players, ("text/plain", ()=>DateTime.UtcNow.Ticks+"\n"+string.Join("\n", Players.Select(kv => {
+                    string str = string.Join("\t", IniTools.GenerateIni(kv.Value, false, false));
+                    if (isLoopback)
+                    {
+                        str = str.Replace("client=System.Net.Sockets.Socket", "client="+((IPEndPoint)kv.Value.client.RemoteEndPoint).ToCommonString());
+                    }
+                    return str;
+                }))) },
                 {Uri_appearances, ("text/plain", ()=>string.Join("\n", PlayerAppearances.Select(kv => kv.Key+"\t"+kv.Value.PlayerName))) },
                 {Uri_disconnects, ("text/plain", ()=>string.Join("\n", DisconnectedPlayers.Keys)) },
                 //TODO
@@ -661,25 +693,28 @@ namespace FezMultiplayerDedicatedServer
                         font-variant-numeric: tabular-nums;
                         font-family: monospace;
                     }}
-                    th:nth-child(1), td:nth-child(1) {{/*uuid*/
+                    th[data-col-name=""Uuid""], td[data-col-name=""Uuid""] {{/*uuid*/
                         overflow: hidden;
                         max-width: 6ch;
                         text-wrap: nowrap;
                     }}
-                    td:nth-child(2) {{/*player name*/
+                    td[data-col-name=""PlayerName""] {{/*player name*/
                         overflow: hidden;
                         max-width: 16ch;
                         text-wrap: nowrap;
                     }}
-                    td:nth-child(3) {{/*level name*/
+                    th[data-col-name=""client""], td[data-col-name=""client""] {{/*client*/
+                        {(isLoopback ? "" : "display: none;")}
                     }}
-                    td:nth-child(4) {{/*action*/
+                    td[data-col-name=""CurrentLevelName""] {{/*level name*/
+                    }}
+                    td[data-col-name=""Action""] {{/*action*/
                         overflow: hidden;
                         min-width: 15ch;
                         max-width: 15ch;
                         text-wrap: nowrap;
                     }}
-                    th:nth-child(5), td:nth-child(5) {{/*viewpoint*/
+                    th[data-col-name=""CameraViewpoint""], td[data-col-name=""CameraViewpoint""] {{/*viewpoint*/
                         overflow: hidden;
                         max-width: 6ch;
                         text-wrap: nowrap;
@@ -718,13 +753,17 @@ namespace FezMultiplayerDedicatedServer
                 $"<script src=\"https://jenna1337.github.io/tools/RichTextRenderer.js\"></script>\n" +
                 $"<script>" +
                 $@"
-                const colNames=['Uuid','PlayerName','CurrentLevelName','Action','CameraViewpoint','Position','joinTime','LastUpdateTimestamp','NetworkSpeedUp','NetworkSpeedDown','ping'];
+                const colNames=['Uuid','PlayerName','client','CurrentLevelName','Action','CameraViewpoint','Position','joinTime','LastUpdateTimestamp','NetworkSpeedUp','NetworkSpeedDown','ping'];
+                const constColumns = 2;
+                const nameIndex = colNames.indexOf('PlayerName') ;
+                const pingIndex = colNames.indexOf('ping') ;
                 document.addEventListener('DOMContentLoaded',()=>{{
                     var pdat=document.getElementById('playerData');
 	                var thr=pdat.createTHead().insertRow();
                     colNames.forEach(a=>{{
                         var th=document.createElement('th');
 	                    th.textContent=a.split(/(?=[A-Z])/).join(' ').toLowerCase().replace(/\b\w/g, s => s.toUpperCase());
+                        th.dataset.colName = a;
                         th.scope='col';
 	                    thr.appendChild(th);
                     }});
@@ -806,9 +845,13 @@ namespace FezMultiplayerDedicatedServer
                         switch(responseTo){{
                             case '{Uri_players}':
                                 var p=null;
-                                (p=message.split(""\n"").filter(a=>a.length>0)).forEach(m=>{{
+                                let servertime = 0;
+                                (p=message.split(""\n"").filter(a=>a.length>0)).forEach((m,mi)=>{{
+                                    if(mi==0){{
+                                        servertime=Number(m);
+                                        return;
+                                    }}
                                     var o=Object.fromEntries(m.split(""\t"").map(aa=>aa.split('=')));
-                                    delete o.client;
                                     var tr = tbod.querySelector('[data-uuid=""'+o.Uuid+'""]');
                                     function setData(cell,c){{
                                         if(cell.textContent!=o[c]){{
@@ -822,8 +865,8 @@ namespace FezMultiplayerDedicatedServer
                                                 cell.textContent=o[c];
                                             }}
                                             if(c=='LastUpdateTimestamp'){{
-                                                if(tr.cells[colNames.length-1])
-                                                    tr.cells[colNames.length-1].textContent = (((performance.timeOrigin + performance.now()) - (o[c]/10000-62135596800000))/1000).toFixed(6);
+                                                if(tr.cells[pingIndex])
+                                                    tr.cells[pingIndex].textContent = ((servertime - o[c])/{TimeSpan.TicksPerSecond}).toFixed(6);
                                             }}
                                             cell.title = cell.textContent;
                                         }}
@@ -831,16 +874,20 @@ namespace FezMultiplayerDedicatedServer
                                     if(!tr){{
                                         tr = tbod.insertRow();
 	                                    tr.dataset.uuid=o.Uuid;
-                                        colNames.forEach(c=>setData(tr.insertCell(),c));
+                                        colNames.forEach(c=>{{
+                                            const td=tr.insertCell();
+                                            td.dataset.colName = c;
+                                            setData(td,c);
+                                        }});
                                     }}
                                     else colNames.forEach((c,i)=>{{
-                                        if(i>1 && i<colNames.length-1){{
+                                        if(i!=nameIndex && i!=pingIndex){{
                                             setData(tr.cells[i],c);
                                         }}
                                     }});
                                 }});
                                 if(pCountElem.textContent != p.length.toString())
-                                    pCountElem.textContent = p.length;
+                                    pCountElem.textContent = p.length - 1;
                                 break;
                             case '{Uri_disconnects}':
                                 message.split(""\n"").forEach(uuid=>tbod.querySelector('[data-uuid=""'+uuid+'""]')?.remove());
@@ -852,7 +899,7 @@ namespace FezMultiplayerDedicatedServer
                                     var name = a.slice(sepLoc + 1);
                                     var q=tbod.querySelector('[data-uuid=""'+uuid+'""]');
                                     if(!q)return;
-                                    var c=q.cells[1];
+                                    var c=q.cells[nameIndex];
                                     if(c.dataset.name!=name){{
                                         c.dataset.name=name;
                                         if(RenderRichText){{
@@ -871,15 +918,15 @@ namespace FezMultiplayerDedicatedServer
                         }}catch(e){{
                             console.log(e);
                         }}finally{{
-                        if(performance.now() - lastAppearenceCheck > 1000){{
-                            lastAppearenceCheck = performance.now();
-                            websocket.send('{Uri_appearances}');
-                        }}else if(performance.now() - lastDisconnectCheck > 1000){{
-                            lastDisconnectCheck = performance.now();
-                            websocket.send('{Uri_disconnects}');
-                        }}else{{
-                            websocket.send('{Uri_players}');
-                        }}
+                            if(performance.now() - lastAppearenceCheck > 1000){{
+                                lastAppearenceCheck = performance.now();
+                                websocket.send('{Uri_appearances}');
+                            }}else if(performance.now() - lastDisconnectCheck > 1000){{
+                                lastDisconnectCheck = performance.now();
+                                websocket.send('{Uri_disconnects}');
+                            }}else{{
+                                websocket.send('{Uri_players}');
+                            }}
                         }}
                     }});
                 }}
@@ -896,7 +943,7 @@ namespace FezMultiplayerDedicatedServer
                 $"</html>";
                 contentType = "text/html";
             }
-            if (!http)
+            if (!includeHttpHeaders)
             {
                 return body;
             }
