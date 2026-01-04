@@ -263,6 +263,10 @@ namespace FezMultiplayerDedicatedServer
             Dispose(false);
         }
 
+        private static readonly Stopwatch timer = Stopwatch.StartNew();
+        private static float DefaultTimeFactor => 260f;
+        public double TimeScale = 1;
+        private static double lastTimeUpdate = 0;
         public void Update()
         {
             if (FatalException != null)
@@ -283,7 +287,9 @@ namespace FezMultiplayerDedicatedServer
             {
                 _ = DisconnectedPlayers.TryRemove(k, out _);
             }
-
+            double curTime = timer.ElapsedMilliseconds;
+            sharedSaveData.TimeOfDay += TimeSpan.FromMilliseconds((curTime - lastTimeUpdate) * DefaultTimeFactor * TimeScale);
+            lastTimeUpdate = curTime;
             OnUpdate();
         }
 
