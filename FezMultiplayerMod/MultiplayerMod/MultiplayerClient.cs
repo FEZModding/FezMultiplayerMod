@@ -35,6 +35,12 @@ namespace FezGame.MultiplayerMod
         [ServiceDependency]
         public IGameCameraManager CameraManager { private get; set; }
 
+        [ServiceDependency]
+        public IGameStateManager GameState { private get; set; }
+
+        [ServiceDependency]
+        public ITimeManager TimeManager { private get; set; }
+
         /// <summary>
         /// Creates a new instance of this class with the provided parameters.
         /// For any errors that get encountered see <see cref="ErrorMessage"/> and <see cref="FatalException"/>
@@ -85,22 +91,26 @@ namespace FezGame.MultiplayerMod
 
         protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
         {
-            if (!SyncWorldState)
+            if (SyncWorldState)
             {
-                return;
+                //TODO not yet implemented
             }
-            //TODO not yet implemented
-            throw new NotImplementedException();
         }
 
         protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
         {
-            if (!SyncWorldState)
+            if (SyncWorldState)
             {
-                return;
+                //TODO not yet implemented
             }
-            //TODO not yet implemented
-            throw new NotImplementedException();
+        }
+
+        protected override void SetTimeOfDay(long newTimeOfDayTicks)
+        {
+            if (SyncTimeOfDay)
+            {
+                TimeManager.CurrentTime = DateTime.Today.Add(new TimeSpan(newTimeOfDayTicks));
+            }
         }
     }
 }

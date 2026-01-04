@@ -420,7 +420,7 @@ namespace FezMultiplayerDedicatedServer
                                 //send them our data and get player appearance from client
                                 SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
                                         null, GetActiveLevelStates(), DisconnectedPlayers.Keys,
-                                        PlayerAppearances, uuid, false, sharedSaveData));
+                                        PlayerAppearances, uuid, false, sharedSaveData, sharedSaveData.TimeOfDay));
                                 MiscClientData clientData = new MiscClientData(null, false, new HashSet<Guid>(MiscClientData.MaxRequestedAppearancesSize));
                                 SpeedDown.Enqueue(ReadClientGameTickPacket(reader, ref clientData, uuid));
                                 bool Disconnecting = clientData.Disconnecting;
@@ -479,7 +479,7 @@ namespace FezMultiplayerDedicatedServer
                                     }
                                     SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
                                             GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys,
-                                            GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, null));
+                                            GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, null, sharedSaveData.TimeOfDay));
                                     SpeedDown.Enqueue(ReadClientGameTickPacket(reader, ref clientData, uuid));
                                     Disconnecting = clientData.Disconnecting;
                                     playerMetadata = clientData.Metadata;
@@ -993,7 +993,7 @@ namespace FezMultiplayerDedicatedServer
             return SyncWorldState ? activeLevelStates : empty;
         }
 
-        private readonly SharedSaveData sharedSaveData = new SharedSaveData();
+        private readonly SaveData sharedSaveData = new SaveData();
 
         protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
         {

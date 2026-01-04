@@ -49,5 +49,10 @@ namespace FezGame.MultiplayerMod
         /// </summary>
         [Description("If true, attempts to sync world save data, level states, and player inventories across players. Note that this setting must also be enabled on the server for it to work.")]
         public bool SyncWorldState = false;
+        /// <summary>
+        /// If true, sets the in-game time of day to that provided by the server
+        /// </summary>
+        [Description("If true, sets the in-game time of day to that provided by the server")]
+        public bool SyncTimeOfDay = false;
     }
 }

@@ -78,6 +78,7 @@ namespace FezGame.MultiplayerMod
 
 
         public volatile bool SyncWorldState;
+        public volatile bool SyncTimeOfDay;
         /// <summary>
         /// The amount of time, in ticks, to retry reconnecting to the server if the connection is somehow lost
         /// </summary>
@@ -97,6 +98,7 @@ namespace FezGame.MultiplayerMod
         {
             listening = false;
             SyncWorldState = settings.SyncWorldState;
+            SyncTimeOfDay = settings.SyncTimeOfDay;
             MyAppearance = new PlayerAppearance(settings.MyPlayerName, settings.Appearance);
         }
 
@@ -131,9 +133,10 @@ namespace FezGame.MultiplayerMod
                     using (BinaryNetworkWriter writer = new BinaryNetworkWriter(tcpStream))
                     {
                         bool retransmitAppearanceRequested = false;
+                        long newTimeOfDay_ticks = 0;
                         try
                         {
-                            ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
+                            ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested, ref newTimeOfDay_ticks);
                             ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
                         }
                         catch (System.IO.EndOfStreamException e)
@@ -145,7 +148,7 @@ namespace FezGame.MultiplayerMod
                         OnConnect();
                         while (true)
                         {
-                            ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
+                            ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested, ref newTimeOfDay_ticks);
                             if (!disconnectRequested)
                             {
                                 ActiveLevelState? activeLevelState = null;

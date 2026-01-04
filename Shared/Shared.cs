@@ -203,10 +203,6 @@ namespace FezSharedTools
             this.TODO = TODO;
         }
     }
-    public class SharedSaveData
-    {
-        //TODO not yet implemented
-    }
 
     public static class FezMultiplayerBinaryIOExtensions
     {
@@ -355,7 +351,7 @@ namespace FezSharedTools
         #region network packet stuff
         private const int MaxProtocolVersionLength = 32;
         public const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public static readonly string ProtocolVersion = "seventeen";//Update this ever time you change something that affect the packets
+        public static readonly string ProtocolVersion = "eightteen";//Update this ever time you change something that affect the packets
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
         /// <summary>
@@ -411,6 +407,7 @@ namespace FezSharedTools
                 this.RequestedAppearances = RequestedAppearances;
             }
         }
+#if !FEZCLIENT
         /// <summary>Reads the data sent by the player/client</summary>
         /// <param name="reader">The BinaryNetworkReader to read data from</param>
         /// <param name="retval">The value to store the return values in</param>
@@ -457,6 +454,7 @@ namespace FezSharedTools
             retval.Disconnecting = Disconnecting;
             return sw.ElapsedTicks;
         }
+#else
         /// <summary>
         ///     Writes the supplied player/client data to network stream that is connected to the multiplayer server represented by <paramref name="writer0"/>
         /// </summary>
@@ -509,12 +507,14 @@ namespace FezSharedTools
             }
             return sw.ElapsedTicks;
         }
+#endif
+#if FEZCLIENT
         /// <summary>Reads the data sent from the server</summary>
         /// <remarks>
         ///     Note: The data written by this method should be written by <seealso cref="WriteServerGameTickPacket"/>
         /// </remarks>
         /// <returns>the amount of time, in ticks, it took to read the data from the network</returns>
-        protected long ReadServerGameTickPacket(BinaryNetworkReader reader, ref bool RetransmitAppearance)
+        protected long ReadServerGameTickPacket(BinaryNetworkReader reader, ref bool RetransmitAppearance, ref long newTimeOfDay_ticks)
         {
             Stopwatch sw = new Stopwatch();
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
@@ -562,8 +562,10 @@ namespace FezSharedTools
                 ProcessNewClientGuid(NewClientGuid);
             }
             RetransmitAppearance = reader.ReadBoolean();
+            SetTimeOfDay(reader.ReadInt64());
             return sw.ElapsedTicks;
         }
+#else
         /// <summary>Writes the supplied server data to client's network stream <paramref name="writer0"/></summary>
         /// <remarks>
         ///     Note: This method has a lot of arguments so it is more easily identifiable if one of the arguments is unused.<br />
@@ -572,7 +574,7 @@ namespace FezSharedTools
         /// <returns>the amount of time, in ticks, it took to write the data to the network</returns>
         protected long WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
                                                             ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
-                                                            bool RequestAppearance, SharedSaveData sharedSaveData)
+                                                            bool RequestAppearance, FezMultiplayerDedicatedServer.SaveData sharedSaveData, TimeSpan timeOfDay)
         {
             Stopwatch sw = new Stopwatch();
             int datalength;
@@ -616,6 +618,7 @@ namespace FezSharedTools
                         writer.Write(NewClientGuid.Value);
                     }
                     writer.Write(RequestAppearance);
+                    writer.Write(timeOfDay.Ticks);
                     writer.Flush();
                 }
                 byte[] data = ms.ToArray();
@@ -627,20 +630,19 @@ namespace FezSharedTools
             }
             return sw.ElapsedTicks / datalength;
         }
+#endif
         protected void UpdatePlayerAppearance(Guid puid, PlayerAppearance newAp)
         {
             _ = PlayerAppearances.AddOrUpdate(puid, (u) => newAp, (u, a) => newAp);
         }
-        protected void UpdatePlayerAppearance(Guid puid, string pname, object appearance)
-        {
-            PlayerAppearance newAp = new PlayerAppearance(pname, appearance);
-            _ = PlayerAppearances.AddOrUpdate(puid, (u) => newAp, (u, a) => newAp);
-        }
         protected abstract void ProcessDisconnect(Guid puid);
         protected abstract void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate);
-        protected virtual void ProcessNewClientGuid(Guid puid) { }
         protected abstract void ProcessActiveLevelState(ActiveLevelState activeLevelState);
-        #endregion
+#if FEZCLIENT
+        protected abstract void ProcessNewClientGuid(Guid puid);
+        protected abstract void SetTimeOfDay(long newTimeOfDayTicks);
+#endif
+#endregion
     }
 
 
