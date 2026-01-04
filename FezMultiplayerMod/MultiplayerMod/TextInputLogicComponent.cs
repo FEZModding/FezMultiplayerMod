@@ -116,8 +116,12 @@ namespace FezGame.MultiplayerMod
             case '\x08'://Backspace
                 if (caretPosition > 0)
                 {
+                    int lastCaretPosition = caretPosition;
                     Value = Value.Remove(caretPosition - 1, 1);
-                    caretPosition -= 1;
+                    if (caretPosition > 0 && lastCaretPosition <= Value.Length)
+                    {
+                        caretPosition -= 1;
+                    }
                 }
                 break;
             case '\t'://Horizontal Tab (\x09)

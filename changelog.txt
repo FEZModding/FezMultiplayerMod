@@ -77,4 +77,6 @@ Made the player name default to the name of the current user (as long as it's no
 0.7.0
 Added server web interface to view the player data via HTTP. This is always allowed on the localhost, and external access is controlled via the "AllowRemoteWebInterface" field in the server settings.
 fixed a bug where TryParseIPEndPoint could crash
+misc. bug fixes
+
 
