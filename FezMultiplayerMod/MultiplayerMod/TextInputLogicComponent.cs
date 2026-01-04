@@ -138,7 +138,12 @@ namespace FezGame.MultiplayerMod
             case '\x13'://Device Control Three
             case '\x14'://Device Control Four
             case '\x15'://Negative Acknowledge
+                break;
             case '\x16'://Synchronous Idle (Ctrl + V)
+                string paste = SDL2.SDL.SDL_GetClipboardText();
+                Value = Value.Insert(caretPosition, paste);
+                caretPosition += paste.Length;
+                break;
             case '\x17'://End of Transmission Block
             case '\x18'://Cancel
             case '\x19'://End of medium
