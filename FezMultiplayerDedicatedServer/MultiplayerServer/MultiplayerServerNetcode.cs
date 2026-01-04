@@ -659,14 +659,19 @@ namespace FezMultiplayerDedicatedServer
             const string Uri_disconnects = "disconnects.dat";
             Dictionary<string, (string ContentType, Func<string> Generator)> uriProviders = new Dictionary<string, (string, Func<string>)>(){
                 {"favicon.ico", ("image/png", ()=>"") },
-                {Uri_players, ("text/plain", ()=>DateTime.UtcNow.Ticks+"\n"+string.Join("\n", Players.Select(kv => {
-                    string str = string.Join("\t", IniTools.GenerateIni(kv.Value, false, false));
-                    if (isLoopback)
-                    {
-                        str = str.Replace("client=System.Net.Sockets.Socket", "client="+((IPEndPoint)kv.Value.client.RemoteEndPoint).ToCommonString());
-                    }
-                    return str;
-                }))) },
+                {Uri_players, ("text/plain", ()=>
+                {
+                    return DateTime.UtcNow.Ticks + "\n"
+                        + sharedSaveData.TimeOfDay + "\n"
+                        + string.Join("\n", Players.Select(kv => {
+                            string str = string.Join("\t", IniTools.GenerateIni(kv.Value, false, false));
+                            if (isLoopback)
+                            {
+                                str = str.Replace("client=System.Net.Sockets.Socket", "client="+((IPEndPoint)kv.Value.client.RemoteEndPoint).ToCommonString());
+                            }
+                            return str;
+                        }));
+                }) },
                 {Uri_appearances, ("text/plain", ()=>string.Join("\n", PlayerAppearances.Select(kv => kv.Key+"\t"+kv.Value.PlayerName))) },
                 {Uri_disconnects, ("text/plain", ()=>string.Join("\n", DisconnectedPlayers.Keys)) },
                 //TODO
@@ -786,6 +791,7 @@ namespace FezMultiplayerDedicatedServer
                     const connStatus=document.getElementById('connStatus');
                     const connStatusDesc=document.getElementById('connStatusDesc');
                     const reconnectButton=document.getElementById('reconnectButton');
+                    const serverToD=document.getElementById('serverToD');
                     const tbod = pdat.tBodies[0] ?? pdat.createTBody();
                     const wsUri = 'ws://'+location.host+'/{Uri_players}';
                     reconnectButton.style.display = 'none';
@@ -811,6 +817,7 @@ namespace FezMultiplayerDedicatedServer
                         connStatus.dataset.status = 'ERROR';
                         console.log(e);
                         pCountElem.textContent = '???';
+                        serverToD.textContent = '???';
                         tbod.innerHTML = '';
                         if(consecutiveErrors >= MAX_RETRIES){{
                             connStatus.textContent = 'DISCONNECTED';
@@ -829,6 +836,7 @@ namespace FezMultiplayerDedicatedServer
                             console.log(connStatus.textContent = 'DISCONNECTED');
                             connStatus.dataset.status = 'DISCONNECTED';
                             pCountElem.textContent = '???';
+                            serverToD.textContent = '???';
                             tbod.innerHTML = '';
                             if(consecutiveErrors >= MAX_RETRIES || !errored)
                                 reconnectButton.style.display = '';
@@ -858,6 +866,10 @@ namespace FezMultiplayerDedicatedServer
                                 (p=message.split(""\n"").filter(a=>a.length>0)).forEach((m,mi)=>{{
                                     if(mi==0){{
                                         servertime=Number(m);
+                                        return;
+                                    }}
+                                    if(mi==1){{
+                                        serverToD.textContent=m;
                                         return;
                                     }}
                                     var o=Object.fromEntries(m.split(""\t"").map(aa=>aa.split('=')));
@@ -896,7 +908,7 @@ namespace FezMultiplayerDedicatedServer
                                     }});
                                 }});
                                 if(pCountElem.textContent != p.length.toString())
-                                    pCountElem.textContent = p.length - 1;
+                                    pCountElem.textContent = p.length - 2;
                                 break;
                             case '{Uri_disconnects}':
                                 message.split(""\n"").forEach(uuid=>tbod.querySelector('[data-uuid=""'+uuid+'""]')?.remove());
@@ -946,6 +958,7 @@ namespace FezMultiplayerDedicatedServer
                 $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"</pre>" +
                 $"Connection status:<span id=\"connStatus\" data-status=\"\">Unknown</span> <span id=\"connStatusDesc\"></span> " +
                 $"<button style=\"display: none\" id=\"reconnectButton\" type=\"button\" onclick=\"connect()\">Reconnect</button><br />" +
+                $"Server time of day:<span id=\"serverToD\">Unknown</span><br />" +
                 $"Player Count: <span id=\"playerCount\">Unknown</span><br />" +
                 $"Player Data:<div id=\"wrapper\"><table id=\"playerData\"></table></div>" +
                 $"</body>" +
