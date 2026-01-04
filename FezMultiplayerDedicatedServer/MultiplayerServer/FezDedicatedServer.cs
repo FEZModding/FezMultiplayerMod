@@ -199,6 +199,32 @@ namespace FezMultiplayerDedicatedServer
                             Console.Clear();
                         })
                     },
+                    {
+                        "timescale".ToLowerInvariant(),
+                        ("Sets the scale for time of day speed", (args) =>
+                        {
+                            string arg = GetArgOrPrompt(args, 1, "How fast would you like time of day to progress? (note: 1 is normal speed, 2 is twice speed, etc.)");
+
+                            const double MAX_TIMESCALE = 100;
+
+                            if (double.TryParse(arg, out double newTimescale) && !double.IsNaN(newTimescale) && !double.IsInfinity(newTimescale))
+                            {
+                                if (Math.Abs(newTimescale) > MAX_TIMESCALE)
+                                {
+                                    Console.WriteLine($"Please input a value between -{MAX_TIMESCALE} and {MAX_TIMESCALE} so we don't injure anyone with flashing lights");
+                                }
+                                else
+                                {
+                                    server.TimeScale = newTimescale;
+                                    Console.WriteLine("Time scale set to: " + arg + "");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("Invalid time scale: \"" + arg + "\"");
+                            }
+                        })
+                    },
                 };
         private static MultiplayerServerNetcode server;
         private static MultiplayerServerSettings settings;

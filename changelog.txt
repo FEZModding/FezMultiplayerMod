@@ -79,6 +79,7 @@ Added server web interface to view the player data via HTTP. This is always allo
 fixed a bug where TryParseIPEndPoint could crash
 added paste support to TextInputLogicComponent
 added SyncTimeOfDay option to client
+added server `timescale` command to adjust the timescale for the server time of day
 misc. bug fixes
 
 
