@@ -16,6 +16,7 @@ using TrileEmplacement = FezEngine.Structure.TrileEmplacement;
 using HorizontalDirection = FezEngine.HorizontalDirection;
 using Viewpoint = FezEngine.Viewpoint;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
+using SaveData = FezGame.Structure.SaveData;
 #else
 using ActionType = FezMultiplayerDedicatedServer.ActionType;
 using ActorType = FezMultiplayerDedicatedServer.ActorType;
@@ -23,6 +24,7 @@ using HorizontalDirection = FezMultiplayerDedicatedServer.HorizontalDirection;
 using Viewpoint = FezMultiplayerDedicatedServer.Viewpoint;
 using Vector3 = FezMultiplayerDedicatedServer.Vector3;
 using TrileEmplacement = FezMultiplayerDedicatedServer.TrileEmplacement;
+using ServerSaveData = FezMultiplayerDedicatedServer.SaveData;
 #endif
 namespace FezSharedTools
 {
@@ -332,6 +334,20 @@ namespace FezSharedTools
             //TODO not yet implemented
             throw new NotImplementedException();
         }
+#if FEZCLIENT
+        public static SaveData ReadSharedSaveData(this BinaryNetworkReader reader)
+        {
+            SaveData saveData = new SaveData();
+            saveData.Clear();
+            //TODO read and process save data
+            return saveData;
+        }
+#else
+        public static void Write(this BinaryNetworkWriter writer, ServerSaveData saveData)
+        {
+            //TODO not yet implemented
+        }
+#endif
     }
 
     public sealed class VersionMismatchException : Exception
@@ -348,10 +364,10 @@ namespace FezSharedTools
     }
     public abstract class SharedNetcode<P> where P : PlayerMetadata
     {
-        #region network packet stuff
+#region network packet stuff
         private const int MaxProtocolVersionLength = 32;
         public const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public static readonly string ProtocolVersion = "eightteen";//Update this ever time you change something that affect the packets
+        public static readonly string ProtocolVersion = "nineteen-wip1";//Update this ever time you change something that affect the packets
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
         /// <summary>
@@ -563,6 +579,10 @@ namespace FezSharedTools
             }
             RetransmitAppearance = reader.ReadBoolean();
             SetTimeOfDay(reader.ReadInt64());
+            if (reader.ReadBoolean())
+            {
+                ProcessServerSharedSaveData(reader.ReadSharedSaveData());
+            }
             return sw.ElapsedTicks;
         }
 #else
@@ -574,7 +594,7 @@ namespace FezSharedTools
         /// <returns>the amount of time, in ticks, it took to write the data to the network</returns>
         protected long WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
                                                             ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
-                                                            bool RequestAppearance, FezMultiplayerDedicatedServer.SaveData sharedSaveData, TimeSpan timeOfDay)
+                                                            bool RequestAppearance, ServerSaveData sharedSaveData, TimeSpan timeOfDay)
         {
             Stopwatch sw = new Stopwatch();
             int datalength;
@@ -619,6 +639,12 @@ namespace FezSharedTools
                     }
                     writer.Write(RequestAppearance);
                     writer.Write(timeOfDay.Ticks);
+                    bool hasSaveData = sharedSaveData != null;
+                    writer.Write(hasSaveData);
+                    if (hasSaveData)
+                    {
+                        writer.Write(sharedSaveData);
+                    }
                     writer.Flush();
                 }
                 byte[] data = ms.ToArray();
@@ -641,6 +667,7 @@ namespace FezSharedTools
 #if FEZCLIENT
         protected abstract void ProcessNewClientGuid(Guid puid);
         protected abstract void SetTimeOfDay(long newTimeOfDayTicks);
+        protected abstract void ProcessServerSharedSaveData(SaveData saveData);
 #endif
 #endregion
     }

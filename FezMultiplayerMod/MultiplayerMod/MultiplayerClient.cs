@@ -112,5 +112,13 @@ namespace FezGame.MultiplayerMod
                 TimeManager.CurrentTime = DateTime.Today.Add(new TimeSpan(newTimeOfDayTicks));
             }
         }
+
+        protected override void ProcessServerSharedSaveData(SaveData saveData)
+        {
+            if (SyncWorldState)
+            {
+                //TODO not yet implemented
+            }
+        }
     }
 }
