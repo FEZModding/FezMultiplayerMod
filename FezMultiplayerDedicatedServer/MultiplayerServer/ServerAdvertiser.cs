@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using FezSharedTools;
 
 namespace FezMultiplayerDedicatedServer
 {
@@ -48,7 +49,7 @@ namespace FezMultiplayerDedicatedServer
 
         internal void SetMessage(string message)
         {
-            dataToSend = Encoding.UTF8.GetBytes(message);
+            dataToSend = SharedConstants.UTF8.GetBytes(message);
         }
 
         private void AdvertiseServer()

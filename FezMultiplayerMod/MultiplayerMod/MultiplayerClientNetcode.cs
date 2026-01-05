@@ -63,8 +63,7 @@ namespace FezGame.MultiplayerMod
         public PlayerAppearance MyAppearance;
         private volatile bool MyAppearanceChanged = false;
 
-        public volatile uint ConnectionLatencyUp = 0;
-        public volatile uint ConnectionLatencyDown = 0;
+        public volatile uint ConnectionLatencyUpDown = 0;
 
         public string MyPlayerName
         {
@@ -133,11 +132,13 @@ namespace FezGame.MultiplayerMod
                     using (BinaryNetworkWriter writer = new BinaryNetworkWriter(tcpStream))
                     {
                         bool retransmitAppearanceRequested = false;
+                        bool requestSavaData = false;
                         long newTimeOfDay_ticks = 0;
+                        Stopwatch stopwatch = Stopwatch.StartNew();
                         try
                         {
-                            ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested, ref newTimeOfDay_ticks);
-                            ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false);
+                            ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested, ref newTimeOfDay_ticks);
+                            WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false, requestSavaData);
                         }
                         catch (System.IO.EndOfStreamException e)
                         {
@@ -148,7 +149,8 @@ namespace FezGame.MultiplayerMod
                         OnConnect();
                         while (true)
                         {
-                            ConnectionLatencyDown = (uint)ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested, ref newTimeOfDay_ticks);
+                            stopwatch.Restart();
+                            ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested, ref newTimeOfDay_ticks);
                             if (!disconnectRequested)
                             {
                                 ActiveLevelState? activeLevelState = null;
@@ -169,13 +171,14 @@ namespace FezGame.MultiplayerMod
                                     appearance = MyAppearance;
                                     MyAppearanceChanged = false;
                                 }
-                                ConnectionLatencyUp = (uint)WriteClientGameTickPacket(writer, MyPlayerMetadata, saveDataUpdate, activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false);
+                                WriteClientGameTickPacket(writer, MyPlayerMetadata, saveDataUpdate, activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false, requestSavaData);
+                                ConnectionLatencyUpDown = (uint)stopwatch.ElapsedTicks;
                             }
                             else
                             {
                                 LogStatus(LogSeverity.Information, $"Disconnecting from {RemoteEndpoint} ...");
                                 //tell the server we're disconnecting
-                                WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, new List<Guid>(0), true);
+                                WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, new List<Guid>(0), true, false);
                                 break;
                             }
                         }

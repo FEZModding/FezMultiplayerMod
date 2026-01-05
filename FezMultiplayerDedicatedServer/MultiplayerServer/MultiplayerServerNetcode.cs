@@ -47,8 +47,7 @@ namespace FezMultiplayerDedicatedServer
             public Socket client;
             public readonly DateTime joinTime = DateTime.UtcNow;
             public TimeSpan TimeSinceJoin => DateTime.UtcNow - joinTime;
-            public long NetworkSpeedUp = 0;
-            public long NetworkSpeedDown = 0;
+            public double NetworkSpeedUpDown = 0;
 
             public ServerPlayerMetadata(Socket client, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             : base(Uuid, CurrentLevelName, Position, CameraViewpoint, Action, AnimFrame, LookingDirection, LastUpdateTimestamp)
@@ -316,7 +315,7 @@ namespace FezMultiplayerDedicatedServer
                                 //if it's a web request but the web interface is disabled, close the connection without sending back any data
                                 if (isLoopback || AllowRemoteWebInterface)
                                 {
-                                    string request = Encoding.UTF8.GetString(reader.ReadBytes(client.Available));
+                                    string request = SharedConstants.UTF8.GetString(reader.ReadBytes(client.Available));
                                     string[] lines = request.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
                                     if (lines.Length > 0)
                                     {
@@ -359,13 +358,13 @@ namespace FezMultiplayerDedicatedServer
                                             if (headers.TryGetValue("Upgrade", out string ug) && ug.Equals("websocket")
                                                     && headers.TryGetValue("Sec-WebSocket-Key", out string wskey))
                                             {
-                                                writer.Write(Encoding.UTF8.GetBytes("HTTP/1.1 101 Switching Protocols" + CRLF
+                                                writer.Write(SharedConstants.UTF8.GetBytes("HTTP/1.1 101 Switching Protocols" + CRLF
                                                     + "Connection: Upgrade" + CRLF
                                                     + $"Date: {DateTime.UtcNow:R}{CRLF}"
                                                     + "Upgrade: websocket" + CRLF
                                                     + "Sec-WebSocket-Accept: " + Convert.ToBase64String(
                                                         System.Security.Cryptography.SHA1.Create().ComputeHash(
-                                                            Encoding.UTF8.GetBytes(wskey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+                                                            SharedConstants.UTF8.GetBytes(wskey + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
                                                             )
                                                         )
                                                     ) + CRLF
@@ -411,7 +410,7 @@ namespace FezMultiplayerDedicatedServer
                                             else
                                             {
                                                 //Console.WriteLine($"Web browser {method} {uri} from {client.RemoteEndPoint}. Sending response...");
-                                                writer.Write(Encoding.UTF8.GetBytes(GenerateWebResponse(method, uri, isLoopback: isLoopback, includeHttpHeaders: true, closing: true)));
+                                                writer.Write(SharedConstants.UTF8.GetBytes(GenerateWebResponse(method, uri, isLoopback: isLoopback, includeHttpHeaders: true, closing: true)));
                                                 //Console.WriteLine($"Responded to {method} {uri} from {client.RemoteEndPoint}. Terminating connection.");
                                             }
                                         }
@@ -421,15 +420,17 @@ namespace FezMultiplayerDedicatedServer
                             else
                             {
 
-                                Queue<long> SpeedUp = new Queue<long>(100);
-                                Queue<long> SpeedDown = new Queue<long>(100);
+                                Queue<long> SpeedUpDown = new Queue<long>(100);
                                 //send them our data and get player appearance from client
-                                SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
+                                Stopwatch stopwatch = Stopwatch.StartNew();
+                                WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
                                         null, GetActiveLevelStates(), DisconnectedPlayers.Keys,
-                                        PlayerAppearances, uuid, false, sharedSaveData, sharedSaveData.TimeOfDay));
-                                MiscClientData clientData = new MiscClientData(null, false, new HashSet<Guid>(MiscClientData.MaxRequestedAppearancesSize));
-                                SpeedDown.Enqueue(ReadClientGameTickPacket(reader, ref clientData, uuid));
+                                        PlayerAppearances, uuid, false, sharedSaveData, sharedSaveData.TimeOfDay);
+                                MiscClientData clientData = new MiscClientData(null, false, new HashSet<Guid>(MiscClientData.MaxRequestedAppearancesSize), false);
+                                ReadClientGameTickPacket(reader, ref clientData, uuid);
+                                SpeedUpDown.Enqueue(stopwatch.ElapsedTicks);
                                 bool Disconnecting = clientData.Disconnecting;
+                                bool ResendSaveData = clientData.ResendSaveData;
                                 PlayerMetadata playerMetadata = clientData.Metadata;
 
                                 ServerPlayerMetadata addValueFactory(Guid guid)
@@ -468,25 +469,21 @@ namespace FezMultiplayerDedicatedServer
                                     }
                                     if (Players.TryGetValue(uuid, out ServerPlayerMetadata serverPlayerMetadata))
                                     {
-                                        //Note: does not produce a meaningful number for connections to loopback addresses
-                                        serverPlayerMetadata.NetworkSpeedUp = (long)Math.Round(SpeedUp.Average()) / TimeSpan.TicksPerMillisecond;
-                                        serverPlayerMetadata.NetworkSpeedDown = (long)Math.Round(SpeedDown.Average()) / TimeSpan.TicksPerMillisecond;
+                                        serverPlayerMetadata.NetworkSpeedUpDown = Math.Round(SpeedUpDown.Average() / TimeSpan.TicksPerMillisecond) / 1000;
                                     }
                                     //if UnknownPlayerAppearanceGuids contains uuid, ask client to retransmit their PlayerAppearance
                                     bool requestAppearance = UnknownPlayerAppearanceGuids.ContainsKey(uuid);
                                     //repeat until the client disconnects or times out
-                                    if (SpeedUp.Count >= 100)
+                                    if (SpeedUpDown.Count >= 100)
                                     {
-                                        _ = SpeedUp.Dequeue();
+                                        _ = SpeedUpDown.Dequeue();
                                     }
-                                    if (SpeedDown.Count >= 100)
-                                    {
-                                        _ = SpeedDown.Dequeue();
-                                    }
-                                    SpeedUp.Enqueue(WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
+                                    stopwatch.Restart();
+                                    WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
                                             GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys,
-                                            GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, null, sharedSaveData.TimeOfDay));
-                                    SpeedDown.Enqueue(ReadClientGameTickPacket(reader, ref clientData, uuid));
+                                            GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, ResendSaveData ? sharedSaveData : null, sharedSaveData.TimeOfDay);
+                                    ReadClientGameTickPacket(reader, ref clientData, uuid);
+                                    SpeedUpDown.Enqueue(stopwatch.ElapsedTicks);
                                     Disconnecting = clientData.Disconnecting;
                                     playerMetadata = clientData.Metadata;
                                     Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
@@ -586,7 +583,7 @@ namespace FezMultiplayerDedicatedServer
                 for (ulong i = 0; i < msgLen; ++i)
                     decoded[i] = (byte)(bytes[offset + i] ^ masks[i % 4]);
 
-                string text = Encoding.UTF8.GetString(decoded);
+                string text = SharedConstants.UTF8.GetString(decoded);
                 return text;
             }
             return null;
@@ -599,7 +596,7 @@ namespace FezMultiplayerDedicatedServer
         /// <param name="opcode">Defaults to 1 (text message). For more options, see <see href="https://datatracker.ietf.org/doc/html/rfc6455#section-11.8"/></param>
         private static void SendWebSocketMessage(BinaryNetworkWriter writer, string message, byte opcode = 1, byte[] rawBytes = null)
         {
-            byte[] rawData = rawBytes ?? Encoding.UTF8.GetBytes(message);
+            byte[] rawData = rawBytes ?? SharedConstants.UTF8.GetBytes(message);
             int length = rawData.Length;
             byte[] frame;
             int indexStartData = 0;
@@ -767,7 +764,7 @@ namespace FezMultiplayerDedicatedServer
                 $"<script src=\"https://jenna1337.github.io/tools/RichTextRenderer.js\"></script>\n" +
                 $"<script>" +
                 $@"
-                const colNames=['Uuid','PlayerName','client','CurrentLevelName','Action','CameraViewpoint','Position','joinTime','LastUpdateTimestamp','NetworkSpeedUp','NetworkSpeedDown','ping'];
+                const colNames=['Uuid','PlayerName','client','CurrentLevelName','Action','CameraViewpoint','Position','joinTime','LastUpdateTimestamp','NetworkSpeedUpDown','ping'];
                 const constColumns = 2;
                 const nameIndex = colNames.indexOf('PlayerName') ;
                 const pingIndex = colNames.indexOf('ping') ;
@@ -975,7 +972,7 @@ namespace FezMultiplayerDedicatedServer
                 $"Cache-Control: no-store, no-cache, must-revalidate, max-age=0",
                 $"Pragma: no-cache",
                 $"Content-Type: {contentType}",
-                $"Content-Length: {Encoding.UTF8.GetByteCount(body)}",
+                $"Content-Length: {SharedConstants.UTF8.GetByteCount(body)}",
             };
             if (closing)
             {

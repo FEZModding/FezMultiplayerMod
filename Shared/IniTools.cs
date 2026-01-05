@@ -91,7 +91,7 @@ namespace FezSharedTools
 
             Dictionary<string, FieldInfo> fields = typeof(T).GetFields().ToDictionary(a => a.Name, StringComparer.InvariantCultureIgnoreCase);
 
-            string[] lines = File.ReadAllLines(filepath, System.Text.Encoding.UTF8);
+            string[] lines = File.ReadAllLines(filepath, SharedConstants.UTF8);
             foreach (string line in lines)
             {
                 string trimmed = line.TrimStart();
@@ -172,7 +172,7 @@ namespace FezSharedTools
         /// </remarks>
         public static void WriteSettingsFile<T>(string filepath, T settings)
         {
-            File.WriteAllLines(filepath, GenerateIni(settings), System.Text.Encoding.UTF8);
+            File.WriteAllLines(filepath, GenerateIni(settings), SharedConstants.UTF8);
         }
         private const char RecordSeparator = '\x1E';
         private static string FormatObject(object obj)
@@ -191,6 +191,22 @@ namespace FezSharedTools
                     if(i+1<list.Count){
                         s += RecordSeparator.ToString();
                     }
+                }
+                return s;
+            }
+            if (obj is System.Collections.ICollection)
+            {
+                System.Collections.ICollection list = ((System.Collections.ICollection)obj);
+                string s = "";
+                bool notfirst = false;
+                foreach (object item in list)
+                {
+                    if(notfirst)
+                    {
+                        s += RecordSeparator.ToString();
+                    }
+                    s += item;
+                    notfirst = true;
                 }
                 return s;
             }

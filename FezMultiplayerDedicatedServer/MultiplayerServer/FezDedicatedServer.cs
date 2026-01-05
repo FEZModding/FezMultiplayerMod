@@ -399,7 +399,7 @@ namespace FezMultiplayerDedicatedServer
                 AddToCol("Action", p.Action.ToString());
                 AddToCol("Viewpoint", p.CameraViewpoint.ToString());
                 AddToCol("Position", p.Position.Round(3).ToString());
-                AddToCol("Ping", (p.NetworkSpeedUp + p.NetworkSpeedDown) + "ms");
+                AddToCol("Ping", (p.NetworkSpeedUpDown) + "ms");
                 AddToCol("Last update", ((DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / (double)TimeSpan.TicksPerSecond) + "s");
                 //Note: if the number of entries for each column are not the same, unexpected results will occur
                 //i.e., even if a cell is supposed to be empty, you still need to call AddToCol for the data to be formatted correctly

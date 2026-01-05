@@ -358,7 +358,7 @@ namespace FezGame.MultiplayerMod
                         + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
                         + $"{p.Action}, {p.CameraViewpoint}, "
                         + $"{p.Position.Round(3)}, "
-                        + $"ping: {(mp.ConnectionLatencyUp + mp.ConnectionLatencyDown) / TimeSpan.TicksPerMillisecond}ms\n";
+                        + $"ping: {(mp.ConnectionLatencyUpDown) / TimeSpan.TicksPerMillisecond}ms\n";
                 }
             }
             if (mp.ErrorMessage != null)

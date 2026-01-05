@@ -56,7 +56,7 @@ namespace FezGame.MultiplayerMod
                                     return;
                                 }
                                 byte[] receivedBytes = client.EndReceive(result, ref remoteEndPoint);
-                                string receivedMessage = Encoding.UTF8.GetString(receivedBytes);
+                                string receivedMessage = FezSharedTools.SharedConstants.UTF8.GetString(receivedBytes);
 
                                 try
                                 {

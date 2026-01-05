@@ -72,6 +72,8 @@ namespace FezSharedTools
     }
     internal static class SharedConstants
     {
+        public static readonly Encoding UTF8 = Encoding.UTF8;
+
         public static readonly int DefaultPort = 7777;
         /// <summary>
         /// The IP address on which local multiplayer servers broadcast their existence.
@@ -244,7 +246,7 @@ namespace FezSharedTools
             }
             else
             {
-                return Encoding.UTF8.GetString(reader.ReadBytes(length));
+                return SharedConstants.UTF8.GetString(reader.ReadBytes(length));
             }
         }
         /// <summary>
@@ -261,7 +263,7 @@ namespace FezSharedTools
         /// </remarks>
         public static void WriteStringAsByteArrayWithLength(this BinaryNetworkWriter writer, string str)
         {
-            byte[] bytes = Encoding.UTF8.GetBytes(str);
+            byte[] bytes = SharedConstants.UTF8.GetBytes(str);
             writer.Write((Int32)bytes.Length);
             writer.Write(bytes);
         }
@@ -367,7 +369,7 @@ namespace FezSharedTools
 #region network packet stuff
         private const int MaxProtocolVersionLength = 32;
         public const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public static readonly string ProtocolVersion = "nineteen-wip1";//Update this ever time you change something that affect the packets
+        public static readonly string ProtocolVersion = "nineteen-wip2";//Update this ever time you change something that affect the packets
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
         /// <summary>
@@ -413,14 +415,15 @@ namespace FezSharedTools
             public PlayerMetadata Metadata;
             public bool Disconnecting;
             public ICollection<Guid> RequestedAppearances;
-
+            public bool ResendSaveData;
             public const int MaxRequestedAppearancesSize = 10;
 
-            public MiscClientData(PlayerMetadata Metadata, bool Disconnecting, ICollection<Guid> RequestedAppearances)
+            public MiscClientData(PlayerMetadata Metadata, bool Disconnecting, ICollection<Guid> RequestedAppearances, bool ResendSaveData)
             {
                 this.Metadata = Metadata;
                 this.Disconnecting = Disconnecting;
                 this.RequestedAppearances = RequestedAppearances;
+                this.ResendSaveData = ResendSaveData;
             }
         }
 #if !FEZCLIENT
@@ -465,9 +468,11 @@ namespace FezSharedTools
                 }
             }
             bool Disconnecting = reader.ReadBoolean();
+            bool ResendSaveData = reader.ReadBoolean();
 
             retval.Metadata = playerMetadata;
             retval.Disconnecting = Disconnecting;
+            retval.ResendSaveData = Disconnecting;
             return sw.ElapsedTicks;
         }
 #else
@@ -480,7 +485,7 @@ namespace FezSharedTools
         /// </remarks>
         /// <returns>the amount of time, in ticks, it took to write the data to the network</returns>
         protected long WriteClientGameTickPacket(BinaryNetworkWriter writer0, PlayerMetadata playerMetadata, SaveDataUpdate? saveDataUpdate, ActiveLevelState? levelState,
-                PlayerAppearance? appearance, ICollection<Guid> requestPlayerAppearance, bool Disconnecting)
+                PlayerAppearance? appearance, ICollection<Guid> requestPlayerAppearance, bool Disconnecting, bool ResendSaveData)
         {
             Stopwatch sw = new Stopwatch();
             //optimize network writing so it doesn't send a bazillion packets for a single tick
@@ -513,6 +518,7 @@ namespace FezSharedTools
                         writer.Write(guid);
                     }
                     writer.Write(Disconnecting);
+                    writer.Write(ResendSaveData);
                     writer.Flush();
                 }
                 byte[] data = ms.ToArray();
@@ -529,10 +535,8 @@ namespace FezSharedTools
         /// <remarks>
         ///     Note: The data written by this method should be written by <seealso cref="WriteServerGameTickPacket"/>
         /// </remarks>
-        /// <returns>the amount of time, in ticks, it took to read the data from the network</returns>
-        protected long ReadServerGameTickPacket(BinaryNetworkReader reader, ref bool RetransmitAppearance, ref long newTimeOfDay_ticks)
+        protected void ReadServerGameTickPacket(BinaryNetworkReader reader, ref bool RetransmitAppearance, ref long newTimeOfDay_ticks)
         {
-            Stopwatch sw = new Stopwatch();
             string sig = reader.ReadStringAsByteArrayWithLength(ProtocolSignature.Length);
             string ver = reader.ReadStringAsByteArrayWithLength(MaxProtocolVersionLength);
             ValidateProcotolAndVersion(sig, ver);
@@ -583,7 +587,6 @@ namespace FezSharedTools
             {
                 ProcessServerSharedSaveData(reader.ReadSharedSaveData());
             }
-            return sw.ElapsedTicks;
         }
 #else
         /// <summary>Writes the supplied server data to client's network stream <paramref name="writer0"/></summary>
@@ -591,12 +594,10 @@ namespace FezSharedTools
         ///     Note: This method has a lot of arguments so it is more easily identifiable if one of the arguments is unused.<br />
         ///     Note: The data written by this method should be read by <seealso cref="ReadServerGameTickPacket"/>
         /// </remarks>
-        /// <returns>the amount of time, in ticks, it took to write the data to the network</returns>
-        protected long WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
+        protected void WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
                                                             ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
                                                             bool RequestAppearance, ServerSaveData sharedSaveData, TimeSpan timeOfDay)
         {
-            Stopwatch sw = new Stopwatch();
             int datalength;
             //optimize network writing so it doesn't send a bazillion packets for a single tick
             using (MemoryStream ms = new MemoryStream())
@@ -649,12 +650,9 @@ namespace FezSharedTools
                 }
                 byte[] data = ms.ToArray();
                 datalength = data.Length;
-                sw.Start();
                 writer0.Write(data);
                 writer0.Flush();
-                sw.Stop();
             }
-            return sw.ElapsedTicks / datalength;
         }
 #endif
         protected void UpdatePlayerAppearance(Guid puid, PlayerAppearance newAp)
