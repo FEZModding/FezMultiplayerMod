@@ -122,6 +122,7 @@ namespace FezGame.MultiplayerMod
                     ConnectionSuccessful = false;
                     TcpClient tcpClient = new TcpClient(endpoint.AddressFamily);
                     tcpClient.Connect(endpoint);
+                    tcpClient.NoDelay = true;
                     listening = true;
                     while (MyPlayerMetadata == null)
                     {

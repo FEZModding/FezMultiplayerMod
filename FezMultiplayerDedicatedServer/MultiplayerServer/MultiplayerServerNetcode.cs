@@ -67,6 +67,8 @@ namespace FezMultiplayerDedicatedServer
 
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
+        public readonly ConcurrentDictionary<Guid, (Socket,DateTime)> WebsocketUsers = new ConcurrentDictionary<Guid, (Socket,DateTime)>();
+        public readonly ConcurrentQueue<(DateTime, IPAddress)> ConnectionLog = new ConcurrentQueue<(DateTime, IPAddress)>();
         private IEnumerable<Socket> ConnectedClients => Players.Select(p => p.Value.client);
         public EndPoint LocalEndPoint => listenerSocket?.LocalEndPoint;
 
@@ -295,6 +297,7 @@ namespace FezMultiplayerDedicatedServer
         private static readonly TimeSpan NewPlayerTimeSpan = TimeSpan.FromSeconds(1);
         private void OnNewClientConnect(Socket client)
         {
+            client.NoDelay = true;
             Guid uuid = Guid.NewGuid();
             bool isPlayer = false;
             bool isLoopback = IPAddress.IsLoopback(((IPEndPoint)client.RemoteEndPoint).Address);
@@ -310,11 +313,15 @@ namespace FezMultiplayerDedicatedServer
                     {
                         try
                         {
+                            //TODO ? 
+                            //ConnectionLog.Enqueue((DateTime.UtcNow, ((IPEndPoint)client.RemoteEndPoint).Address));
+                            Thread.Sleep(100);//wait to see if there's any data
                             if (client.Available > 0)
                             {
                                 //if it's a web request but the web interface is disabled, close the connection without sending back any data
                                 if (isLoopback || AllowRemoteWebInterface)
                                 {
+                                    _ = WebsocketUsers.TryAdd(uuid, (client,DateTime.UtcNow));
                                     string request = SharedConstants.UTF8.GetString(reader.ReadBytes(client.Available));
                                     string[] lines = request.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
                                     if (lines.Length > 0)
@@ -517,7 +524,8 @@ namespace FezMultiplayerDedicatedServer
                                     Console.WriteLine(e.InnerException);
                                 }
                             }
-                            else if(!(e is IOException)){
+                            else if (!(e is IOException))
+                            {
                                 Console.WriteLine(e);
                             }
                         }
@@ -542,6 +550,10 @@ namespace FezMultiplayerDedicatedServer
                     long disconnectTime = DateTime.UtcNow.Ticks;
                     DisconnectedPlayers.AddOrUpdate(uuid, disconnectTime, (puid, oldTime) => disconnectTime);
                     ProcessDisconnect(uuid);
+                }
+                else
+                {
+                    _ = WebsocketUsers.TryRemove(uuid, out _);
                 }
                 client.Close();
                 client.Dispose();
@@ -638,7 +650,7 @@ namespace FezMultiplayerDedicatedServer
             writer.Write(frame);
             writer.Flush();
         }
-
+        private Dictionary<string, (string ContentType, Func<bool, string> Generator)> uriProviders;
         private string GenerateWebResponse(string method, string uri, bool isLoopback, bool closing = false, bool includeHttpHeaders = true)
         {
             // see https://datatracker.ietf.org/doc/html/rfc2616
@@ -654,30 +666,54 @@ namespace FezMultiplayerDedicatedServer
             const string Uri_players = "players.dat";
             const string Uri_appearances = "appearances.dat";
             const string Uri_disconnects = "disconnects.dat";
-            Dictionary<string, (string ContentType, Func<string> Generator)> uriProviders = new Dictionary<string, (string, Func<string>)>(){
-                {"favicon.ico", ("image/png", ()=>"") },
-                {Uri_players, ("text/plain", ()=>
-                {
-                    return DateTime.UtcNow.Ticks + "\n"
-                        + sharedSaveData.TimeOfDay + "\n"
-                        + string.Join("\n", Players.Select(kv => {
-                            string str = string.Join("\t", IniTools.GenerateIni(kv.Value, false, false));
-                            if (isLoopback)
-                            {
-                                str = str.Replace("client=System.Net.Sockets.Socket", "client="+((IPEndPoint)kv.Value.client.RemoteEndPoint).ToCommonString());
-                            }
-                            return str;
-                        }));
-                }) },
-                {Uri_appearances, ("text/plain", ()=>string.Join("\n", PlayerAppearances.Select(kv => kv.Key+"\t"+kv.Value.PlayerName))) },
-                {Uri_disconnects, ("text/plain", ()=>string.Join("\n", DisconnectedPlayers.Keys)) },
-                //TODO
-            };
+            const string Uri_websocketUsers = "websocketusers.dat";
+            const string Uri_connectionLog = "connectionLog.dat";
+            if (uriProviders == null)
+            {
+                uriProviders = new Dictionary<string, (string, Func<bool, string>)>(){
+                    {"favicon.ico", ("image/png", (_)=>"") },
+                    {Uri_players, ("text/plain", (loopback)=>
+                    {
+                        return DateTime.UtcNow.Ticks + "\n"
+                            + sharedSaveData.TimeOfDay + "\n"
+                            + string.Join("\n", Players.Select(kv => {
+                                string str = string.Join("\t", IniTools.GenerateIni(kv.Value, false, false));
+                                if (loopback)
+                                {
+                                    str = str.Replace("client=System.Net.Sockets.Socket", "client="+((IPEndPoint)kv.Value.client.RemoteEndPoint).ToCommonString());
+                                }
+                                return str;
+                            }));
+                    }) },
+                    {Uri_appearances, ("text/plain", (_)=>string.Join("\n", PlayerAppearances.Select(kv => kv.Key+"\t"+kv.Value.PlayerName))) },
+                    {Uri_disconnects, ("text/plain", (_)=>string.Join("\n", DisconnectedPlayers.Keys)) },
+                    {Uri_websocketUsers, ("text/plain", (loopback)=>{
+                        if (loopback){
+                            return string.Join("\n", WebsocketUsers.Select(kp => kp.Key + "\t"
+                                    + ((IPEndPoint)kp.Value.Item1.RemoteEndPoint).ToCommonString()
+                                    + "\t"+kp.Value.Item2
+                                    + "\t"+(DateTime.UtcNow-kp.Value.Item2)
+                                    ));
+                        }
+                        return "";
+                    }) },
+                    {Uri_connectionLog, ("text/plain", (loopback)=>{
+                        if (loopback){
+                            return string.Join("\n", ConnectionLog.Select(val=>{
+                                var ip = val.Item2;
+                                return val.Item1 + "\t" + (ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip);
+                            }));
+                        }
+                        return "";
+                    }) },
+                    //TODO
+                };
+            }
             string body;
             string contentType;
             if (uriProviders.TryGetValue(uri, out var provider))
             {
-                body = provider.Generator();
+                body = provider.Generator(isLoopback);
                 contentType = provider.ContentType;
             }
             else
@@ -689,6 +725,7 @@ namespace FezMultiplayerDedicatedServer
                 $"<meta name=\"color-scheme\" content=\"dark light\" />" +
                 $"<title>{title}</title>" +
                 $"<style>" +
+                #region webinterface_style
                 $@"
                 #wrapper {{
                     resize: horizontal;
@@ -759,10 +796,26 @@ namespace FezMultiplayerDedicatedServer
                 #reconnectButton {{
                     vertical-align: middle;
                 }}
+                pre {{
+                    margin: 0;
+                    padding: 0;
+                }}
+                pre:empty::after {{
+                    content: ""No Data"";
+                }}
+                .infoContainer {{
+                    margin-block-start: 1em;
+                    .label {{
+                        margin-inline: 0.5ex;
+                        border-block-end: 1px solid currentColor;
+                    }}
+                }}
                 " +
+                #endregion webinterface_style
                 $"</style>" +
                 $"<script src=\"https://jenna1337.github.io/tools/RichTextRenderer.js\"></script>\n" +
                 $"<script>" +
+                #region webinterface_script
                 $@"
                 const colNames=['Uuid','PlayerName','client','CurrentLevelName','Action','CameraViewpoint','Position','joinTime','LastUpdateTimestamp','NetworkSpeedUpDown','ping'];
                 const constColumns = 2;
@@ -850,6 +903,8 @@ namespace FezMultiplayerDedicatedServer
                     }};
                     var lastAppearenceCheck = -Infinity;
                     var lastDisconnectCheck = -Infinity;
+                    var wsuCheck = -Infinity;
+                    var clgCheck = -Infinity;
                     websocket.addEventListener('message', (e) => {{
                         try{{
                         var dat = e.data;
@@ -942,22 +997,34 @@ namespace FezMultiplayerDedicatedServer
                             }}else if(performance.now() - lastDisconnectCheck > 1000){{
                                 lastDisconnectCheck = performance.now();
                                 websocket.send('{Uri_disconnects}');
-                            }}else{{
+                            }}{(isLoopback ? $@"else if(performance.now() - wsuCheck > 1000){{
+                                wsuCheck = performance.now();
+                                websocket.send('{Uri_websocketUsers}');
+                            }}else if(performance.now() - clgCheck > 1000){{
+                                clgCheck = performance.now();
+                                websocket.send('{Uri_connectionLog}');
+                            }}" : "")}else{{
                                 websocket.send('{Uri_players}');
                             }}
                         }}
                     }});
                 }}
                 " +
+                #endregion webinterface_script
                 $"</script>" +
                 $"</head>" +
                 $"<body>TODO: if this page is opened on localhost, add buttons do kick/ban players?" +
                 $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"</pre>" +
-                $"Connection status:<span id=\"connStatus\" data-status=\"\">Unknown</span> <span id=\"connStatusDesc\"></span> " +
-                $"<button style=\"display: none\" id=\"reconnectButton\" type=\"button\" onclick=\"connect()\">Reconnect</button><br />" +
-                $"Server time of day:<span id=\"serverToD\">Unknown</span><br />" +
-                $"Player Count: <span id=\"playerCount\">Unknown</span><br />" +
-                $"Player Data:<div id=\"wrapper\"><table id=\"playerData\"></table></div>" +
+                $"<div class=\"infoContainer\"><span class=\"label\">Connection status:</span><span id=\"connStatus\" data-status=\"\">Unknown</span> <span id=\"connStatusDesc\"></span> " +
+                    $"<button style=\"display: none\" id=\"reconnectButton\" type=\"button\" onclick=\"connect()\">Reconnect</button>" +
+                $"</div>" +
+                $"<div class=\"infoContainer\"><span class=\"label\">Server time of day:</span><span id=\"serverToD\">Unknown</span></div>" +
+                $"<div class=\"infoContainer\"><span class=\"label\">Player Count:</span><span id=\"playerCount\">Unknown</span></div>" +
+                $"<div class=\"infoContainer\"><span class=\"label\">Player Data:</span><div id=\"wrapper\"><table id=\"playerData\"></table></div></div>" +
+                (isLoopback ?
+                $"<div class=\"infoContainer\"><span class=\"label\">Websocket Users:</span><pre id=\"{Uri_websocketUsers}\"></pre></div>" +
+                $"<div class=\"infoContainer\"><span class=\"label\">Connection Log:</span><pre id=\"{Uri_connectionLog}\"></pre></div>"
+                : "")+
                 $"</body>" +
                 $"</html>";
                 contentType = "text/html";
