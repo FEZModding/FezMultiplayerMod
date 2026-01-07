@@ -40,7 +40,6 @@ namespace FezMultiplayerDedicatedServer
         public bool HasFPView => CubeShards + SecretCubes >= 32;
         public bool HasStereo3D => CubeShards + SecretCubes >= 64;
 
-        //TODO increment TimeOfDay
         public TimeSpan TimeOfDay = TimeSpan.FromHours(12.0);
 
         public List<string> UnlockedWarpDestinations = new List<string> { "NATURE_HUB" };
