@@ -5,7 +5,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Reflection;
 using System.Text;
 using System.Diagnostics;
 
@@ -17,6 +16,8 @@ using HorizontalDirection = FezEngine.HorizontalDirection;
 using Viewpoint = FezEngine.Viewpoint;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
 using SaveData = FezGame.Structure.SaveData;
+using LevelSaveData = FezGame.Structure.LevelSaveData;
+using WinConditions = FezEngine.Structure.WinConditions;
 #else
 using ActionType = FezMultiplayerDedicatedServer.ActionType;
 using ActorType = FezMultiplayerDedicatedServer.ActorType;
@@ -24,6 +25,7 @@ using HorizontalDirection = FezMultiplayerDedicatedServer.HorizontalDirection;
 using Viewpoint = FezMultiplayerDedicatedServer.Viewpoint;
 using Vector3 = FezMultiplayerDedicatedServer.Vector3;
 using TrileEmplacement = FezMultiplayerDedicatedServer.TrileEmplacement;
+using FezMultiplayerDedicatedServer;
 using ServerSaveData = FezMultiplayerDedicatedServer.SaveData;
 #endif
 namespace FezSharedTools
@@ -337,11 +339,168 @@ namespace FezSharedTools
             throw new NotImplementedException();
         }
 #if FEZCLIENT
-        public static SaveData ReadSharedSaveData(this BinaryNetworkReader reader)
+        public static SaveData ReadSharedSaveData(this BinaryNetworkReader r)
         {
             //Note: this method reads save data from the network, but does not process it
-            //TODO read and process save data
-            return FezGame.Tools.SaveFileOperations.Read(new FezEngine.Tools.CrcReader(reader));
+            SaveData saveData = new SaveData();
+            long num = r.ReadInt64();
+            if (num != 6)
+            {
+                throw new IOException("Invalid version : " + num + " (expected " + 6L + ")");
+            }
+            saveData.CreationTime = r.ReadInt64();
+            saveData.Finished32 = r.ReadBoolean();
+            saveData.Finished64 = r.ReadBoolean();
+            saveData.HasFPView = r.ReadBoolean();
+            saveData.HasStereo3D = r.ReadBoolean();
+            saveData.CanNewGamePlus = r.ReadBoolean();
+            saveData.IsNewGamePlus = r.ReadBoolean();
+            saveData.OneTimeTutorials.Clear();
+            int num2;
+            saveData.OneTimeTutorials = new Dictionary<string, bool>(num2 = r.ReadInt32());
+            for (int i = 0; i < num2; i++)
+            {
+                saveData.OneTimeTutorials.Add(r.ReadNullableString(), r.ReadBoolean());
+            }
+            saveData.Level = r.ReadNullableString();
+            saveData.View = (Viewpoint)r.ReadInt32();
+            saveData.Ground = r.ReadVector3();
+            saveData.TimeOfDay = new TimeSpan(r.ReadInt64());
+            saveData.UnlockedWarpDestinations = new List<string>(num2 = r.ReadInt32());
+            for (int j = 0; j < num2; j++)
+            {
+                saveData.UnlockedWarpDestinations.Add(r.ReadNullableString());
+            }
+            saveData.Keys = r.ReadInt32();
+            saveData.CubeShards = r.ReadInt32();
+            saveData.SecretCubes = r.ReadInt32();
+            saveData.CollectedParts = r.ReadInt32();
+            saveData.CollectedOwls = r.ReadInt32();
+            saveData.PiecesOfHeart = r.ReadInt32();
+            if (saveData.SecretCubes > 32 || saveData.CubeShards > 32 || saveData.PiecesOfHeart > 3)
+            {
+                saveData.ScoreDirty = true;
+            }
+            saveData.SecretCubes = Math.Min(saveData.SecretCubes, 32);
+            saveData.CubeShards = Math.Min(saveData.CubeShards, 32);
+            saveData.PiecesOfHeart = Math.Min(saveData.PiecesOfHeart, 3);
+            saveData.Maps = new List<string>(num2 = r.ReadInt32());
+            for (int k = 0; k < num2; k++)
+            {
+                saveData.Maps.Add(r.ReadNullableString());
+            }
+            saveData.Artifacts = new List<ActorType>(num2 = r.ReadInt32());
+            for (int l = 0; l < num2; l++)
+            {
+                saveData.Artifacts.Add((ActorType)r.ReadInt32());
+            }
+            saveData.EarnedAchievements = new List<string>(num2 = r.ReadInt32());
+            for (int m = 0; m < num2; m++)
+            {
+                saveData.EarnedAchievements.Add(r.ReadNullableString());
+            }
+            saveData.EarnedGamerPictures = new List<string>(num2 = r.ReadInt32());
+            for (int n = 0; n < num2; n++)
+            {
+                saveData.EarnedGamerPictures.Add(r.ReadNullableString());
+            }
+            saveData.ScriptingState = r.ReadNullableString();
+            saveData.FezHidden = r.ReadBoolean();
+            saveData.GlobalWaterLevelModifier = r.ReadNullableSingle();
+            saveData.HasHadMapHelp = r.ReadBoolean();
+            saveData.CanOpenMap = r.ReadBoolean();
+            saveData.AchievementCheatCodeDone = r.ReadBoolean();
+            saveData.AnyCodeDeciphered = r.ReadBoolean();
+            saveData.MapCheatCodeDone = r.ReadBoolean();
+            saveData.World = new Dictionary<string, LevelSaveData>(num2 = r.ReadInt32());
+            for (int num3 = 0; num3 < num2; num3++)
+            {
+                try
+                {
+                    saveData.World.Add(r.ReadNullableString(), ReadLevel(r));
+                }
+                catch (Exception)
+                {
+                    break;
+                }
+            }
+            r.ReadBoolean();
+            saveData.ScoreDirty = true;
+            saveData.HasDoneHeartReboot = r.ReadBoolean();
+            saveData.PlayTime = r.ReadInt64();
+            saveData.IsNew = string.IsNullOrEmpty(saveData.Level) || saveData.CanNewGamePlus || saveData.World.Count == 0;
+            saveData.HasFPView |= saveData.HasStereo3D;
+            return saveData;
+        }
+
+        private static LevelSaveData ReadLevel(BinaryNetworkReader r)
+        {
+            LevelSaveData levelSaveData = new LevelSaveData();
+            int num;
+            levelSaveData.DestroyedTriles = new List<TrileEmplacement>(num = r.ReadInt32());
+            for (int i = 0; i < num; i++)
+            {
+                levelSaveData.DestroyedTriles.Add(r.ReadTrileEmplacement());
+            }
+            levelSaveData.InactiveTriles = new List<TrileEmplacement>(num = r.ReadInt32());
+            for (int j = 0; j < num; j++)
+            {
+                levelSaveData.InactiveTriles.Add(r.ReadTrileEmplacement());
+            }
+            levelSaveData.InactiveArtObjects = new List<int>(num = r.ReadInt32());
+            for (int k = 0; k < num; k++)
+            {
+                levelSaveData.InactiveArtObjects.Add(r.ReadInt32());
+            }
+            levelSaveData.InactiveEvents = new List<int>(num = r.ReadInt32());
+            for (int l = 0; l < num; l++)
+            {
+                levelSaveData.InactiveEvents.Add(r.ReadInt32());
+            }
+            levelSaveData.InactiveGroups = new List<int>(num = r.ReadInt32());
+            for (int m = 0; m < num; m++)
+            {
+                levelSaveData.InactiveGroups.Add(r.ReadInt32());
+            }
+            levelSaveData.InactiveVolumes = new List<int>(num = r.ReadInt32());
+            for (int n = 0; n < num; n++)
+            {
+                levelSaveData.InactiveVolumes.Add(r.ReadInt32());
+            }
+            levelSaveData.InactiveNPCs = new List<int>(num = r.ReadInt32());
+            for (int num2 = 0; num2 < num; num2++)
+            {
+                levelSaveData.InactiveNPCs.Add(r.ReadInt32());
+            }
+            levelSaveData.PivotRotations = new Dictionary<int, int>(num = r.ReadInt32());
+            for (int num3 = 0; num3 < num; num3++)
+            {
+                levelSaveData.PivotRotations.Add(r.ReadInt32(), r.ReadInt32());
+            }
+            levelSaveData.LastStableLiquidHeight = r.ReadNullableSingle();
+            levelSaveData.ScriptingState = r.ReadNullableString();
+            levelSaveData.FirstVisit = r.ReadBoolean();
+            levelSaveData.FilledConditions = ReadWonditions(r);
+            return levelSaveData;
+        }
+
+        private static WinConditions ReadWonditions(BinaryNetworkReader r)
+        {
+            WinConditions winConditions = new WinConditions();
+            winConditions.LockedDoorCount = r.ReadInt32();
+            winConditions.UnlockedDoorCount = r.ReadInt32();
+            winConditions.ChestCount = r.ReadInt32();
+            winConditions.CubeShardCount = r.ReadInt32();
+            winConditions.OtherCollectibleCount = r.ReadInt32();
+            winConditions.SplitUpCount = r.ReadInt32();
+            int num;
+            winConditions.ScriptIds = new List<int>(num = r.ReadInt32());
+            for (int i = 0; i < num; i++)
+            {
+                winConditions.ScriptIds.Add(r.ReadInt32());
+            }
+            winConditions.SecretCount = r.ReadInt32();
+            return winConditions;
         }
 #else
         public static void Write(this BinaryNetworkWriter w, ServerSaveData sd)
@@ -930,5 +1089,32 @@ namespace FezSharedTools
             }
             return BitConverter.ToDouble(bytes, 0);
         }
+#if FEZCLIENT
+        public string ReadNullableString()
+        {
+            if (ReadBoolean())
+            {
+                return ReadString();
+            }
+            return null;
+        }
+        public float? ReadNullableSingle()
+        {
+            if (ReadBoolean())
+            {
+                return ReadSingle();
+            }
+            return null;
+        }
+        public Vector3 ReadVector3()
+        {
+            return new Vector3(ReadSingle(), ReadSingle(), ReadSingle());
+        }
+
+        public TrileEmplacement ReadTrileEmplacement()
+        {
+            return new TrileEmplacement(ReadInt32(), ReadInt32(), ReadInt32());
+        }
+#endif
     }
 }
