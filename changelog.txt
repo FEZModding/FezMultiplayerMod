@@ -80,6 +80,7 @@ fixed a bug where TryParseIPEndPoint could crash
 added paste support to TextInputLogicComponent
 added SyncTimeOfDay option to client
 added server `timescale` command to adjust the timescale for the server time of day
+improved memory usage
 misc. bug fixes
 
 
