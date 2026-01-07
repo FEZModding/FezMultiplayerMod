@@ -226,6 +226,10 @@ namespace FezGame.MultiplayerMod
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
+            if(mp.LastExtraMessageUpdate.ElapsedMilliseconds > 3000)
+            {
+                mp.ExtraMessage = null;
+            }
 
 #if DEBUG
             if (KeyboardState.GetKeyState(TestHostServerConnectionKey) == FezButtonState.Pressed)
@@ -370,11 +374,18 @@ namespace FezGame.MultiplayerMod
                         + $"ping: {(mp.ConnectionLatencyUpDown) / TimeSpan.TicksPerMillisecond}ms\n";
                 }
             }
+            string connectionStatusText = "";
+            if (mp.ExtraMessage != null)
+            {
+                connectionStatusText += $"{mp.ExtraMessage}\n";
+            }
             if (mp.ErrorMessage != null)
             {
-                statusTextDrawer.Color = Color.Red;
-                s += $"{mp.ErrorMessage}\n";
+                connectionStatusText += $"{mp.ErrorMessage}\n";
             }
+            s += connectionStatusText;
+            //TODO draw connectionStatusText somewhere properly
+
             switch (mp.ActiveConnectionState)
             {
             case ConnectionState.Connected:

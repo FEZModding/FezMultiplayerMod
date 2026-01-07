@@ -24,9 +24,21 @@ namespace FezGame.MultiplayerMod
     }
     public abstract class MultiplayerClientNetcode : SharedNetcode<PlayerMetadata>, IDisposable
     {
-        protected static void LogStatus(LogSeverity severity, string message)
+        internal volatile Stopwatch LastExtraMessageUpdate = Stopwatch.StartNew();
+        internal volatile string ExtraMessage;
+        protected static void LogStatus(LogSeverity severity, string message, bool extra = false)
         {
             FezSharedTools.SharedTools.LogWarning(typeof(MultiplayerClientNetcode).Name, message, (int)severity);
+            if (Instance != null)
+            {
+                if (extra)
+                {
+                    Instance.ExtraMessage = message;
+                    Instance.LastExtraMessageUpdate.Restart();
+                }else{
+                    Instance.ErrorMessage = message;
+                }
+            }
         }
 
         private Thread listenerThread;
@@ -88,6 +100,8 @@ namespace FezGame.MultiplayerMod
         public event Action OnConnect = () => { };
         public event Action OnDisconnect = () => { };
 
+        private static MultiplayerClientNetcode Instance;
+
         /// <summary>
         /// Creates a new instance of this class with the provided parameters.
         /// For any errors that get encountered see <see cref="ErrorMessage"/> an <see cref="FatalException"/>
@@ -95,6 +109,7 @@ namespace FezGame.MultiplayerMod
         /// <param name="settings">The <see cref="MultiplayerClientSettings"/> to use to create this instance.</param>
         internal MultiplayerClientNetcode(MultiplayerClientSettings settings)
         {
+            Instance = this;
             listening = false;
             SyncWorldState = settings.SyncWorldState;
             SyncTimeOfDay = settings.SyncTimeOfDay;
@@ -110,8 +125,9 @@ namespace FezGame.MultiplayerMod
             if ((listenerThread != null && listenerThread.IsAlive) || (RemoteEndpoint != null))
             {
                 //TODO already connected to somewhere
+                LogStatus(LogSeverity.Information, "Already connected to " + RemoteEndpoint, extra: true);
                 return;
-                throw new InvalidOperationException("Already connected to " + RemoteEndpoint);
+                //throw new InvalidOperationException("Already connected to " + RemoteEndpoint);
             }
             RemoteEndpoint = endpoint;
             listenerThread = new Thread(() =>
@@ -256,7 +272,11 @@ namespace FezGame.MultiplayerMod
             this.disconnectRequested = true;//let listener thread know it should disconnect
             if (listenerThread != null && listenerThread.IsAlive)
             {
-                Thread.Sleep(1000);//try to wait for child threads to stop on their own
+                for (int i = 0; listenerThread != null && listenerThread.IsAlive && i < 100; ++i)
+                {
+                    Thread.Sleep(10);//try to wait for child threads to stop on their own
+                }
+
                 if (listenerThread != null && listenerThread.IsAlive)
                 {
                     LogStatus(LogSeverity.Warning, "Forcibly terminated listening thread");
