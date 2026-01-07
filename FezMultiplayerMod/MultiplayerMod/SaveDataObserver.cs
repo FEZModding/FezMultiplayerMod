@@ -23,36 +23,67 @@ namespace FezGame.MultiplayerMod
             //Note this collection should only have a single entry per unique containerIdentifier and field combo
             public readonly Dictionary<string, ChangeInfo> Changes = new Dictionary<string, ChangeInfo>();
 
+            internal void AddListChange(string containerIdentifier, object entry, ChangeType changeType)
+            {
+                //Note this collection should only have a single entry per unique containerIdentifier and field combo
+                string uniqueIdentifier = containerIdentifier + IDENTIFIER_SEPARATOR + entry;
+                Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, entry, changeType));
+            }
+            internal void AddDictChange(string containerIdentifier, object key, object newval, object oldVal, ChangeType changeType)
+            {
+                //Note this collection should only have a single entry per unique containerIdentifier and field combo
+                string uniqueIdentifier = containerIdentifier + IDENTIFIER_SEPARATOR + key;
+                if (Changes.TryGetValue(uniqueIdentifier, out ChangeInfo change))
+                {
+                    oldVal = change.OldVal;
+                }
+                Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, "" + key, newval, oldVal, changeType));
+            }
             internal void Add(string containerIdentifier, string key, object currentVal, object oldVal)
             {
                 //Note this collection should only have a single entry per unique containerIdentifier and field combo
                 string uniqueIdentifier = containerIdentifier + IDENTIFIER_SEPARATOR + key;
                 if (Changes.TryGetValue(uniqueIdentifier, out ChangeInfo change))
                 {
-                    //Changes.Remove(uniqueIdentifier);
-                    //the following line can throw exceptions if the uniqueIdentifier is the same
-                    Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, key, currentVal, change.OldVal));
+                    oldVal = change.OldVal;
                 }
-                else
-                {
-                    Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, key, currentVal, oldVal));
-                }
+                Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, key, currentVal, oldVal));
             }
 
             public override string ToString()
             {
                 return string.Join(Environment.NewLine, Changes);
             }
-
+            public enum ChangeType
+            {
+                None = 0,
+                Primative,
+                List_Add,
+                List_Remove,
+                Dict_Change,
+                Dict_Add,
+                Dict_Remove,
+            }
             public class ChangeInfo
             {
+                public readonly ChangeType ChangeType;
                 public readonly string ContainerIdentifier;
                 public readonly string Key;
                 public readonly object NewVal;
                 public readonly object OldVal;
+                public object ChangedEntry => NewVal;
+                public Type Type => NewVal?.GetType() ?? OldVal.GetType();
 
-                public ChangeInfo(string containerIdentifier, string fieldName, object currentVal, object oldVal)
+                public ChangeInfo(string containerIdentifier, object changedEntry, ChangeType changeType)
                 {
+                    ChangeType = changeType;
+                    ContainerIdentifier = containerIdentifier;
+                    Key = "" + changedEntry;
+                    NewVal = changedEntry;
+                }
+                public ChangeInfo(string containerIdentifier, string fieldName, object currentVal, object oldVal, ChangeType changeType = ChangeType.Primative)
+                {
+                    ChangeType = changeType;
                     ContainerIdentifier = containerIdentifier;
                     Key = fieldName;
                     NewVal = currentVal;
@@ -61,7 +92,25 @@ namespace FezGame.MultiplayerMod
 
                 public override string ToString()
                 {
-                    return $"(Container: {ContainerIdentifier}, Key: {Key}, CurrentVal: {NewVal}, OldVal: {OldVal})";
+                    switch(ChangeType)
+                    {
+                    case ChangeType.Primative:
+                        return $"(Container: {ContainerIdentifier}, Key: {Key}, CurrentVal: {NewVal}, OldVal: {OldVal})";
+                    case ChangeType.List_Add:
+                    case ChangeType.List_Remove:
+                        return $"(Container: {ContainerIdentifier}, ChangedEntry: {NewVal}, ChangeType: {ChangeType})";
+                    case ChangeType.Dict_Add:
+                        return $"(Container: {ContainerIdentifier}, ChangedEntry: {Key}, CurrentVal: {NewVal}, OldVal: {OldVal}, ChangeType: {ChangeType})";
+                    case ChangeType.Dict_Remove:
+                        return $"(Container: {ContainerIdentifier}, ChangedEntry: {Key}, CurrentVal: {NewVal}, OldVal: {OldVal}, ChangeType: {ChangeType})";
+                    case ChangeType.Dict_Change:
+                        return $"(Container: {ContainerIdentifier}, Key: {Key}, CurrentVal: {NewVal}, OldVal: {OldVal})";
+                    case ChangeType.None:
+                    default:
+                        System.Diagnostics.Debugger.Launch();
+                        System.Diagnostics.Debugger.Break();
+                        return null;
+                    }
                 }
             }
         }
@@ -75,7 +124,7 @@ namespace FezGame.MultiplayerMod
         private SaveData CurrentSaveData => GameState?.SaveData;
         private readonly SaveData OldSaveData = new SaveData();
 
-        public event Action<SaveData, SaveDataChanges> OnSaveDataChanged = (UpdatedSaveData, SaveDataChanges) => { };
+        public event Action<SaveData, SaveDataChanges, bool> OnSaveDataChanged = (UpdatedSaveData, SaveDataChanges, SaveSlotChanged) => { };
 
         public SaveDataObserver(Game game) : base(game)
         {
@@ -90,11 +139,22 @@ namespace FezGame.MultiplayerMod
             });
         }
         private static readonly SaveDataChanges newChanges = new SaveDataChanges();
+        private static int lastSaveSlot = -1;
+        private int currentSaveSlot => GameState?.SaveSlot ?? -1;
+        private bool SaveSlotChanged
+        {
+            get
+            {
+                bool r = lastSaveSlot != currentSaveSlot;
+                lastSaveSlot = currentSaveSlot;
+                return r;
+            }
+        }
+
         public override void Update(GameTime gameTime)
         {
             //check a save file is actually loaded 
-            int slot = GameState?.SaveSlot ?? -1;
-            if (CurrentSaveData != null && slot >= 0
+            if (CurrentSaveData != null && currentSaveSlot >= 0
                     && !GameState.Loading
                     && !GameState.TimePaused
                     //Note: GameState.TimePaused combines
@@ -112,7 +172,6 @@ namespace FezGame.MultiplayerMod
             {
                 newChanges.Changes.Clear();
 
-                //TODO optimize this eventually so it doesn't generate so much garbage 
                 CheckType(newChanges, typeof(SaveData), "SaveData", CurrentSaveData, OldSaveData);
 
                 //update old data
@@ -121,7 +180,7 @@ namespace FezGame.MultiplayerMod
                 //Notify listeners of changes
                 if (newChanges.HasChanges)
                 {
-                    OnSaveDataChanged(CurrentSaveData, newChanges);
+                    OnSaveDataChanged(CurrentSaveData, newChanges, SaveSlotChanged);
                 }
             }
         }
@@ -190,12 +249,12 @@ namespace FezGame.MultiplayerMod
                         // add changes to changes
                         addedVals.ForEach(addedVal =>
                         {
-                            changes.Add(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, "" + addedVal, true, false);
+                            changes.AddListChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, addedVal, SaveDataChanges.ChangeType.List_Add);
                         });
                         removedVals.ForEach(removedVal =>
                         {
                             //TODO? idk if this ever actually happens, but should probably implement it somehow
-                            changes.Add(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, "" + removedVal, false, true);
+                            changes.AddListChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, removedVal, SaveDataChanges.ChangeType.List_Remove);
                         });
                     }
                 }
@@ -224,13 +283,13 @@ namespace FezGame.MultiplayerMod
                     {
                         string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + k.ToString();
                         object val = currentVal_dict[k];
-                        changes.Add(containerID_withKey, k.ToString(), val, null);
+                        changes.AddDictChange(containerID_withKey, k.ToString(), val, null, SaveDataChanges.ChangeType.Dict_Add);
                     });
                     onlyInoldVal_dictKeys.ForEach(k =>
                     {
                         string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + k.ToString();
                         object val = oldVal_dict[k];
-                        changes.Add(containerID_withKey, k.ToString(), null, val);
+                        changes.AddDictChange(containerID_withKey, k.ToString(), null, val, SaveDataChanges.ChangeType.Dict_Remove);
                     });
                     // For keys that are present in both, check for value differences
                     List<object> sharedKeys = currentVal_dictKeys.Intersect(oldVal_dictKeys).ToList();
@@ -244,7 +303,7 @@ namespace FezGame.MultiplayerMod
                             if (!Equals(value1, value2))
                             {
                                 // add changes to changes
-                                changes.Add(containerID, ""+key, value1, value2);
+                                changes.AddDictChange(containerID, key, value1, value2, SaveDataChanges.ChangeType.Dict_Change);
                             }
                         }
                         if (fieldType.IsGenericType)
@@ -271,6 +330,7 @@ namespace FezGame.MultiplayerMod
                 {
                     Console.WriteLine(fieldType);
                     System.Diagnostics.Debugger.Launch();
+                    System.Diagnostics.Debugger.Break();
                     //TODO if this happens, handle the unhandled enumerable type
                 }
                 else
