@@ -339,15 +339,130 @@ namespace FezSharedTools
 #if FEZCLIENT
         public static SaveData ReadSharedSaveData(this BinaryNetworkReader reader)
         {
-            SaveData saveData = new SaveData();
-            saveData.Clear();
+            //Note: this method reads save data from the network, but does not process it
             //TODO read and process save data
-            return saveData;
+            return FezGame.Tools.SaveFileOperations.Read(new FezEngine.Tools.CrcReader(reader));
         }
 #else
-        public static void Write(this BinaryNetworkWriter writer, ServerSaveData saveData)
+        public static void Write(this BinaryNetworkWriter w, ServerSaveData sd)
         {
-            //TODO not yet implemented
+            w.Write(6L);
+            w.Write(sd.CreationTime);
+            w.Write(false);//Finished32
+            w.Write(false);//Finished64
+            w.Write(sd.HasFPView);
+            w.Write(sd.HasStereo3D);
+            w.Write(false);//CanNewGamePlus
+            w.Write(false);//IsNewGamePlus
+            w.Write(0);//OneTimeTutorials
+            w.WriteObject("");//Level
+            w.Write((int)Viewpoint.Front);//View
+            w.Write(new Vector3(0,0,0));//Ground
+            w.Write(sd.TimeOfDay.Ticks);
+            w.Write(sd.UnlockedWarpDestinations.Count);
+            foreach (string unlockedWarpDestination in sd.UnlockedWarpDestinations)
+            {
+                w.WriteObject(unlockedWarpDestination);
+            }
+            w.Write(sd.Keys);
+            w.Write(sd.CubeShards);
+            w.Write(sd.SecretCubes);
+            w.Write(sd.CollectedParts);
+            w.Write(sd.CollectedOwls);
+            w.Write(sd.PiecesOfHeart);
+            w.Write(sd.Maps.Count);
+            foreach (string map in sd.Maps)
+            {
+                w.WriteObject(map);
+            }
+            w.Write(sd.Artifacts.Count);
+            foreach (ActorType artifact in sd.Artifacts)
+            {
+                w.Write((int)artifact);
+            }
+            w.Write(0);//EarnedAchievements
+            w.Write(0);//EarnedGamerPictures
+            w.WriteObject(sd.ScriptingState);
+            w.Write(false);//FezHidden
+            w.WriteObject(sd.GlobalWaterLevelModifier);
+            w.Write(false);//HasHadMapHelp
+            w.Write(true);//CanOpenMap
+            w.Write(sd.AchievementCheatCodeDone);
+            w.Write(false);//AnyCodeDeciphered; only used for a single achievement
+            w.Write(sd.MapCheatCodeDone);
+            w.Write(sd.World.Count);
+            foreach (KeyValuePair<string, FezMultiplayerDedicatedServer.LevelSaveData> item in sd.World)
+            {
+                w.WriteObject(item.Key);
+                WriteLevelSaveData(w, item.Value);
+            }
+            w.Write(false);//ScoreDirty
+            w.Write(false);//HasDoneHeartReboot
+            w.Write(sd.PlayTime);
+            //w.Write(sd.IsNew);//this flag gets written to the end of normal save files in the game, but it is never read
+        }
+        private static void WriteLevelSaveData(BinaryNetworkWriter w, FezMultiplayerDedicatedServer.LevelSaveData lsd)
+        {
+            w.Write(lsd.DestroyedTriles.Count);
+            foreach (TrileEmplacement destroyedTrile in lsd.DestroyedTriles)
+            {
+                w.Write(destroyedTrile);
+            }
+            w.Write(lsd.InactiveTriles.Count);
+            foreach (TrileEmplacement inactiveTrile in lsd.InactiveTriles)
+            {
+                w.Write(inactiveTrile);
+            }
+            w.Write(lsd.InactiveArtObjects.Count);
+            foreach (int inactiveArtObject in lsd.InactiveArtObjects)
+            {
+                w.Write(inactiveArtObject);
+            }
+            w.Write(lsd.InactiveEvents.Count);
+            foreach (int inactiveEvent in lsd.InactiveEvents)
+            {
+                w.Write(inactiveEvent);
+            }
+            w.Write(lsd.InactiveGroups.Count);
+            foreach (int inactiveGroup in lsd.InactiveGroups)
+            {
+                w.Write(inactiveGroup);
+            }
+            w.Write(lsd.InactiveVolumes.Count);
+            foreach (int inactiveVolume in lsd.InactiveVolumes)
+            {
+                w.Write(inactiveVolume);
+            }
+            w.Write(lsd.InactiveNPCs.Count);
+            foreach (int inactiveNPC in lsd.InactiveNPCs)
+            {
+                w.Write(inactiveNPC);
+            }
+            w.Write(lsd.PivotRotations.Count);
+            foreach (KeyValuePair<int, int> pivotRotation in lsd.PivotRotations)
+            {
+                w.Write(pivotRotation.Key);
+                w.Write(pivotRotation.Value);
+            }
+            w.WriteObject(lsd.LastStableLiquidHeight);
+            w.WriteObject(lsd.ScriptingState);
+            w.Write(false);//FirstVisit
+            WriteWonditions(w, lsd.FilledConditions);
+        }
+        private static void WriteWonditions(BinaryNetworkWriter w, FezMultiplayerDedicatedServer.WinConditions wc)
+        {
+            w.Write(wc.LockedDoorCount);
+            w.Write(wc.UnlockedDoorCount);
+            w.Write(wc.ChestCount);
+            w.Write(wc.CubeShardCount);
+            w.Write(wc.OtherCollectibleCount);
+            w.Write(wc.SplitUpCount);
+            w.Write(wc.ScriptIds.Count);
+            foreach (int scriptId in wc.ScriptIds)
+            {
+                w.Write(scriptId);
+            }
+            w.Write(wc.SecretCount);
         }
 #endif
     }
@@ -587,6 +702,7 @@ namespace FezSharedTools
             {
                 ProcessServerSharedSaveData(reader.ReadSharedSaveData());
             }
+            byte test = reader.ReadByte();//0xfe
         }
 #else
         /// <summary>Writes the supplied server data to client's network stream <paramref name="writer0"/></summary>
@@ -646,6 +762,7 @@ namespace FezSharedTools
                     {
                         writer.Write(sharedSaveData);
                     }
+                    writer.Write((byte)0xfe);
                     writer.Flush();
                 }
                 byte[] data = ms.ToArray();
@@ -726,6 +843,36 @@ namespace FezSharedTools
             }
             base.Write(bytes);
         }
+#if !FEZCLIENT
+        public void WriteObject(string s)
+        {
+            Write(s != null);
+            if (s != null)
+            {
+                Write(s);
+            }
+        }
+        public void WriteObject(float? s)
+        {
+            Write(s.HasValue);
+            if (s != null)
+            {
+                Write(s.Value);
+            }
+        }
+        public void Write(Vector3 s)
+        {
+            Write(s.X);
+            Write(s.Y);
+            Write(s.Z);
+        }
+        public void Write(TrileEmplacement s)
+        {
+            Write(s.X);
+            Write(s.Y);
+            Write(s.Z);
+        }
+#endif
     }
 
     public sealed class BinaryNetworkReader : BinaryReader
