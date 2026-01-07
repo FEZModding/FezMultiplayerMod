@@ -17,6 +17,25 @@ namespace FezMultiplayerDedicatedServer
         //TODO use SinceLastSaved to save the server's save data somewhere and then reset SinceLastSaved
         public long? SinceLastSaved;
 
+        #region mostly for full compatability with FEZ save files
+        public bool Finished32;
+        public bool Finished64;
+        public bool HasDoneHeartReboot;
+		public bool ScoreDirty;
+        public List<string> EarnedAchievements = new List<string>();
+        public List<string> EarnedGamerPictures = new List<string>();
+        public bool AnyCodeDeciphered;
+        public bool FezHidden;
+        public bool HasHadMapHelp;
+        public bool CanOpenMap => true;
+        public bool CanNewGamePlus;
+        public bool IsNewGamePlus;
+        public Dictionary<string, bool> OneTimeTutorials;
+        public string Level;
+        public Viewpoint View;
+        public Vector3 Ground;
+        #endregion
+
         //mainly to prevent having to start ng+ to get the abilities
         public bool HasFPView => CubeShards + SecretCubes >= 32;
         public bool HasStereo3D => CubeShards + SecretCubes >= 64;
@@ -53,6 +72,13 @@ namespace FezMultiplayerDedicatedServer
 
         public void Clear()
         {
+            Level = null;
+            View = Viewpoint.None;
+            CanNewGamePlus = false;
+            IsNewGamePlus = false;
+            Finished32 = Finished64 = false;
+            HasDoneHeartReboot = false;
+            Ground = new Vector3(0, 0, 0);
             TimeOfDay = TimeSpan.FromHours(12.0);
             UnlockedWarpDestinations = new List<string> { "NATURE_HUB" };
             SecretCubes = CubeShards = Keys = 0;
@@ -60,10 +86,33 @@ namespace FezMultiplayerDedicatedServer
             PiecesOfHeart = 0;
             Maps = new List<string>();
             Artifacts = new List<ActorType>();
+            ScoreDirty = false;
             ScriptingState = null;
+            FezHidden = false;
             GlobalWaterLevelModifier = null;
+            HasHadMapHelp = false;
             MapCheatCodeDone = AchievementCheatCodeDone = false;
+            ScoreDirty = false;
             World = new Dictionary<string, LevelSaveData>();
+            OneTimeTutorials = new Dictionary<string, bool>
+            {
+                { "DOT_LOCKED_DOOR_A", false },
+                { "DOT_NUT_N_BOLT_A", false },
+                { "DOT_PIVOT_A", false },
+                { "DOT_TIME_SWITCH_A", false },
+                { "DOT_TOMBSTONE_A", false },
+                { "DOT_TREASURE", false },
+                { "DOT_VALVE_A", false },
+                { "DOT_WEIGHT_SWITCH_A", false },
+                { "DOT_LESSER_A", false },
+                { "DOT_WARP_A", false },
+                { "DOT_BOMB_A", false },
+                { "DOT_CLOCK_A", false },
+                { "DOT_CRATE_A", false },
+                { "DOT_TELESCOPE_A", false },
+                { "DOT_WELL_A", false },
+                { "DOT_WORKING", false }
+            };
         }
     }
 
@@ -83,6 +132,10 @@ namespace FezMultiplayerDedicatedServer
         public float? LastStableLiquidHeight;
 
         public string ScriptingState;
+
+        #region mostly for full compatability with FEZ save files
+        public bool FirstVisit;
+        #endregion
 
         public WinConditions FilledConditions = new WinConditions();
     }

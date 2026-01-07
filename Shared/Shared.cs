@@ -25,8 +25,9 @@ using HorizontalDirection = FezMultiplayerDedicatedServer.HorizontalDirection;
 using Viewpoint = FezMultiplayerDedicatedServer.Viewpoint;
 using Vector3 = FezMultiplayerDedicatedServer.Vector3;
 using TrileEmplacement = FezMultiplayerDedicatedServer.TrileEmplacement;
-using FezMultiplayerDedicatedServer;
-using ServerSaveData = FezMultiplayerDedicatedServer.SaveData;
+using SaveData = FezMultiplayerDedicatedServer.SaveData;
+using LevelSaveData = FezMultiplayerDedicatedServer.LevelSaveData;
+using WinConditions = FezMultiplayerDedicatedServer.WinConditions;
 #endif
 namespace FezSharedTools
 {
@@ -338,8 +339,7 @@ namespace FezSharedTools
             //TODO not yet implemented
             throw new NotImplementedException();
         }
-#if FEZCLIENT
-        public static SaveData ReadSharedSaveData(this BinaryNetworkReader r)
+        public static SaveData ReadSharedSaveData(this BinaryReader r)
         {
             //Note: this method reads save data from the network, but does not process it
             SaveData saveData = new SaveData();
@@ -351,8 +351,14 @@ namespace FezSharedTools
             saveData.CreationTime = r.ReadInt64();
             saveData.Finished32 = r.ReadBoolean();
             saveData.Finished64 = r.ReadBoolean();
-            saveData.HasFPView = r.ReadBoolean();
-            saveData.HasStereo3D = r.ReadBoolean();
+#if FEZCLIENT
+            saveData.HasFPView = 
+#endif
+            r.ReadBoolean();
+#if FEZCLIENT
+            saveData.HasStereo3D = 
+#endif
+            r.ReadBoolean();
             saveData.CanNewGamePlus = r.ReadBoolean();
             saveData.IsNewGamePlus = r.ReadBoolean();
             saveData.OneTimeTutorials.Clear();
@@ -408,7 +414,10 @@ namespace FezSharedTools
             saveData.FezHidden = r.ReadBoolean();
             saveData.GlobalWaterLevelModifier = r.ReadNullableSingle();
             saveData.HasHadMapHelp = r.ReadBoolean();
-            saveData.CanOpenMap = r.ReadBoolean();
+#if FEZCLIENT
+            saveData.CanOpenMap = 
+#endif
+            r.ReadBoolean();
             saveData.AchievementCheatCodeDone = r.ReadBoolean();
             saveData.AnyCodeDeciphered = r.ReadBoolean();
             saveData.MapCheatCodeDone = r.ReadBoolean();
@@ -428,12 +437,13 @@ namespace FezSharedTools
             saveData.ScoreDirty = true;
             saveData.HasDoneHeartReboot = r.ReadBoolean();
             saveData.PlayTime = r.ReadInt64();
+#if FEZCLIENT
             saveData.IsNew = string.IsNullOrEmpty(saveData.Level) || saveData.CanNewGamePlus || saveData.World.Count == 0;
             saveData.HasFPView |= saveData.HasStereo3D;
+#endif
             return saveData;
         }
-
-        private static LevelSaveData ReadLevel(BinaryNetworkReader r)
+        private static LevelSaveData ReadLevel(BinaryReader r)
         {
             LevelSaveData levelSaveData = new LevelSaveData();
             int num;
@@ -483,8 +493,7 @@ namespace FezSharedTools
             levelSaveData.FilledConditions = ReadWonditions(r);
             return levelSaveData;
         }
-
-        private static WinConditions ReadWonditions(BinaryNetworkReader r)
+        private static WinConditions ReadWonditions(BinaryReader r)
         {
             WinConditions winConditions = new WinConditions();
             winConditions.LockedDoorCount = r.ReadInt32();
@@ -502,21 +511,26 @@ namespace FezSharedTools
             winConditions.SecretCount = r.ReadInt32();
             return winConditions;
         }
-#else
-        public static void Write(this BinaryNetworkWriter w, ServerSaveData sd)
+#if !FEZCLIENT
+        public static void Write(this BinaryNetworkWriter w, SaveData sd)
         {
             w.Write(6L);
             w.Write(sd.CreationTime);
-            w.Write(false);//Finished32
-            w.Write(false);//Finished64
+            w.Write(sd.Finished32);
+            w.Write(sd.Finished64);
             w.Write(sd.HasFPView);
             w.Write(sd.HasStereo3D);
-            w.Write(false);//CanNewGamePlus
-            w.Write(false);//IsNewGamePlus
-            w.Write(0);//OneTimeTutorials
-            w.WriteObject("");//Level
-            w.Write((int)Viewpoint.Front);//View
-            w.Write(new Vector3(0,0,0));//Ground
+            w.Write(sd.CanNewGamePlus);
+            w.Write(sd.IsNewGamePlus);
+            w.Write(sd.OneTimeTutorials.Count);
+            foreach (KeyValuePair<string, bool> oneTimeTutorial in sd.OneTimeTutorials)
+            {
+                w.WriteObject(oneTimeTutorial.Key);
+                w.Write(oneTimeTutorial.Value);
+            }
+            w.WriteObject(sd.Level);
+            w.Write((int)sd.View);
+            w.Write(sd.Ground);
             w.Write(sd.TimeOfDay.Ticks);
             w.Write(sd.UnlockedWarpDestinations.Count);
             foreach (string unlockedWarpDestination in sd.UnlockedWarpDestinations)
@@ -539,28 +553,36 @@ namespace FezSharedTools
             {
                 w.Write((int)artifact);
             }
-            w.Write(0);//EarnedAchievements
-            w.Write(0);//EarnedGamerPictures
+            w.Write(sd.EarnedAchievements.Count);
+            foreach (string earnedAchievement in sd.EarnedAchievements)
+            {
+                w.WriteObject(earnedAchievement);
+            }
+            w.Write(sd.EarnedGamerPictures.Count);
+            foreach (string earnedGamerPicture in sd.EarnedGamerPictures)
+            {
+                w.WriteObject(earnedGamerPicture);
+            }
             w.WriteObject(sd.ScriptingState);
-            w.Write(false);//FezHidden
+            w.Write(sd.FezHidden);
             w.WriteObject(sd.GlobalWaterLevelModifier);
-            w.Write(false);//HasHadMapHelp
-            w.Write(true);//CanOpenMap
+            w.Write(sd.HasHadMapHelp);
+            w.Write(sd.CanOpenMap);
             w.Write(sd.AchievementCheatCodeDone);
-            w.Write(false);//AnyCodeDeciphered; only used for a single achievement
+            w.Write(sd.AnyCodeDeciphered);
             w.Write(sd.MapCheatCodeDone);
             w.Write(sd.World.Count);
-            foreach (KeyValuePair<string, FezMultiplayerDedicatedServer.LevelSaveData> item in sd.World)
+            foreach (KeyValuePair<string, LevelSaveData> item in sd.World)
             {
                 w.WriteObject(item.Key);
                 WriteLevelSaveData(w, item.Value);
             }
-            w.Write(false);//ScoreDirty
-            w.Write(false);//HasDoneHeartReboot
+            w.Write(sd.ScoreDirty);
+            w.Write(sd.HasDoneHeartReboot);
             w.Write(sd.PlayTime);
             //w.Write(sd.IsNew);//this flag gets written to the end of normal save files in the game, but it is never read
         }
-        private static void WriteLevelSaveData(BinaryNetworkWriter w, FezMultiplayerDedicatedServer.LevelSaveData lsd)
+        private static void WriteLevelSaveData(BinaryNetworkWriter w, LevelSaveData lsd)
         {
             w.Write(lsd.DestroyedTriles.Count);
             foreach (TrileEmplacement destroyedTrile in lsd.DestroyedTriles)
@@ -605,10 +627,10 @@ namespace FezSharedTools
             }
             w.WriteObject(lsd.LastStableLiquidHeight);
             w.WriteObject(lsd.ScriptingState);
-            w.Write(false);//FirstVisit
+            w.Write(lsd.FirstVisit);
             WriteWonditions(w, lsd.FilledConditions);
         }
-        private static void WriteWonditions(BinaryNetworkWriter w, FezMultiplayerDedicatedServer.WinConditions wc)
+        private static void WriteWonditions(BinaryNetworkWriter w, WinConditions wc)
         {
             w.Write(wc.LockedDoorCount);
             w.Write(wc.UnlockedDoorCount);
@@ -643,7 +665,7 @@ namespace FezSharedTools
 #region network packet stuff
         private const int MaxProtocolVersionLength = 32;
         public const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public static readonly string ProtocolVersion = "nineteen-wip2";//Update this ever time you change something that affect the packets
+        public static readonly string ProtocolVersion = "nineteen-wip3";//Update this ever time you change something that affect the packets
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
         /// <summary>
@@ -871,7 +893,7 @@ namespace FezSharedTools
         /// </remarks>
         protected void WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataUpdate? saveDataUpdate, ICollection<ActiveLevelState> levelStates,
                                                             ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
-                                                            bool RequestAppearance, ServerSaveData sharedSaveData, TimeSpan timeOfDay)
+                                                            bool RequestAppearance, SaveData sharedSaveData, TimeSpan timeOfDay)
         {
             int datalength;
             //optimize network writing so it doesn't send a bazillion packets for a single tick
@@ -1002,36 +1024,6 @@ namespace FezSharedTools
             }
             base.Write(bytes);
         }
-#if !FEZCLIENT
-        public void WriteObject(string s)
-        {
-            Write(s != null);
-            if (s != null)
-            {
-                Write(s);
-            }
-        }
-        public void WriteObject(float? s)
-        {
-            Write(s.HasValue);
-            if (s != null)
-            {
-                Write(s.Value);
-            }
-        }
-        public void Write(Vector3 s)
-        {
-            Write(s.X);
-            Write(s.Y);
-            Write(s.Z);
-        }
-        public void Write(TrileEmplacement s)
-        {
-            Write(s.X);
-            Write(s.Y);
-            Write(s.Z);
-        }
-#endif
     }
 
     public sealed class BinaryNetworkReader : BinaryReader
@@ -1089,32 +1081,63 @@ namespace FezSharedTools
             }
             return BitConverter.ToDouble(bytes, 0);
         }
-#if FEZCLIENT
-        public string ReadNullableString()
+    }
+    public static class BinaryIOExtensions 
+    {
+#if !FEZCLIENT
+        public static void WriteObject(this BinaryWriter writer, string s)
         {
-            if (ReadBoolean())
+            writer.Write(s != null);
+            if (s != null)
             {
-                return ReadString();
+                writer.Write(s);
             }
-            return null;
         }
-        public float? ReadNullableSingle()
+        public static void WriteObject(this BinaryWriter writer, float? s)
         {
-            if (ReadBoolean())
+            writer.Write(s.HasValue);
+            if (s != null)
             {
-                return ReadSingle();
+                writer.Write(s.Value);
             }
-            return null;
         }
-        public Vector3 ReadVector3()
+        public static void Write(this BinaryWriter writer, Vector3 s)
         {
-            return new Vector3(ReadSingle(), ReadSingle(), ReadSingle());
+            writer.Write(s.X);
+            writer.Write(s.Y);
+            writer.Write(s.Z);
         }
-
-        public TrileEmplacement ReadTrileEmplacement()
+        public static void Write(this BinaryWriter writer, TrileEmplacement s)
         {
-            return new TrileEmplacement(ReadInt32(), ReadInt32(), ReadInt32());
+            writer.Write(s.X);
+            writer.Write(s.Y);
+            writer.Write(s.Z);
         }
 #endif
+        public static string ReadNullableString(this BinaryReader reader)
+        {
+            if (reader.ReadBoolean())
+            {
+                return reader.ReadString();
+            }
+            return null;
+        }
+        public static float? ReadNullableSingle(this BinaryReader reader)
+        {
+            if (reader.ReadBoolean())
+            {
+                return reader.ReadSingle();
+            }
+            return null;
+        }
+        public static Vector3 ReadVector3(this BinaryReader reader)
+        {
+            return new Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
+        }
+
+        public static TrileEmplacement ReadTrileEmplacement(this BinaryReader reader)
+        {
+            return new TrileEmplacement(reader.ReadInt32(), reader.ReadInt32(), reader.ReadInt32());
+        }
     }
 }
