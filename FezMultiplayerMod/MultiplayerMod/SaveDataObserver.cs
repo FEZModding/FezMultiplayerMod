@@ -18,36 +18,31 @@ namespace FezGame.MultiplayerMod
     {
         public class SaveDataChanges
         {
-            public bool HasChanges => Changes.Any();
+            public bool HasChanges => KeyedChanges.Any() || ListChanges.Any();
 
-            //Note this collection should only have a single entry per unique containerIdentifier and field combo
-            public readonly Dictionary<string, ChangeInfo> Changes = new Dictionary<string, ChangeInfo>();
+            public List<ChangeInfo> Changes => KeyedChanges.Values.Cast<ChangeInfo>().Concat(ListChanges.Values).ToList();
+            public readonly Dictionary<string, KeyedChangeInfo> KeyedChanges = new Dictionary<string, KeyedChangeInfo>();
+            public readonly Dictionary<string, ChangeInfo> ListChanges = new Dictionary<string, ChangeInfo>();
+
+            public void ClearChanges(){
+                KeyedChanges.Clear();
+                ListChanges.Clear();
+            }
 
             internal void AddListChange(string containerIdentifier, object entry, ChangeType changeType)
             {
                 //Note this collection should only have a single entry per unique containerIdentifier and field combo
                 string uniqueIdentifier = containerIdentifier + IDENTIFIER_SEPARATOR + entry;
-                Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, entry, changeType));
+                ListChanges.Add(uniqueIdentifier, new ChangeInfo(changeType, containerIdentifier, entry));
             }
-            internal void AddDictChange(string containerIdentifier, object key, object newval, object oldVal, ChangeType changeType)
+            internal void AddKeyedChange(string uniqueIdentifier, object newval, object oldVal)
             {
                 //Note this collection should only have a single entry per unique containerIdentifier and field combo
-                string uniqueIdentifier = containerIdentifier + IDENTIFIER_SEPARATOR + key;
-                if (Changes.TryGetValue(uniqueIdentifier, out ChangeInfo change))
+                if (KeyedChanges.TryGetValue(uniqueIdentifier, out KeyedChangeInfo change))
                 {
                     oldVal = change.OldVal;
                 }
-                Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, "" + key, newval, oldVal, changeType));
-            }
-            internal void Add(string containerIdentifier, string key, object currentVal, object oldVal)
-            {
-                //Note this collection should only have a single entry per unique containerIdentifier and field combo
-                string uniqueIdentifier = containerIdentifier + IDENTIFIER_SEPARATOR + key;
-                if (Changes.TryGetValue(uniqueIdentifier, out ChangeInfo change))
-                {
-                    oldVal = change.OldVal;
-                }
-                Changes.Add(uniqueIdentifier, new ChangeInfo(containerIdentifier, key, currentVal, oldVal));
+                KeyedChanges.Add(uniqueIdentifier, new KeyedChangeInfo(uniqueIdentifier, newval, oldVal, ChangeType.Keyed));
             }
 
             public override string ToString()
@@ -57,60 +52,40 @@ namespace FezGame.MultiplayerMod
             public enum ChangeType
             {
                 None = 0,
-                Primative,
+                Keyed,
                 List_Add,
                 List_Remove,
-                Dict_Change,
-                Dict_Add,
-                Dict_Remove,
             }
             public class ChangeInfo
             {
                 public readonly ChangeType ChangeType;
                 public readonly string ContainerIdentifier;
-                public readonly string Key;
-                public readonly object NewVal;
-                public readonly object OldVal;
-                public object ChangedEntry => NewVal;
-                public Type Type => NewVal?.GetType() ?? OldVal.GetType();
+                public readonly object Value;
 
-                public ChangeInfo(string containerIdentifier, object changedEntry, ChangeType changeType)
+                public ChangeInfo(ChangeType changeType, string containerIdentifier, object value)
                 {
                     ChangeType = changeType;
                     ContainerIdentifier = containerIdentifier;
-                    Key = "" + changedEntry;
-                    NewVal = changedEntry;
+                    Value = value;
                 }
-                public ChangeInfo(string containerIdentifier, string fieldName, object currentVal, object oldVal, ChangeType changeType = ChangeType.Primative)
+                public override string ToString()
                 {
-                    ChangeType = changeType;
-                    ContainerIdentifier = containerIdentifier;
-                    Key = fieldName;
-                    NewVal = currentVal;
+                    return $"(Container: {ContainerIdentifier}, CurrentVal: {Value}, ChangeType: {ChangeType})";
+                }
+            }
+            public class KeyedChangeInfo : ChangeInfo
+            {
+                public readonly object OldVal;
+
+                public KeyedChangeInfo(string uniqueIdentifier, object currentVal, object oldVal, ChangeType changeType)
+                    : base(changeType, uniqueIdentifier, currentVal)
+                {
                     OldVal = oldVal;
                 }
 
                 public override string ToString()
                 {
-                    switch(ChangeType)
-                    {
-                    case ChangeType.Primative:
-                        return $"(Container: {ContainerIdentifier}, Key: {Key}, CurrentVal: {NewVal}, OldVal: {OldVal})";
-                    case ChangeType.List_Add:
-                    case ChangeType.List_Remove:
-                        return $"(Container: {ContainerIdentifier}, ChangedEntry: {NewVal}, ChangeType: {ChangeType})";
-                    case ChangeType.Dict_Add:
-                        return $"(Container: {ContainerIdentifier}, ChangedEntry: {Key}, CurrentVal: {NewVal}, OldVal: {OldVal}, ChangeType: {ChangeType})";
-                    case ChangeType.Dict_Remove:
-                        return $"(Container: {ContainerIdentifier}, ChangedEntry: {Key}, CurrentVal: {NewVal}, OldVal: {OldVal}, ChangeType: {ChangeType})";
-                    case ChangeType.Dict_Change:
-                        return $"(Container: {ContainerIdentifier}, Key: {Key}, CurrentVal: {NewVal}, OldVal: {OldVal})";
-                    case ChangeType.None:
-                    default:
-                        System.Diagnostics.Debugger.Launch();
-                        System.Diagnostics.Debugger.Break();
-                        return null;
-                    }
+                    return $"(Key: {ContainerIdentifier}, CurrentVal: {Value}, OldVal: {OldVal}, ChangeType: {ChangeType})";
                 }
             }
         }
@@ -170,7 +145,7 @@ namespace FezGame.MultiplayerMod
                     //check the player actually exists
                     && PM.CanControl && PM.Action != ActionType.None && !PM.Hidden)
             {
-                newChanges.Changes.Clear();
+                newChanges.ClearChanges();
 
                 CheckType(newChanges, typeof(SaveData), "SaveData", CurrentSaveData, OldSaveData);
 
@@ -214,131 +189,128 @@ namespace FezGame.MultiplayerMod
                 if (!object.Equals(currentVal, oldVal))
                 {
                     //value changed
-                    changes.Add(containerIdentifier, field.Name, currentVal, oldVal);
+                    changes.AddKeyedChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
                 }
             }
-            else
+            else if (typeof(string).IsAssignableFrom(fieldType))
             {
-                if (typeof(string).IsAssignableFrom(fieldType))
+                if (!string.Equals((string)currentVal, (string)oldVal, StringComparison.Ordinal))
                 {
-                    if (!string.Equals((string)currentVal, (string)oldVal, StringComparison.Ordinal))
-                    {
-                        //value changed
-                        changes.Add(containerIdentifier, field.Name, currentVal, oldVal);
-                    }
+                    //value changed
+                    changes.AddKeyedChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
                 }
-                // handle collections like Lists
-                else if (typeof(IList).IsAssignableFrom(fieldType) || (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>)))
+            }
+            // handle collections like Lists
+            else if (typeof(IList).IsAssignableFrom(fieldType) || (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>)))
+            {
+                //Note: all the List fields in SaveData are of value types (namely List<string> and List<ActorType>)
+                //Note: all the List fields in LevelSaveData are of value types (namely List<TrileEmplacement> and List<int>)
+                //Note: the only List fields in WinConditions is of value type List<int>
+                //This means none of the fields in SaveData or the types it contains have a List of non-value types
+
+                HashSet<object> currentVal_hashset = new HashSet<object>(((IList)currentVal).Cast<object>());
+                HashSet<object> oldVal_hashset = new HashSet<object>(((IList)oldVal).Cast<object>());
+
+                // Find items in currentVal that are not in oldVal
+                List<object> addedVals = currentVal_hashset.Except(oldVal_hashset).ToList();
+
+                // Find items in list2 that are not in list1
+                List<object> removedVals = oldVal_hashset.Except(currentVal_hashset).ToList();
+
+                if (addedVals.Count > 0 || removedVals.Count > 0)
                 {
-                    //Note: all the List fields in SaveData are of value types (namely List<string> and List<ActorType>)
-                    //Note: all the List fields in LevelSaveData are of value types (namely List<TrileEmplacement> and List<int>)
-                    //Note: the only List fields in WinConditions is of value type List<int>
-                    //This means none of the fields in SaveData or the types it contains have a List of non-value types
-
-                    HashSet<object> currentVal_hashset = new HashSet<object>(((IList)currentVal).Cast<object>());
-                    HashSet<object> oldVal_hashset = new HashSet<object>(((IList)oldVal).Cast<object>());
-
-                    // Find items in currentVal that are not in oldVal
-                    List<object> addedVals = currentVal_hashset.Except(oldVal_hashset).ToList();
-
-                    // Find items in list2 that are not in list1
-                    List<object> removedVals = oldVal_hashset.Except(currentVal_hashset).ToList();
-
-                    if (addedVals.Count > 0 || removedVals.Count > 0)
+                    // add changes to changes
+                    addedVals.ForEach(addedVal =>
                     {
-                        // add changes to changes
-                        addedVals.ForEach(addedVal =>
-                        {
-                            changes.AddListChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, addedVal, SaveDataChanges.ChangeType.List_Add);
-                        });
-                        removedVals.ForEach(removedVal =>
-                        {
+                        changes.AddListChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, addedVal, SaveDataChanges.ChangeType.List_Add);
+                    });
+                    removedVals.ForEach(removedVal =>
+                    {
                             //TODO? idk if this ever actually happens, but should probably implement it somehow
                             changes.AddListChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, removedVal, SaveDataChanges.ChangeType.List_Remove);
-                        });
-                    }
+                    });
                 }
-                // handle collections like Dictionaries
-                else if (typeof(IDictionary).IsAssignableFrom(fieldType) || (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(Dictionary<,>)))
+            }
+            // handle collections like Dictionaries
+            else if (typeof(IDictionary).IsAssignableFrom(fieldType) || (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(Dictionary<,>)))
+            {
+                //Note: SaveData contains fields of types Dictionary<string, bool> and Dictionary<string, LevelSaveData>
+                //Note: LevelSaveData contains fields of types Dictionary<int, int>
+
+                IDictionary currentVal_dict = (IDictionary)currentVal;
+                IDictionary oldVal_dict = (IDictionary)oldVal;
+
+                //iterate through the entries checking the keys and values
+
+                HashSet<object> currentVal_dictKeys = new HashSet<object>(currentVal_dict.Keys.Cast<object>());
+                HashSet<object> oldVal_dictKeys = new HashSet<object>(oldVal_dict.Keys.Cast<object>());
+
+                // Find keys in currentVal_dict that are not in oldVal_dict
+                List<object> onlyIncurrentVal_dictKeys = currentVal_dictKeys.Except(oldVal_dictKeys).ToList();
+
+                // Find keys in oldVal_dict that are not in currentVal_dict
+                List<object> onlyInoldVal_dictKeys = oldVal_dictKeys.Except(currentVal_dictKeys).ToList();
+
+                string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name;
+                onlyIncurrentVal_dictKeys.ForEach(k =>
                 {
-                    //Note: SaveData contains fields of types Dictionary<string, bool> and Dictionary<string, LevelSaveData>
-                    //Note: LevelSaveData contains fields of types Dictionary<int, int>
-
-                    IDictionary currentVal_dict = (IDictionary)currentVal;
-                    IDictionary oldVal_dict = (IDictionary)oldVal;
-
-                    //iterate through the entries checking the keys and values
-
-                    HashSet<object> currentVal_dictKeys = new HashSet<object>(currentVal_dict.Keys.Cast<object>());
-                    HashSet<object> oldVal_dictKeys = new HashSet<object>(oldVal_dict.Keys.Cast<object>());
-
-                    // Find keys in currentVal_dict that are not in oldVal_dict
-                    List<object> onlyIncurrentVal_dictKeys = currentVal_dictKeys.Except(oldVal_dictKeys).ToList();
-
-                    // Find keys in oldVal_dict that are not in currentVal_dict
-                    List<object> onlyInoldVal_dictKeys = oldVal_dictKeys.Except(currentVal_dictKeys).ToList();
-
-                    string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name;
-                    onlyIncurrentVal_dictKeys.ForEach(k =>
+                    string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + k.ToString();
+                    object val = currentVal_dict[k];
+                    changes.AddKeyedChange(containerID_withKey, val, null);
+                });
+                onlyInoldVal_dictKeys.ForEach(k =>
+                {
+                    string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + k.ToString();
+                    object val = oldVal_dict[k];
+                    changes.AddKeyedChange(containerID_withKey, null, val);
+                });
+                // For keys that are present in both, check for value differences
+                List<object> sharedKeys = currentVal_dictKeys.Intersect(oldVal_dictKeys).ToList();
+                foreach (object key in sharedKeys)
+                {
+                    object value1 = currentVal_dict[key];
+                    object value2 = oldVal_dict[key];
+                    string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + key.ToString();
+                    void ComparePrimitive()
                     {
-                        string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + k.ToString();
-                        object val = currentVal_dict[k];
-                        changes.AddDictChange(containerID_withKey, k.ToString(), val, null, SaveDataChanges.ChangeType.Dict_Add);
-                    });
-                    onlyInoldVal_dictKeys.ForEach(k =>
-                    {
-                        string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + k.ToString();
-                        object val = oldVal_dict[k];
-                        changes.AddDictChange(containerID_withKey, k.ToString(), null, val, SaveDataChanges.ChangeType.Dict_Remove);
-                    });
-                    // For keys that are present in both, check for value differences
-                    List<object> sharedKeys = currentVal_dictKeys.Intersect(oldVal_dictKeys).ToList();
-                    foreach (object key in sharedKeys)
-                    {
-                        object value1 = currentVal_dict[key];
-                        object value2 = oldVal_dict[key];
-                        string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + key.ToString();
-                        void ComparePrimitive()
+                        if (!Equals(value1, value2))
                         {
-                            if (!Equals(value1, value2))
-                            {
-                                // add changes to changes
-                                changes.AddDictChange(containerID, key, value1, value2, SaveDataChanges.ChangeType.Dict_Change);
-                            }
+                            // add changes to changes
+                            changes.AddKeyedChange(containerID_withKey, value1, value2);
                         }
-                        if (fieldType.IsGenericType)
-                        {
-                            Type valueType = fieldType.GetGenericArguments()[1];
-                            if (valueType.IsValueType)
-                            {
-                                ComparePrimitive();
-                            }
-                            else
-                            {
-                                // compare values using CheckType
-                                CheckType(changes, valueType, containerID_withKey, value1, value2);
-                            }
-                        }
-                        else if (!Equals(value1, value2))
+                    }
+                    if (fieldType.IsGenericType)
+                    {
+                        Type valueType = fieldType.GetGenericArguments()[1];
+                        if (valueType.IsValueType)
                         {
                             ComparePrimitive();
                         }
+                        else
+                        {
+                            // compare values using CheckType
+                            CheckType(changes, valueType, containerID_withKey, value1, value2);
+                        }
+                    }
+                    else if (!Equals(value1, value2))
+                    {
+                        ComparePrimitive();
                     }
                 }
-                // handle collections that are neither List nor Dictionary
-                else if (typeof(IEnumerable).IsAssignableFrom(fieldType))
-                {
-                    Console.WriteLine(fieldType);
-                    System.Diagnostics.Debugger.Launch();
-                    System.Diagnostics.Debugger.Break();
-                    //TODO if this happens, handle the unhandled enumerable type
-                }
-                else
-                {
-                    //It must be a non-enumerable object of some kind
-                    // handle non-enumerable object types like LevelSaveData and WinConditions
-                    CheckType(changes, fieldType, containerIdentifier + IDENTIFIER_SEPARATOR + fieldType.Name, currentVal, oldVal);
-                }
+            }
+            // handle collections that are neither List nor Dictionary
+            else if (typeof(IEnumerable).IsAssignableFrom(fieldType))
+            {
+                Console.WriteLine(fieldType);
+                System.Diagnostics.Debugger.Launch();
+                System.Diagnostics.Debugger.Break();
+                //TODO if this happens, handle the unhandled enumerable type
+            }
+            else
+            {
+                //It must be a non-enumerable object of some kind
+                // handle non-enumerable object types like LevelSaveData and WinConditions
+                CheckType(changes, fieldType, containerIdentifier + IDENTIFIER_SEPARATOR + fieldType.Name, currentVal, oldVal);
             }
         }
         private static readonly Dictionary<Type, FieldInfo[]> cachedTypeFieldInfoMap = new Dictionary<Type, FieldInfo[]>();

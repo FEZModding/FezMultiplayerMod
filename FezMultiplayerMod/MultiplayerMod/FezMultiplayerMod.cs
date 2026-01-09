@@ -167,12 +167,13 @@ namespace FezGame.MultiplayerMod
             //TODO send SaveDataChanges to the server, wait until the update is sent to the server, then clear the changes
             System.Diagnostics.Debug.WriteLine("Save data updated at "+DateTime.UtcNow.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fffffff'Z'"));
             //System.Diagnostics.Debug.WriteLine(SaveDataChanges.ToString());
-            var k = SaveDataChanges.Changes.Values;
+            var k = SaveDataChanges.Changes;
             if(!SaveSlotChanged){
-                if(!SaveDataChanges.Changes.Keys.SequenceEqual(IgnoreVals))
+                if(!SaveDataChanges.Changes.Select(a => a.ContainerIdentifier).SequenceEqual(IgnoreVals))
                 {
-                    System.Diagnostics.Debug.WriteLine(string.Join(Environment.NewLine, k.ToString()));
-                    System.Diagnostics.Debugger.Break();
+                    System.Diagnostics.Debug.WriteLine(SaveDataChanges);
+                    if(SaveDataChanges.ListChanges.Any())
+                        System.Diagnostics.Debugger.Break();
                 }
             }
         }
