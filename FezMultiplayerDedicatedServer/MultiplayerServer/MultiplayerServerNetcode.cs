@@ -62,7 +62,6 @@ namespace FezMultiplayerDedicatedServer
         public readonly bool useAllowList;
         public readonly IPFilter AllowList;
         public readonly IPFilter BlockList;
-        public bool SyncWorldState;
         public bool AllowRemoteWebInterface;
 
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
@@ -487,7 +486,7 @@ namespace FezMultiplayerDedicatedServer
                                     }
                                     stopwatch.Restart();
                                     WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
-                                            GetSaveDataUpdate(), GetActiveLevelStates(), DisconnectedPlayers.Keys,
+                                            GetSaveDataUpdate(uuid), GetActiveLevelStates(), DisconnectedPlayers.Keys,
                                             GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, ResendSaveData ? sharedSaveData : null, sharedSaveData.TimeOfDay);
                                     ReadClientGameTickPacket(reader, ref clientData, uuid);
                                     SpeedUpDown.Enqueue(stopwatch.ElapsedTicks);
@@ -558,6 +557,20 @@ namespace FezMultiplayerDedicatedServer
                 client.Close();
                 client.Dispose();
             }
+        }
+
+        private SaveDataUpdate? GetSaveDataUpdate(Guid uuid)
+        {
+            //TODO use uuid to keep track of what changes the client needs
+            if (!SyncWorldState)
+            {
+                return null;
+            }
+            if (SaveDataObserver.newChanges.HasChanges)
+            {
+                return new SaveDataUpdate(SaveDataObserver.newChanges);
+            }
+            return null;
         }
 
         private static string DecodeWebSocketMessage(byte[] bytes, out bool closing, out bool ping)
@@ -1088,15 +1101,8 @@ namespace FezMultiplayerDedicatedServer
                 return;
             }
             //TODO not yet implemented
-            throw new NotImplementedException();
-        }
-        private SaveDataUpdate? GetSaveDataUpdate()
-        {
-            if (!SyncWorldState)
-            {
-                return null;
-            }
-            //TODO not yet implemented
+            System.Diagnostics.Debugger.Launch();
+            System.Diagnostics.Debugger.Break();
             throw new NotImplementedException();
         }
 
@@ -1107,6 +1113,8 @@ namespace FezMultiplayerDedicatedServer
                 return;
             }
             //TODO not yet implemented
+            System.Diagnostics.Debugger.Launch();
+            System.Diagnostics.Debugger.Break();
             throw new NotImplementedException();
         }
         /// <summary>

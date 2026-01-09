@@ -93,6 +93,8 @@ namespace FezSharedTools
         /// <summary>
         /// </summary>
         public static readonly string ServerDiscoveryEntrySeparator = "=";
+
+        public const string SAVE_DATA_IDENTIFIER_SEPARATOR = ".";
     }
 
     [Serializable]
@@ -191,12 +193,12 @@ namespace FezSharedTools
     [Serializable]
     public struct SaveDataUpdate
     {
-        public int TODO;
+        public List<SaveDataChanges.ChangeInfo> Changes;
         //TODO not yet implemented
 
-        public SaveDataUpdate(int TODO)
+        public SaveDataUpdate(SaveDataChanges saveDataChanges)
         {
-            this.TODO = TODO;
+            this.Changes = saveDataChanges.Changes;
         }
     }
     [Serializable]
@@ -318,25 +320,33 @@ namespace FezSharedTools
             //writer.Write(playerAppearance.CustomCharacterAppearance);//TODO appearance format TBD
         }
 
-        public static SaveDataUpdate ReadSaveDataUpdate(this BinaryNetworkReader reader)
+        internal static SaveDataUpdate ReadSaveDataUpdate(this BinaryNetworkReader reader)
         {
             //TODO not yet implemented
+            System.Diagnostics.Debugger.Launch();
+            System.Diagnostics.Debugger.Break();
             throw new NotImplementedException();
         }
-        public static void Write(this BinaryNetworkWriter writer, SaveDataUpdate saveDataUpdate)
+        internal static void Write(this BinaryNetworkWriter writer, SaveDataUpdate saveDataUpdate)
         {
             //TODO not yet implemented
+            System.Diagnostics.Debugger.Launch();
+            System.Diagnostics.Debugger.Break();
             throw new NotImplementedException();
         }
 
         public static ActiveLevelState ReadActiveLevelState(this BinaryNetworkReader reader)
         {
             //TODO not yet implemented
+            System.Diagnostics.Debugger.Launch();
+            System.Diagnostics.Debugger.Break();
             throw new NotImplementedException();
         }
         public static void Write(this BinaryNetworkWriter writer, ActiveLevelState activeLevelState)
         {
             //TODO not yet implemented
+            System.Diagnostics.Debugger.Launch();
+            System.Diagnostics.Debugger.Break();
             throw new NotImplementedException();
         }
         public static SaveData ReadSharedSaveData(this BinaryReader r)
@@ -673,6 +683,8 @@ namespace FezSharedTools
         /// </summary>
         public volatile Exception FatalException = null;
 
+        public volatile bool SyncWorldState = false;
+
         public abstract ConcurrentDictionary<Guid, P> Players { get; }
         public ConcurrentDictionary<Guid, PlayerAppearance> PlayerAppearances = new ConcurrentDictionary<Guid, PlayerAppearance>();
         /// <summary>
@@ -964,6 +976,7 @@ namespace FezSharedTools
         protected abstract void ProcessNewClientGuid(Guid puid);
         protected abstract void SetTimeOfDay(long newTimeOfDayTicks);
         protected abstract void ProcessServerSharedSaveData(SaveData saveData);
+
 #endif
 #endregion
     }

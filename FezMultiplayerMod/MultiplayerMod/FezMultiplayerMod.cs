@@ -119,9 +119,7 @@ namespace FezGame.MultiplayerMod
             Instance = this;
             ServiceHelper.AddComponent(statusTextDrawer = new OverlaidTextDrawer(game, Instance), false);
 
-            SaveDataObserver saveDataObserver;
-            ServiceHelper.AddComponent(saveDataObserver = new SaveDataObserver(game));
-            saveDataObserver.OnSaveDataChanged += SaveDataObserver_OnSaveDataChanged;
+            ServiceHelper.AddComponent(new SaveDataObserver(game));
 
             OpenTreasureListener openTreasureListener = new OpenTreasureListener(game);
             ServiceHelper.AddComponent(openTreasureListener);
@@ -159,23 +157,6 @@ namespace FezGame.MultiplayerMod
 
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
-        }
-
-        private static readonly List<string> IgnoreVals = new List<string>() { "SaveData.PlayTime", "SaveData.SinceLastSaved" };
-        private void SaveDataObserver_OnSaveDataChanged(SaveData UpdatedSaveData, SaveDataObserver.SaveDataChanges SaveDataChanges, bool SaveSlotChanged)
-        {
-            //TODO send SaveDataChanges to the server, wait until the update is sent to the server, then clear the changes
-            System.Diagnostics.Debug.WriteLine("Save data updated at "+DateTime.UtcNow.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'.'fffffff'Z'"));
-            //System.Diagnostics.Debug.WriteLine(SaveDataChanges.ToString());
-            var k = SaveDataChanges.Changes;
-            if(!SaveSlotChanged){
-                if(!SaveDataChanges.Changes.Select(a => a.ContainerIdentifier).SequenceEqual(IgnoreVals))
-                {
-                    System.Diagnostics.Debug.WriteLine(SaveDataChanges);
-                    if(SaveDataChanges.ListChanges.Any())
-                        System.Diagnostics.Debugger.Break();
-                }
-            }
         }
 
         private bool disposing = false;

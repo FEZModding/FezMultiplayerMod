@@ -87,8 +87,6 @@ namespace FezGame.MultiplayerMod
             }
         }
 
-
-        public volatile bool SyncWorldState;
         public volatile bool SyncTimeOfDay;
         /// <summary>
         /// The amount of time, in ticks, to retry reconnecting to the server if the connection is somehow lost
@@ -132,6 +130,7 @@ namespace FezGame.MultiplayerMod
             RemoteEndpoint = endpoint;
             listenerThread = new Thread(() =>
             {
+                        var GameState = FezEngine.Tools.ServiceHelper.Get<Services.IGameStateManager>();
                 void ConnectToServerInternal(out bool ConnectionSuccessful)
                 {
                     LogStatus(LogSeverity.Information, $"Connecting to {endpoint} ...");
@@ -176,9 +175,9 @@ namespace FezGame.MultiplayerMod
                                 }
 
                                 SaveDataUpdate? saveDataUpdate = null;
-                                if (SyncWorldState)
+                                if (SyncWorldState && SaveDataObserver.newChanges.HasChanges)
                                 {
-                                    saveDataUpdate = GetSaveDataUpdate();
+                                    saveDataUpdate = new SaveDataUpdate(SaveDataObserver.newChanges);
                                 }
                                 //transmit MyAppearance whenever its value changes 
                                 PlayerAppearance? appearance = null;
@@ -289,7 +288,6 @@ namespace FezGame.MultiplayerMod
             LogStatus(LogSeverity.Information, "Disconnect complete");
         }
 
-        protected abstract SaveDataUpdate GetSaveDataUpdate();
         protected abstract ActiveLevelState GetCurrentLevelState();
 
         // I was told "Your Dispose implementation needs work https://learn.microsoft.com/en-us/dotnet/standard/garbage-collection/implementing-dispose#implement-the-dispose-pattern"

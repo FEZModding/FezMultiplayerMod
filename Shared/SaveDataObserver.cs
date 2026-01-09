@@ -15,90 +15,129 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace FezSharedTools
 {
+    public class SaveDataChanges
+    {
+        public bool HasChanges => KeyedChanges.Any() || ListChanges.Any();
+
+        public List<ChangeInfo> Changes => KeyedChanges.Values.Cast<ChangeInfo>().Concat(ListChanges.Values).ToList();
+        public readonly Dictionary<string, KeyedChangeInfo> KeyedChanges = new Dictionary<string, KeyedChangeInfo>();
+        public readonly Dictionary<string, ChangeInfo> ListChanges = new Dictionary<string, ChangeInfo>();
+
+        public void ClearChanges()
+        {
+            KeyedChanges.Clear();
+            ListChanges.Clear();
+        }
+
+        private List<string> ignoredKeys = new List<string>()
+        {
+            "AnyCodeDeciphered",
+            "CanNewGamePlus",
+            "CreationTime",
+            "EarnedAchievements",
+            "EarnedGamerPictures",
+            "FezHidden",
+            "Finished32",
+            "Finished64",
+            "Ground",
+            "HasDoneHeartReboot",
+            "HasHadMapHelp",
+            "IsNew",
+            "IsNewGamePlus",
+            "Level",
+            "OneTimeTutorials",
+            "PlayTime",
+            "ScoreDirty",
+            "TimeOfDay",
+            "View",
+        };
+        private static readonly int ignoreLength = ("SaveData" + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR).Length;
+        private static readonly string SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED = Regex.Escape(SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR);
+        private static readonly Regex ignoreWorldRegex = new Regex($@"^World{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}\w+{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}FirstVisit");
+        internal void AddListChange(string containerIdentifier, object entry, ChangeType changeType)
+        {
+            containerIdentifier = containerIdentifier.Substring(ignoreLength);
+            if (ignoredKeys.Contains(containerIdentifier))
+            {
+                return;
+            }
+            if (ignoreWorldRegex.IsMatch(containerIdentifier))
+            {
+                return;
+            }
+            //Note this collection should only have a single entry per unique containerIdentifier and field combo
+            string uniqueIdentifier = containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + entry;
+            ListChanges.Add(uniqueIdentifier, new ChangeInfo(changeType, containerIdentifier, entry));
+        }
+        internal void AddKeyedChange(string uniqueIdentifier, object newval, object oldVal)
+        {
+            uniqueIdentifier = uniqueIdentifier.Substring(ignoreLength);
+            if (ignoredKeys.Contains(uniqueIdentifier))
+            {
+                return;
+            }
+            //Note this collection should only have a single entry per unique containerIdentifier and field combo
+            if (KeyedChanges.TryGetValue(uniqueIdentifier, out KeyedChangeInfo change))
+            {
+                oldVal = change.OldVal;
+                _ = KeyedChanges.Remove(uniqueIdentifier);
+            }
+            KeyedChanges.Add(uniqueIdentifier, new KeyedChangeInfo(uniqueIdentifier, newval, oldVal, ChangeType.Keyed));
+        }
+
+        public override string ToString()
+        {
+            return string.Join(Environment.NewLine, Changes);
+        }
+        public enum ChangeType
+        {
+            None = 0,
+            Keyed,
+            List_Add,
+            List_Remove,
+        }
+        public class ChangeInfo
+        {
+            public readonly ChangeType ChangeType;
+            public readonly string ContainerIdentifier;
+            public readonly object Value;
+
+            public ChangeInfo(ChangeType changeType, string containerIdentifier, object value)
+            {
+                ChangeType = changeType;
+                ContainerIdentifier = containerIdentifier;
+                Value = value;
+            }
+            public override string ToString()
+            {
+                return $"(Container: {ContainerIdentifier}, CurrentVal: {Value}, ChangeType: {ChangeType})";
+            }
+        }
+        public class KeyedChangeInfo : ChangeInfo
+        {
+            public readonly object OldVal;
+
+            public KeyedChangeInfo(string uniqueIdentifier, object currentVal, object oldVal, ChangeType changeType)
+                : base(changeType, uniqueIdentifier, currentVal)
+            {
+                OldVal = oldVal;
+            }
+
+            public override string ToString()
+            {
+                return $"(Key: {ContainerIdentifier}, CurrentVal: {Value}, OldVal: {OldVal}, ChangeType: {ChangeType})";
+            }
+        }
+    }
     internal sealed class SaveDataObserver
 #if FEZCLIENT
 : GameComponent
 #endif
     {
-        public class SaveDataChanges
-        {
-            public bool HasChanges => KeyedChanges.Any() || ListChanges.Any();
-
-            public List<ChangeInfo> Changes => KeyedChanges.Values.Cast<ChangeInfo>().Concat(ListChanges.Values).ToList();
-            public readonly Dictionary<string, KeyedChangeInfo> KeyedChanges = new Dictionary<string, KeyedChangeInfo>();
-            public readonly Dictionary<string, ChangeInfo> ListChanges = new Dictionary<string, ChangeInfo>();
-
-            public void ClearChanges(){
-                KeyedChanges.Clear();
-                ListChanges.Clear();
-            }
-
-            internal void AddListChange(string containerIdentifier, object entry, ChangeType changeType)
-            {
-                //Note this collection should only have a single entry per unique containerIdentifier and field combo
-                string uniqueIdentifier = containerIdentifier + IDENTIFIER_SEPARATOR + entry;
-                ListChanges.Add(uniqueIdentifier, new ChangeInfo(changeType, containerIdentifier, entry));
-            }
-            internal void AddKeyedChange(string uniqueIdentifier, object newval, object oldVal)
-            {
-                //Note this collection should only have a single entry per unique containerIdentifier and field combo
-                if (KeyedChanges.TryGetValue(uniqueIdentifier, out KeyedChangeInfo change))
-                {
-                    oldVal = change.OldVal;
-                }
-                KeyedChanges.Add(uniqueIdentifier, new KeyedChangeInfo(uniqueIdentifier, newval, oldVal, ChangeType.Keyed));
-            }
-
-            public override string ToString()
-            {
-                return string.Join(Environment.NewLine, Changes);
-            }
-            public enum ChangeType
-            {
-                None = 0,
-                Keyed,
-                List_Add,
-                List_Remove,
-            }
-            public class ChangeInfo
-            {
-                public readonly ChangeType ChangeType;
-                public readonly string ContainerIdentifier;
-                public readonly object Value;
-
-                public ChangeInfo(ChangeType changeType, string containerIdentifier, object value)
-                {
-                    ChangeType = changeType;
-                    ContainerIdentifier = containerIdentifier;
-                    Value = value;
-                }
-                public override string ToString()
-                {
-                    return $"(Container: {ContainerIdentifier}, CurrentVal: {Value}, ChangeType: {ChangeType})";
-                }
-            }
-            public class KeyedChangeInfo : ChangeInfo
-            {
-                public readonly object OldVal;
-
-                public KeyedChangeInfo(string uniqueIdentifier, object currentVal, object oldVal, ChangeType changeType)
-                    : base(changeType, uniqueIdentifier, currentVal)
-                {
-                    OldVal = oldVal;
-                }
-
-                public override string ToString()
-                {
-                    return $"(Key: {ContainerIdentifier}, CurrentVal: {Value}, OldVal: {OldVal}, ChangeType: {ChangeType})";
-                }
-            }
-        }
-        //internal static readonly string IDENTIFIER_SEPARATOR = ".";
-        private const string IDENTIFIER_SEPARATOR = ".";
-
 #if FEZCLIENT
         private IGameStateManager GameState { get; set; }
         private IPlayerManager PM { get; set; }
@@ -111,11 +150,12 @@ namespace FezSharedTools
 #endif
         private readonly SaveData OldSaveData = new SaveData();
 
-        public event Action<SaveData, SaveDataChanges, bool> OnSaveDataChanged = (UpdatedSaveData, SaveDataChanges, SaveSlotChanged) => { };
+        public static SaveDataObserver Instance;
 
 #if FEZCLIENT
         public SaveDataObserver(Game game) : base(game)
         {
+            Instance = this;
             _ = Waiters.Wait(() =>
             {
                 return ServiceHelper.FirstLoadDone;
@@ -131,24 +171,24 @@ namespace FezSharedTools
         {
         }
 #endif
-        private static readonly SaveDataChanges newChanges = new SaveDataChanges();
+        internal static readonly SaveDataChanges newChanges = new SaveDataChanges();
         private static int lastSaveSlot = -1;
-        private int currentSaveSlot =>
+        private int CurrentSaveSlot =>
 #if FEZCLIENT
         GameState?.SaveSlot ?? -1;
 #else
         23;
 #endif
-        private bool SaveSlotChanged
+        internal bool SaveSlotChanged
         {
             get
             {
-                bool r = lastSaveSlot != currentSaveSlot;
-                lastSaveSlot = currentSaveSlot;
+                bool r = lastSaveSlot != CurrentSaveSlot;
+                lastSaveSlot = CurrentSaveSlot;
                 return r;
             }
         }
-
+        
 #if FEZCLIENT
         public override void Update(GameTime gameTime)
 #else
@@ -156,7 +196,7 @@ namespace FezSharedTools
 #endif
         {
             //check a save file is actually loaded 
-            if (CurrentSaveData != null && currentSaveSlot >= 0
+            if (CurrentSaveData != null && CurrentSaveSlot >= 0
 #if FEZCLIENT
                     && !GameState.Loading
                     && !GameState.TimePaused
@@ -175,17 +215,17 @@ namespace FezSharedTools
 #endif
                     )
             {
-                newChanges.ClearChanges();
-
-                CheckType(newChanges, typeof(SaveData), "SaveData", CurrentSaveData, OldSaveData);
-
-                //update old data
-                CurrentSaveData.CloneInto(OldSaveData);
-
-                //Notify listeners of changes
-                if (newChanges.HasChanges)
+                if (SaveSlotChanged)
                 {
-                    OnSaveDataChanged(CurrentSaveData, newChanges, SaveSlotChanged);
+                    newChanges.ClearChanges();
+                    CurrentSaveData.CloneInto(OldSaveData);
+                }
+                else
+                {
+                    CheckType(newChanges, typeof(SaveData), "SaveData", CurrentSaveData, OldSaveData);
+
+                    //update old data
+                    CurrentSaveData.CloneInto(OldSaveData);
                 }
             }
         }
@@ -219,7 +259,7 @@ namespace FezSharedTools
                 if (!object.Equals(currentVal, oldVal))
                 {
                     //value changed
-                    changes.AddKeyedChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
+                    changes.AddKeyedChange(containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
                 }
             }
             else if (typeof(string).IsAssignableFrom(fieldType))
@@ -227,7 +267,7 @@ namespace FezSharedTools
                 if (!string.Equals((string)currentVal, (string)oldVal, StringComparison.Ordinal))
                 {
                     //value changed
-                    changes.AddKeyedChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
+                    changes.AddKeyedChange(containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
                 }
             }
             // handle collections like Lists
@@ -252,12 +292,12 @@ namespace FezSharedTools
                     // add changes to changes
                     addedVals.ForEach(addedVal =>
                     {
-                        changes.AddListChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, addedVal, SaveDataChanges.ChangeType.List_Add);
+                        changes.AddListChange(containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, addedVal, SaveDataChanges.ChangeType.List_Add);
                     });
                     removedVals.ForEach(removedVal =>
                     {
                             //TODO? idk if this ever actually happens, but should probably implement it somehow
-                            changes.AddListChange(containerIdentifier + IDENTIFIER_SEPARATOR + field.Name, removedVal, SaveDataChanges.ChangeType.List_Remove);
+                            changes.AddListChange(containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, removedVal, SaveDataChanges.ChangeType.List_Remove);
                     });
                 }
             }
@@ -281,16 +321,16 @@ namespace FezSharedTools
                 // Find keys in oldVal_dict that are not in currentVal_dict
                 List<object> onlyInoldVal_dictKeys = oldVal_dictKeys.Except(currentVal_dictKeys).ToList();
 
-                string containerID = containerIdentifier + IDENTIFIER_SEPARATOR + field.Name;
+                string containerID = containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name;
                 onlyIncurrentVal_dictKeys.ForEach(k =>
                 {
-                    string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + k.ToString();
+                    string containerID_withKey = containerID + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + k.ToString();
                     object val = currentVal_dict[k];
                     changes.AddKeyedChange(containerID_withKey, val, null);
                 });
                 onlyInoldVal_dictKeys.ForEach(k =>
                 {
-                    string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + k.ToString();
+                    string containerID_withKey = containerID + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + k.ToString();
                     object val = oldVal_dict[k];
                     changes.AddKeyedChange(containerID_withKey, null, val);
                 });
@@ -300,7 +340,7 @@ namespace FezSharedTools
                 {
                     object value1 = currentVal_dict[key];
                     object value2 = oldVal_dict[key];
-                    string containerID_withKey = containerID + IDENTIFIER_SEPARATOR + key.ToString();
+                    string containerID_withKey = containerID + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + key.ToString();
                     void ComparePrimitive()
                     {
                         if (!Equals(value1, value2))
@@ -340,7 +380,7 @@ namespace FezSharedTools
             {
                 //It must be a non-enumerable object of some kind
                 // handle non-enumerable object types like LevelSaveData and WinConditions
-                CheckType(changes, fieldType, containerIdentifier + IDENTIFIER_SEPARATOR + fieldType.Name, currentVal, oldVal);
+                CheckType(changes, fieldType, containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + fieldType.Name, currentVal, oldVal);
             }
         }
         private static readonly Dictionary<Type, FieldInfo[]> cachedTypeFieldInfoMap = new Dictionary<Type, FieldInfo[]>();

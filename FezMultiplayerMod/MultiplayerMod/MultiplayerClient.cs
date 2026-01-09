@@ -77,16 +77,12 @@ namespace FezGame.MultiplayerMod
             MyPlayerMetadata = p;
         }
 
-        protected override SaveDataUpdate GetSaveDataUpdate()
-        {
-            //TODO not yet implemented
-            throw new NotImplementedException();
-        }
-
         protected override ActiveLevelState GetCurrentLevelState()
         {
             //TODO not yet implemented
-            throw new NotImplementedException();
+            System.Diagnostics.Debugger.Launch();
+            System.Diagnostics.Debugger.Break();
+            return new ActiveLevelState();
         }
 
         protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
@@ -94,6 +90,8 @@ namespace FezGame.MultiplayerMod
             if (SyncWorldState)
             {
                 //TODO not yet implemented
+                System.Diagnostics.Debugger.Launch();
+                System.Diagnostics.Debugger.Break();
             }
         }
 
