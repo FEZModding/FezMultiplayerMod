@@ -1113,9 +1113,11 @@ namespace FezMultiplayerDedicatedServer
                 return;
             }
             //TODO not yet implemented
-            System.Diagnostics.Debugger.Launch();
-            System.Diagnostics.Debugger.Break();
-            throw new NotImplementedException();
+            if (SharedConstants.TODO_Debug_EnableLevelStateSync)
+            {
+                System.Diagnostics.Debugger.Launch();
+                System.Diagnostics.Debugger.Break();
+            }
         }
         /// <summary>
         /// Returns a collection of PlayerAppearances for players that match <paramref name="where"/>

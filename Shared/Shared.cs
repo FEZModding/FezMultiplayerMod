@@ -95,6 +95,8 @@ namespace FezSharedTools
         public static readonly string ServerDiscoveryEntrySeparator = "=";
 
         public const string SAVE_DATA_IDENTIFIER_SEPARATOR = ".";
+
+        internal static const bool TODO_Debug_EnableLevelStateSync = false;//TODO remove this once level states get synced
     }
 
     [Serializable]
@@ -338,16 +340,20 @@ namespace FezSharedTools
         public static ActiveLevelState ReadActiveLevelState(this BinaryNetworkReader reader)
         {
             //TODO not yet implemented
-            System.Diagnostics.Debugger.Launch();
-            System.Diagnostics.Debugger.Break();
-            throw new NotImplementedException();
+            if (TODO_Debug_EnableLevelStateSync)
+            {
+                System.Diagnostics.Debugger.Launch();
+                System.Diagnostics.Debugger.Break();
+            }
         }
         public static void Write(this BinaryNetworkWriter writer, ActiveLevelState activeLevelState)
         {
             //TODO not yet implemented
-            System.Diagnostics.Debugger.Launch();
-            System.Diagnostics.Debugger.Break();
-            throw new NotImplementedException();
+            if (TODO_Debug_EnableLevelStateSync)
+            {
+                System.Diagnostics.Debugger.Launch();
+                System.Diagnostics.Debugger.Break();
+            }
         }
         public static SaveData ReadSharedSaveData(this BinaryReader r)
         {
@@ -675,7 +681,7 @@ namespace FezSharedTools
 #region network packet stuff
         private const int MaxProtocolVersionLength = 32;
         public const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public static readonly string ProtocolVersion = "nineteen-wip3";//Update this ever time you change something that affect the packets
+        public static readonly string ProtocolVersion = "nineteen-wip4";//Update this ever time you change something that affect the packets
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
         /// <summary>
