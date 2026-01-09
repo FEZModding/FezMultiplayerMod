@@ -113,6 +113,77 @@ namespace FezMultiplayerDedicatedServer
                 { "DOT_WORKING", false }
             };
         }
+
+        public void CloneInto(SaveData d)
+        {
+            d.AchievementCheatCodeDone = AchievementCheatCodeDone;
+            d.AnyCodeDeciphered = AnyCodeDeciphered;
+            d.CanNewGamePlus = CanNewGamePlus;
+            //d.CanOpenMap = CanOpenMap;
+            d.CollectedOwls = CollectedOwls;
+            d.CollectedParts = CollectedParts;
+            d.CreationTime = CreationTime;
+            d.CubeShards = CubeShards;
+            d.FezHidden = FezHidden;
+            d.Finished32 = Finished32;
+            d.Finished64 = Finished64;
+            d.GlobalWaterLevelModifier = GlobalWaterLevelModifier;
+            d.Ground = Ground;
+            d.HasDoneHeartReboot = HasDoneHeartReboot;
+            //d.HasFPView = HasFPView;
+            d.HasHadMapHelp = HasHadMapHelp;
+            //d.HasStereo3D = HasStereo3D;
+            //d.IsNew = IsNew;
+            d.IsNewGamePlus = IsNewGamePlus;
+            d.Keys = Keys;
+            d.Level = Level;
+            d.MapCheatCodeDone = MapCheatCodeDone;
+            d.PiecesOfHeart = PiecesOfHeart;
+            d.PlayTime = PlayTime;
+            d.ScoreDirty = ScoreDirty;
+            d.ScriptingState = ScriptingState;
+            d.SecretCubes = SecretCubes;
+            d.SinceLastSaved = SinceLastSaved;
+            d.TimeOfDay = TimeOfDay;
+            d.View = View;
+            try
+            {
+                d.Artifacts.Clear();
+                d.Artifacts.AddRange(Artifacts);
+                d.EarnedAchievements.Clear();
+                d.EarnedAchievements.AddRange(EarnedAchievements);
+                d.EarnedGamerPictures.Clear();
+                d.EarnedGamerPictures.AddRange(EarnedGamerPictures);
+                d.Maps.Clear();
+                d.Maps.AddRange(Maps);
+                d.UnlockedWarpDestinations.Clear();
+                d.UnlockedWarpDestinations.AddRange(UnlockedWarpDestinations);
+                d.OneTimeTutorials.Clear();
+                foreach (string key in OneTimeTutorials.Keys)
+                {
+                    d.OneTimeTutorials.Add(key, OneTimeTutorials[key]);
+                }
+                foreach (string key2 in World.Keys)
+                {
+                    if (!d.World.ContainsKey(key2))
+                    {
+                        d.World.Add(key2, new LevelSaveData());
+                    }
+                    World[key2].CloneInto(d.World[key2]);
+                }
+                foreach (string key3 in d.World.Keys)
+                {
+                    if (!World.ContainsKey(key3))
+                    {
+                        d.World.Remove(key3);
+                    }
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                CloneInto(d);
+            }
+        }
     }
 
     public class LevelSaveData
@@ -137,6 +208,34 @@ namespace FezMultiplayerDedicatedServer
         #endregion
 
         public WinConditions FilledConditions = new WinConditions();
+
+        public void CloneInto(LevelSaveData d)
+        {
+            FilledConditions.CloneInto(d.FilledConditions);
+            d.FirstVisit = FirstVisit;
+            d.LastStableLiquidHeight = LastStableLiquidHeight;
+            d.ScriptingState = ScriptingState;
+            d.DestroyedTriles.Clear();
+            d.DestroyedTriles.AddRange(DestroyedTriles);
+            d.InactiveArtObjects.Clear();
+            d.InactiveArtObjects.AddRange(InactiveArtObjects);
+            d.InactiveEvents.Clear();
+            d.InactiveEvents.AddRange(InactiveEvents);
+            d.InactiveGroups.Clear();
+            d.InactiveGroups.AddRange(InactiveGroups);
+            d.InactiveNPCs.Clear();
+            d.InactiveNPCs.AddRange(InactiveNPCs);
+            d.InactiveTriles.Clear();
+            d.InactiveTriles.AddRange(InactiveTriles);
+            d.InactiveVolumes.Clear();
+            d.InactiveVolumes.AddRange(InactiveVolumes);
+            d.PivotRotations.Clear();
+            foreach (int key in PivotRotations.Keys)
+            {
+                d.PivotRotations.Add(key, PivotRotations[key]);
+            }
+        }
+
     }
 
     public class WinConditions
@@ -149,5 +248,19 @@ namespace FezMultiplayerDedicatedServer
         public int SplitUpCount = 0;
         public List<int> ScriptIds = new List<int>();
         public int SecretCount = 0;
+
+        public void CloneInto(WinConditions w)
+        {
+            w.LockedDoorCount = LockedDoorCount;
+            w.UnlockedDoorCount = UnlockedDoorCount;
+            w.ChestCount = ChestCount;
+            w.CubeShardCount = CubeShardCount;
+            w.OtherCollectibleCount = OtherCollectibleCount;
+            w.SplitUpCount = SplitUpCount;
+            w.SecretCount = SecretCount;
+            w.ScriptIds.Clear();
+            w.ScriptIds.AddRange(ScriptIds);
+        }
+
     }
 }

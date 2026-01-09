@@ -1079,7 +1079,7 @@ namespace FezMultiplayerDedicatedServer
             return SyncWorldState ? activeLevelStates : empty;
         }
 
-        private readonly SaveData sharedSaveData = new SaveData();
+        internal readonly SaveData sharedSaveData = new SaveData();
 
         protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
         {

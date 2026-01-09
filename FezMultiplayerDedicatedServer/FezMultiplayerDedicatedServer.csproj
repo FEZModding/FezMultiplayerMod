@@ -37,10 +37,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\Shared\IniTools.cs">
-      <Link>IniTools.cs</Link>
+      <Link>Shared\IniTools.cs</Link>
+    </Compile>
+    <Compile Include="..\Shared\SaveDataObserver.cs">
+      <Link>Shared\SaveDataObserver.cs</Link>
     </Compile>
     <Compile Include="..\Shared\Shared.cs">
-      <Link>Shared.cs</Link>
+      <Link>Shared\Shared.cs</Link>
     </Compile>
     <Compile Include="MultiplayerServer\FezCompatibilitySaveData.cs" />
     <Compile Include="MultiplayerServer\ServerAdvertiser.cs" />

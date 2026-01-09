@@ -226,7 +226,7 @@ namespace FezMultiplayerDedicatedServer
                         })
                     },
                 };
-        private static MultiplayerServerNetcode server;
+        internal static MultiplayerServerNetcode server;
         private static MultiplayerServerSettings settings;
         private static volatile bool running;
         private static readonly CommandLineCommand HelpCommand;

@@ -1,10 +1,14 @@
-﻿using FezEngine.Components;
+﻿#if FEZCLIENT
+using FezEngine.Components;
 using FezEngine.Services;
 using FezEngine.Structure;
 using FezEngine.Tools;
 using FezGame.Services;
 using FezGame.Structure;
 using Microsoft.Xna.Framework;
+#else
+using FezMultiplayerDedicatedServer;
+#endif
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,9 +16,12 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace FezGame.MultiplayerMod
+namespace FezSharedTools
 {
-    internal sealed class SaveDataObserver : GameComponent
+    internal sealed class SaveDataObserver
+#if FEZCLIENT
+: GameComponent
+#endif
     {
         public class SaveDataChanges
         {
@@ -89,18 +96,24 @@ namespace FezGame.MultiplayerMod
                 }
             }
         }
-
-        private IGameStateManager GameState { get; set; }
-        private IPlayerManager PM { get; set; }
-
         //internal static readonly string IDENTIFIER_SEPARATOR = ".";
         private const string IDENTIFIER_SEPARATOR = ".";
 
-        private SaveData CurrentSaveData => GameState?.SaveData;
+#if FEZCLIENT
+        private IGameStateManager GameState { get; set; }
+        private IPlayerManager PM { get; set; }
+#endif
+        private SaveData CurrentSaveData =>
+#if FEZCLIENT
+        GameState?.SaveData;
+#else
+        FezDedicatedServer.server.sharedSaveData;
+#endif
         private readonly SaveData OldSaveData = new SaveData();
 
         public event Action<SaveData, SaveDataChanges, bool> OnSaveDataChanged = (UpdatedSaveData, SaveDataChanges, SaveSlotChanged) => { };
 
+#if FEZCLIENT
         public SaveDataObserver(Game game) : base(game)
         {
             _ = Waiters.Wait(() =>
@@ -113,9 +126,19 @@ namespace FezGame.MultiplayerMod
                 PM = ServiceHelper.Get<IPlayerManager>();
             });
         }
+#else
+        public SaveDataObserver()
+        {
+        }
+#endif
         private static readonly SaveDataChanges newChanges = new SaveDataChanges();
         private static int lastSaveSlot = -1;
-        private int currentSaveSlot => GameState?.SaveSlot ?? -1;
+        private int currentSaveSlot =>
+#if FEZCLIENT
+        GameState?.SaveSlot ?? -1;
+#else
+        23;
+#endif
         private bool SaveSlotChanged
         {
             get
@@ -126,10 +149,15 @@ namespace FezGame.MultiplayerMod
             }
         }
 
+#if FEZCLIENT
         public override void Update(GameTime gameTime)
+#else
+        public void Update()
+#endif
         {
             //check a save file is actually loaded 
             if (CurrentSaveData != null && currentSaveSlot >= 0
+#if FEZCLIENT
                     && !GameState.Loading
                     && !GameState.TimePaused
                     //Note: GameState.TimePaused combines
@@ -143,7 +171,9 @@ namespace FezGame.MultiplayerMod
                     //&& !GameState.Paused && !GameState.ForceTimePaused && !GameState.InCutscene
 
                     //check the player actually exists
-                    && PM.CanControl && PM.Action != ActionType.None && !PM.Hidden)
+                    && PM.CanControl && PM.Action != ActionType.None && !PM.Hidden
+#endif
+                    )
             {
                 newChanges.ClearChanges();
 
