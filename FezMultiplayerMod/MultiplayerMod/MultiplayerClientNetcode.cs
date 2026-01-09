@@ -161,7 +161,6 @@ namespace FezGame.MultiplayerMod
                         {
                             throw new Exception("Could not connect to server", e);
                         }
-                        ConnectionSuccessful = true;
                         LogStatus(LogSeverity.Information, $"Connection to {endpoint} successful");
                         OnConnect();
                         while (true)
@@ -199,6 +198,7 @@ namespace FezGame.MultiplayerMod
                                 break;
                             }
                         }
+                        ConnectionSuccessful = true;
                         reader.Close();
                         writer.Close();
                         tcpStream.Close();
@@ -225,7 +225,6 @@ namespace FezGame.MultiplayerMod
                     catch (Exception e)//Connection failed, data read error, connection terminated by server, etc.
                     {
                         LogStatus(LogSeverity.Warning, $"Lost connection to {RemoteEndpoint}. Reason: {e.Message}");
-                        //TODO this does not properly handle scenarios where the connection is successful but an error occurs consistently after the initial connection.
                         if (wasSuccessfullyConnected)
                         {
                             LogStatus(LogSeverity.Information, $"Attempting to reconnect to {RemoteEndpoint} ...");
