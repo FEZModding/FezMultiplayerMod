@@ -11,6 +11,7 @@ using FezMultiplayerDedicatedServer;
 #endif
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -23,9 +24,9 @@ namespace FezSharedTools
     {
         public bool HasChanges => KeyedChanges.Any() || ListChanges.Any();
 
-        public List<ChangeInfo> Changes => KeyedChanges.Values.Cast<ChangeInfo>().Concat(ListChanges.Values).ToList();
-        public readonly Dictionary<string, KeyedChangeInfo> KeyedChanges = new Dictionary<string, KeyedChangeInfo>();
-        public readonly Dictionary<string, ChangeInfo> ListChanges = new Dictionary<string, ChangeInfo>();
+        private List<ChangeInfo> Changes => KeyedChanges.Values.Cast<ChangeInfo>().Concat(ListChanges.Values).ToList();
+        private readonly ConcurrentDictionary<string, KeyedChangeInfo> KeyedChanges = new ConcurrentDictionary<string, KeyedChangeInfo>();
+        private readonly ConcurrentDictionary<string, ChangeInfo> ListChanges = new ConcurrentDictionary<string, ChangeInfo>();
 
         public void ClearChanges()
         {
@@ -33,7 +34,7 @@ namespace FezSharedTools
             ListChanges.Clear();
         }
 
-        private List<string> ignoredKeys = new List<string>()
+        private static readonly List<string> ignoredKeys = new List<string>()
         {
             "AnyCodeDeciphered",
             "CanNewGamePlus",
@@ -54,10 +55,12 @@ namespace FezSharedTools
             "ScoreDirty",
             "TimeOfDay",
             "View",
+            "SinceLastSaved",
         };
-        private static readonly int ignoreLength = ("SaveData" + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR).Length;
-        private static readonly string SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED = Regex.Escape(SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR);
+        private static readonly int ignoreLength = ("SaveData" + SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR).Length;
+        private static readonly string SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED = Regex.Escape(SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR);
         private static readonly Regex ignoreWorldRegex = new Regex($@"^World{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}\w+{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}FirstVisit");
+        private static readonly Regex ignoreWorldLevelRegex = new Regex($@"^World{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}\w+$");
         internal void AddListChange(string containerIdentifier, object entry, ChangeType changeType)
         {
             containerIdentifier = containerIdentifier.Substring(ignoreLength);
@@ -70,8 +73,8 @@ namespace FezSharedTools
                 return;
             }
             //Note this collection should only have a single entry per unique containerIdentifier and field combo
-            string uniqueIdentifier = containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + entry;
-            ListChanges.Add(uniqueIdentifier, new ChangeInfo(changeType, containerIdentifier, entry));
+            string uniqueIdentifier = containerIdentifier + SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR + entry;
+            ListChanges[uniqueIdentifier] = new ChangeInfo(changeType, containerIdentifier, entry);
         }
         internal void AddKeyedChange(string uniqueIdentifier, object newval, object oldVal)
         {
@@ -80,18 +83,228 @@ namespace FezSharedTools
             {
                 return;
             }
+            if (ignoreWorldLevelRegex.IsMatch(uniqueIdentifier))
+            {
+                return;
+            }
             //Note this collection should only have a single entry per unique containerIdentifier and field combo
             if (KeyedChanges.TryGetValue(uniqueIdentifier, out KeyedChangeInfo change))
             {
                 oldVal = change.OldVal;
-                _ = KeyedChanges.Remove(uniqueIdentifier);
             }
-            KeyedChanges.Add(uniqueIdentifier, new KeyedChangeInfo(uniqueIdentifier, newval, oldVal, ChangeType.Keyed));
+            KeyedChanges[uniqueIdentifier] = new KeyedChangeInfo(uniqueIdentifier, newval, oldVal, ChangeType.Keyed);
         }
 
         public override string ToString()
         {
             return string.Join(Environment.NewLine, Changes);
+        }
+        private static readonly char SAVE_DATA_DATA_SEPARATOR = '\x1E';
+        private static readonly char SAVE_DATA_ENTRY_SEPARATOR = '\x1D';
+        private static readonly string SAVE_DATA_ENTRY_SEPARATOR_STR = SAVE_DATA_ENTRY_SEPARATOR.ToString();
+        private static readonly char SAVE_DATA_IDENTIFIER_SEPARATOR_STR = SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR[0];
+        public byte[] Serialize()
+        {
+            return SharedConstants.UTF8.GetBytes(string.Join(SAVE_DATA_ENTRY_SEPARATOR_STR, Changes.Where(c=>c!=null).Select(c=>
+            {
+                return c.ContainerIdentifier + SAVE_DATA_DATA_SEPARATOR + ((int)c.ChangeType) + SAVE_DATA_DATA_SEPARATOR + ConvertToString(c.Value);
+            })));
+        }
+        private static string ConvertToString(object obj)
+        {
+            Type t = obj.GetType();
+            var m = t.GetMethod("Parse", new Type[] { typeof(string) });
+            if(m!=null)
+            {
+                return "" + obj;
+            }
+            if(t.Equals(typeof(TrileEmplacement)))
+            {
+                TrileEmplacement emplacement = (TrileEmplacement)obj;
+                return emplacement.X + ";" + emplacement.Y + ";" + emplacement.Z;
+            }
+            if(t.Equals(typeof(Vector3)))
+            {
+                Vector3 vector = (Vector3)obj;
+                return vector.X + ";" + vector.Y + ";" + vector.Z;
+            }
+            if(t.Equals(typeof(TimeSpan)))
+            {
+                TimeSpan ts = (TimeSpan)obj;
+                return "" + ts.Ticks;
+            }
+            //TODO maybe handle other types like TimeSpan
+            if (t.IsEnum)
+            {
+                return "" + (int)obj;
+            }
+            System.Diagnostics.Debugger.Launch();
+            System.Diagnostics.Debugger.Break();
+            throw new ArgumentException($"Type {t.Name} is not handled by this method.", nameof(obj));
+        }
+        private static object ParseToType(Type t, string val)
+        {
+            var m = t.GetMethod("Parse", new Type[] { typeof(string) });
+            if(m!=null)
+            {
+                return m.Invoke(null, new object[] { val });
+            }
+            if (t.Equals(typeof(TrileEmplacement)))
+            {
+                int[] xyz = val.Split(';').Select(int.Parse).ToArray();
+                return new TrileEmplacement(xyz[0], xyz[1], xyz[2]);
+            }
+            if (t.Equals(typeof(Vector3)))
+            {
+                float[] xyz = val.Split(';').Select(float.Parse).ToArray();
+                return new Vector3(xyz[0], xyz[1], xyz[2]);
+            }
+            if (t.Equals(typeof(TimeSpan)))
+            {
+                return new TimeSpan(long.Parse(val));
+            }
+            //TODO maybe handle other types like Vector3 and TimeSpan
+            if (t.IsEnum)
+            {
+                return int.Parse(val);
+            }
+            System.Diagnostics.Debugger.Launch();
+            System.Diagnostics.Debugger.Break();
+            throw new ArgumentException($"Type {t.Name} is not handled by this method.", nameof(t));
+        }
+        private static readonly Type dictType = typeof(IDictionary);
+        private static readonly Type listType = typeof(IList);
+        public static void DeserializeAndProcess(byte[] bytes)
+        {
+            lock (SaveDataObserver.saveDataLock)
+            {
+                SaveData saveData = SaveDataObserver.Instance.CurrentSaveData;
+                var entries = SharedConstants.UTF8.GetString(bytes).Split(SAVE_DATA_ENTRY_SEPARATOR);
+
+                List<string> ChangeLog = new List<string>();
+                foreach (var entry in entries)
+                {
+                    try
+                    {
+                        string[] r = entry.Split(SAVE_DATA_DATA_SEPARATOR);
+                        if (ignoredKeys.Contains(r[0]) || ignoreWorldRegex.IsMatch(r[0]))
+                        {
+                            continue;
+                        }
+                        string[] keys = r[0].Split(SAVE_DATA_IDENTIFIER_SEPARATOR_STR);
+                        ChangeType changeType = int.TryParse(r[1], out int t) ? (ChangeType)t : ChangeType.None;
+                        string val = r[2];
+                        Type currType = typeof(SaveData);
+                        object currObj = saveData;
+                        FieldInfo f = null;
+                        for (int i = 0; i < keys.Length; ++i)
+                        {
+                            string key = keys[i];
+                            if (dictType.IsAssignableFrom(currType))
+                            {
+                                IDictionary v = (IDictionary)currObj;
+                                Type[] args = currType.GetGenericArguments();
+                                Type ktype = args[0];
+                                Type gtype = args[1];
+                                object k = key;
+                                bool entryAdded = false;
+                                if (!ktype.Equals(typeof(string)))
+                                {
+                                    k = ParseToType(ktype, key);
+                                }
+                                if (!v.Contains(k))
+                                {
+                                    v.Add(k, Activator.CreateInstance(gtype));
+                                    entryAdded = true;
+                                }
+                                currObj = v[k];
+                                currType = gtype;
+                                if (i == keys.Length - 1)
+                                {
+                                    if (!entryAdded)
+                                    {
+                                        object g = val;
+                                        if (!gtype.Equals(typeof(string)) && gtype.IsValueType)
+                                        {
+                                            g = ParseToType(gtype, val);
+                                        }
+                                        v[k] = g;
+                                    }
+                                    ChangeLog.Add($"Added entry \"{val}\" to {r[0]}");
+                                }
+                            }
+                            else
+                            {
+                                f = currType.GetField(key);
+                                object parent = currObj;
+                                currObj = f.GetValue(currObj);
+                                currType = f.FieldType;
+                                if (i == keys.Length - 1)
+                                {
+                                    object g = val;
+                                    bool valChanged = false;
+                                    if (!currType.Equals(typeof(string)))
+                                    {
+                                        if (listType.IsAssignableFrom(currType))
+                                        {
+                                            IList v = (IList)currObj;
+                                            Type listType = currType.GetGenericArguments()[0];
+                                            g = ParseToType(listType, val);
+                                            switch (changeType)
+                                            {
+                                            case ChangeType.List_Add:
+                                                //TODO
+                                                if (!v.Contains(g))
+                                                {
+                                                    v.Add(g);
+                                                }
+                                                valChanged = true;
+                                                ChangeLog.Add($"Added entry \"{g}\" to {r[0]}");
+                                                break;
+                                            case ChangeType.List_Remove:
+                                                v.Remove(g);
+                                                valChanged = true;
+                                                ChangeLog.Add($"Removed entry \"{g}\" from {r[0]}");
+                                                break;
+                                            case ChangeType.None:
+                                            case ChangeType.Keyed:
+                                            default:
+                                                //these shouldn't happen here
+                                                System.Diagnostics.Debugger.Launch();
+                                                System.Diagnostics.Debugger.Break();
+                                                break;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            g = currType.GetMethod("Parse", new Type[] { typeof(string) }).Invoke(null, new object[] { val });
+                                            f.SetValue(parent, g);
+                                            valChanged = true;
+                                            ChangeLog.Add($"Set {r[0]} to {g}");
+                                        }
+                                    }
+                                    if (!valChanged)
+                                    {
+                                        System.Diagnostics.Debugger.Break();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        //TODO ignore exceptions? 
+                        System.Diagnostics.Debug.WriteLine(e);
+                        System.Diagnostics.Debugger.Launch();
+                        System.Diagnostics.Debugger.Break();
+                    }
+                }
+                if (entries.Length != ChangeLog.Count)
+                {
+                    System.Diagnostics.Debugger.Launch();
+                    System.Diagnostics.Debugger.Break();
+                }
+            }
         }
         public enum ChangeType
         {
@@ -138,11 +351,14 @@ namespace FezSharedTools
 : GameComponent
 #endif
     {
+        internal static readonly object saveDataLock = new object();
+        public const string SAVE_DATA_IDENTIFIER_SEPARATOR = "\x1F";
+
 #if FEZCLIENT
         private IGameStateManager GameState { get; set; }
         private IPlayerManager PM { get; set; }
 #endif
-        private SaveData CurrentSaveData =>
+        internal SaveData CurrentSaveData =>
 #if FEZCLIENT
         GameState?.SaveData;
 #else
@@ -169,6 +385,7 @@ namespace FezSharedTools
 #else
         public SaveDataObserver()
         {
+            Instance = this;
         }
 #endif
         internal static readonly SaveDataChanges newChanges = new SaveDataChanges();
@@ -222,8 +439,10 @@ namespace FezSharedTools
                 }
                 else
                 {
-                    CheckType(newChanges, typeof(SaveData), "SaveData", CurrentSaveData, OldSaveData);
-
+                    lock (saveDataLock)
+                    {
+                        CheckType(newChanges, typeof(SaveData), "SaveData", CurrentSaveData, OldSaveData);
+                    }
                     //update old data
                     CurrentSaveData.CloneInto(OldSaveData);
                 }
@@ -259,7 +478,7 @@ namespace FezSharedTools
                 if (!object.Equals(currentVal, oldVal))
                 {
                     //value changed
-                    changes.AddKeyedChange(containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
+                    changes.AddKeyedChange(containerIdentifier + SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
                 }
             }
             else if (typeof(string).IsAssignableFrom(fieldType))
@@ -267,7 +486,7 @@ namespace FezSharedTools
                 if (!string.Equals((string)currentVal, (string)oldVal, StringComparison.Ordinal))
                 {
                     //value changed
-                    changes.AddKeyedChange(containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
+                    changes.AddKeyedChange(containerIdentifier + SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
                 }
             }
             // handle collections like Lists
@@ -292,12 +511,12 @@ namespace FezSharedTools
                     // add changes to changes
                     addedVals.ForEach(addedVal =>
                     {
-                        changes.AddListChange(containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, addedVal, SaveDataChanges.ChangeType.List_Add);
+                        changes.AddListChange(containerIdentifier + SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, addedVal, SaveDataChanges.ChangeType.List_Add);
                     });
                     removedVals.ForEach(removedVal =>
                     {
                             //TODO? idk if this ever actually happens, but should probably implement it somehow
-                            changes.AddListChange(containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, removedVal, SaveDataChanges.ChangeType.List_Remove);
+                            changes.AddListChange(containerIdentifier + SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, removedVal, SaveDataChanges.ChangeType.List_Remove);
                     });
                 }
             }
@@ -321,16 +540,16 @@ namespace FezSharedTools
                 // Find keys in oldVal_dict that are not in currentVal_dict
                 List<object> onlyInoldVal_dictKeys = oldVal_dictKeys.Except(currentVal_dictKeys).ToList();
 
-                string containerID = containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name;
+                string containerID = containerIdentifier + SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name;
                 onlyIncurrentVal_dictKeys.ForEach(k =>
                 {
-                    string containerID_withKey = containerID + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + k.ToString();
+                    string containerID_withKey = containerID + SAVE_DATA_IDENTIFIER_SEPARATOR + k.ToString();
                     object val = currentVal_dict[k];
                     changes.AddKeyedChange(containerID_withKey, val, null);
                 });
                 onlyInoldVal_dictKeys.ForEach(k =>
                 {
-                    string containerID_withKey = containerID + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + k.ToString();
+                    string containerID_withKey = containerID + SAVE_DATA_IDENTIFIER_SEPARATOR + k.ToString();
                     object val = oldVal_dict[k];
                     changes.AddKeyedChange(containerID_withKey, null, val);
                 });
@@ -340,7 +559,7 @@ namespace FezSharedTools
                 {
                     object value1 = currentVal_dict[key];
                     object value2 = oldVal_dict[key];
-                    string containerID_withKey = containerID + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + key.ToString();
+                    string containerID_withKey = containerID + SAVE_DATA_IDENTIFIER_SEPARATOR + key.ToString();
                     void ComparePrimitive()
                     {
                         if (!Equals(value1, value2))
@@ -380,10 +599,10 @@ namespace FezSharedTools
             {
                 //It must be a non-enumerable object of some kind
                 // handle non-enumerable object types like LevelSaveData and WinConditions
-                CheckType(changes, fieldType, containerIdentifier + SharedConstants.SAVE_DATA_IDENTIFIER_SEPARATOR + fieldType.Name, currentVal, oldVal);
+                CheckType(changes, fieldType, containerIdentifier + SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, currentVal, oldVal);
             }
         }
-        private static readonly Dictionary<Type, FieldInfo[]> cachedTypeFieldInfoMap = new Dictionary<Type, FieldInfo[]>();
+        private static readonly ConcurrentDictionary<Type, FieldInfo[]> cachedTypeFieldInfoMap = new ConcurrentDictionary<Type, FieldInfo[]>();
         /// <summary>
         /// Uses reflection to recursively iterate through all the values for all the fields 
         /// and add the changes to the supplied <see cref="SaveDataChanges"/> object.
@@ -403,7 +622,7 @@ namespace FezSharedTools
             if (!cachedTypeFieldInfoMap.TryGetValue(containingType, out fields))
             {
                 fields = containingType.GetFields(BindingFlags.Public | BindingFlags.Instance);
-                cachedTypeFieldInfoMap.Add(containingType, fields);
+                cachedTypeFieldInfoMap[containingType] = fields;
             }
 
             foreach (FieldInfo field in fields)

@@ -161,7 +161,7 @@ namespace FezMultiplayerDedicatedServer
                 d.OneTimeTutorials.Clear();
                 foreach (string key in OneTimeTutorials.Keys)
                 {
-                    d.OneTimeTutorials.Add(key, OneTimeTutorials[key]);
+                    d.OneTimeTutorials[key] = OneTimeTutorials[key];
                 }
                 foreach (string key2 in World.Keys)
                 {

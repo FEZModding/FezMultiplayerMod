@@ -502,8 +502,7 @@ namespace FezMultiplayerDedicatedServer
                             //ignore exceptions that aren't from players
                             if (isPlayer)
                             {
-                                SocketException se = e.InnerException as SocketException;
-                                if (se != null)
+                                if (e.InnerException is SocketException se)
                                 {
 #pragma warning disable IDE0010 // Add missing cases
                                     switch (se.SocketErrorCode)
@@ -559,7 +558,7 @@ namespace FezMultiplayerDedicatedServer
             }
         }
 
-        private SaveDataUpdate? GetSaveDataUpdate(Guid uuid)
+        private SaveDataChanges GetSaveDataUpdate(Guid uuid)
         {
             //TODO use uuid to keep track of what changes the client needs
             if (!SyncWorldState)
@@ -568,7 +567,7 @@ namespace FezMultiplayerDedicatedServer
             }
             if (SaveDataObserver.newChanges.HasChanges)
             {
-                return new SaveDataUpdate(SaveDataObserver.newChanges);
+                return SaveDataObserver.newChanges;
             }
             return null;
         }
@@ -1093,18 +1092,6 @@ namespace FezMultiplayerDedicatedServer
         }
 
         internal readonly SaveData sharedSaveData = new SaveData();
-
-        protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
-        {
-            if (!SyncWorldState)
-            {
-                return;
-            }
-            //TODO not yet implemented
-            System.Diagnostics.Debugger.Launch();
-            System.Diagnostics.Debugger.Break();
-            throw new NotImplementedException();
-        }
 
         protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
         {

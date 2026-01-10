@@ -80,7 +80,7 @@ namespace FezGame.MultiplayerMod
         protected override ActiveLevelState GetCurrentLevelState()
         {
             //TODO not yet implemented
-            if (TODO_Debug_EnableLevelStateSync)
+            if (SharedConstants.TODO_Debug_EnableLevelStateSync)
             {
                 System.Diagnostics.Debugger.Launch();
                 System.Diagnostics.Debugger.Break();
@@ -88,22 +88,12 @@ namespace FezGame.MultiplayerMod
             return new ActiveLevelState();
         }
 
-        protected override void ProcessSaveDataUpdate(SaveDataUpdate saveDataUpdate)
-        {
-            if (SyncWorldState)
-            {
-                //TODO not yet implemented
-                System.Diagnostics.Debugger.Launch();
-                System.Diagnostics.Debugger.Break();
-            }
-        }
-
         protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
         {
             if (SyncWorldState)
             {
                 //TODO not yet implemented
-                if (TODO_Debug_EnableLevelStateSync)
+                if (SharedConstants.TODO_Debug_EnableLevelStateSync)
                 {
                     System.Diagnostics.Debugger.Launch();
                     System.Diagnostics.Debugger.Break();
@@ -124,8 +114,8 @@ namespace FezGame.MultiplayerMod
             if (SyncWorldState)
             {
                 //TODO not yet implemented
-                System.Diagnostics.Debugger.Launch();
-                System.Diagnostics.Debugger.Break();
+                //System.Diagnostics.Debugger.Launch();
+                //System.Diagnostics.Debugger.Break();
             }
         }
     }

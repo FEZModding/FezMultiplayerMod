@@ -149,11 +149,10 @@ namespace FezGame.MultiplayerMod
                     {
                         bool retransmitAppearanceRequested = false;
                         bool requestSavaData = false;
-                        long newTimeOfDay_ticks = 0;
                         Stopwatch stopwatch = Stopwatch.StartNew();
                         try
                         {
-                            ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested, ref newTimeOfDay_ticks);
+                            ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
                             WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, MyAppearance, UnknownPlayerAppearanceGuids.Keys, false, requestSavaData);
                         }
                         catch (System.IO.EndOfStreamException e)
@@ -165,7 +164,7 @@ namespace FezGame.MultiplayerMod
                         while (true)
                         {
                             stopwatch.Restart();
-                            ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested, ref newTimeOfDay_ticks);
+                            ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
                             if (!disconnectRequested)
                             {
                                 ActiveLevelState? activeLevelState = null;
@@ -174,10 +173,10 @@ namespace FezGame.MultiplayerMod
                                     activeLevelState = GetCurrentLevelState();
                                 }
 
-                                SaveDataUpdate? saveDataUpdate = null;
+                                SaveDataChanges saveDataUpdate = null;
                                 if (SyncWorldState && SaveDataObserver.newChanges.HasChanges)
                                 {
-                                    saveDataUpdate = new SaveDataUpdate(SaveDataObserver.newChanges);
+                                    saveDataUpdate = SaveDataObserver.newChanges;
                                 }
                                 //transmit MyAppearance whenever its value changes 
                                 PlayerAppearance? appearance = null;
