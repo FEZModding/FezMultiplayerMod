@@ -277,7 +277,7 @@ namespace FezSharedTools
                                         }
                                         else
                                         {
-                                            g = currType.GetMethod("Parse", new Type[] { typeof(string) }).Invoke(null, new object[] { val });
+                                            g = ParseToType(currType, val);
                                             f.SetValue(parent, g);
                                             valChanged = true;
                                             ChangeLog.Add($"Set {r[0]} to {g}");
