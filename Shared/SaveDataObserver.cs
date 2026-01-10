@@ -161,12 +161,12 @@ namespace FezSharedTools
             }
             if (t.Equals(typeof(TimeSpan)))
             {
-                return new TimeSpan(long.Parse(val));
+                return Enum.ToObject(t, int.Parse(val));
             }
             //TODO maybe handle other types like Vector3 and TimeSpan
             if (t.IsEnum)
             {
-                return int.Parse(val);
+                return Enum.ToObject(t, int.Parse(val));
             }
             System.Diagnostics.Debugger.Launch();
             System.Diagnostics.Debugger.Break();
@@ -412,8 +412,10 @@ namespace FezSharedTools
         public void Update()
 #endif
         {
-            //check a save file is actually loaded 
-            if (CurrentSaveData != null && CurrentSaveSlot >= 0
+            lock (saveDataLock)
+            {
+                //check a save file is actually loaded 
+                if (CurrentSaveData != null && CurrentSaveSlot >= 0
 #if FEZCLIENT
                     && !GameState.Loading
                     && !GameState.TimePaused
@@ -431,20 +433,18 @@ namespace FezSharedTools
                     && PM.CanControl && PM.Action != ActionType.None && !PM.Hidden
 #endif
                     )
-            {
-                if (SaveSlotChanged)
                 {
-                    newChanges.ClearChanges();
-                    CurrentSaveData.CloneInto(OldSaveData);
-                }
-                else
-                {
-                    lock (saveDataLock)
+                    if (SaveSlotChanged)
+                    {
+                        newChanges.ClearChanges();
+                        CurrentSaveData.CloneInto(OldSaveData);
+                    }
+                    else
                     {
                         CheckType(newChanges, typeof(SaveData), "SaveData", CurrentSaveData, OldSaveData);
+                        //update old data
+                        CurrentSaveData.CloneInto(OldSaveData);
                     }
-                    //update old data
-                    CurrentSaveData.CloneInto(OldSaveData);
                 }
             }
         }
