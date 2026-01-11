@@ -429,9 +429,12 @@ namespace FezMultiplayerDedicatedServer
                                 Queue<long> SpeedUpDown = new Queue<long>(100);
                                 //send them our data and get player appearance from client
                                 Stopwatch stopwatch = Stopwatch.StartNew();
-                                WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
-                                        null, GetActiveLevelStates(), DisconnectedPlayers.Keys,
-                                        PlayerAppearances, uuid, false, sharedSaveData, sharedSaveData.TimeOfDay);
+                                lock (SaveDataObserver.saveDataLock)
+                                {
+                                    WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
+                                            null, GetActiveLevelStates(), DisconnectedPlayers.Keys,
+                                            PlayerAppearances, uuid, false, sharedSaveData, sharedSaveData.TimeOfDay);
+                                }
                                 MiscClientData clientData = new MiscClientData(null, false, new HashSet<Guid>(MiscClientData.MaxRequestedAppearancesSize), false);
                                 ReadClientGameTickPacket(reader, ref clientData, uuid);
                                 SpeedUpDown.Enqueue(stopwatch.ElapsedTicks);
@@ -485,9 +488,12 @@ namespace FezMultiplayerDedicatedServer
                                         _ = SpeedUpDown.Dequeue();
                                     }
                                     stopwatch.Restart();
-                                    WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
+                                    lock (SaveDataObserver.saveDataLock)
+                                    {
+                                        WriteServerGameTickPacket(writer, Players.Values.Cast<PlayerMetadata>().ToList(),
                                             GetSaveDataUpdate(uuid), GetActiveLevelStates(), DisconnectedPlayers.Keys,
                                             GetPlayerAppearances(PlayerAppearancesFilter), null, requestAppearance, ResendSaveData ? sharedSaveData : null, sharedSaveData.TimeOfDay);
+                                    }
                                     ReadClientGameTickPacket(reader, ref clientData, uuid);
                                     SpeedUpDown.Enqueue(stopwatch.ElapsedTicks);
                                     Disconnecting = clientData.Disconnecting;

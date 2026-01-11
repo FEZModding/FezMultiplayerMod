@@ -174,18 +174,22 @@ namespace FezGame.MultiplayerMod
                                 }
 
                                 SaveDataChanges saveDataUpdate = null;
-                                if (SyncWorldState && SaveDataObserver.newChanges.HasChanges)
+                                lock (SaveDataObserver.saveDataLock)
                                 {
-                                    saveDataUpdate = SaveDataObserver.newChanges;
+                                    if (SyncWorldState && SaveDataObserver.newChanges.HasChanges)
+                                    {
+                                        saveDataUpdate = SaveDataObserver.newChanges;
+                                    }
+                                    //transmit MyAppearance whenever its value changes 
+                                    PlayerAppearance? appearance = null;
+                                    if (retransmitAppearanceRequested || MyAppearanceChanged)
+                                    {
+                                        appearance = MyAppearance;
+                                        MyAppearanceChanged = false;
+                                    }
+                                    WriteClientGameTickPacket(writer, MyPlayerMetadata, saveDataUpdate, activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false, requestSavaData);
+                                    SaveDataObserver.newChanges.ClearChanges();
                                 }
-                                //transmit MyAppearance whenever its value changes 
-                                PlayerAppearance? appearance = null;
-                                if (retransmitAppearanceRequested || MyAppearanceChanged)
-                                {
-                                    appearance = MyAppearance;
-                                    MyAppearanceChanged = false;
-                                }
-                                WriteClientGameTickPacket(writer, MyPlayerMetadata, saveDataUpdate, activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false, requestSavaData);
                                 ConnectionLatencyUpDown = (uint)stopwatch.ElapsedTicks;
                             }
                             else
