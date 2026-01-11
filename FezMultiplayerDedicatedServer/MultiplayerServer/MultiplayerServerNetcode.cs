@@ -1061,7 +1061,8 @@ namespace FezMultiplayerDedicatedServer
                 $"</head>" +
                 $"<body>TODO: if this page is opened on localhost, add buttons do kick/ban players?" +
                 $"<pre>{ProtocolSignature} netcode version \"{ProtocolVersion}\"</pre>" +
-                $"<div class=\"infoContainer\"><span class=\"label\">Connection status:</span><span id=\"connStatus\" data-status=\"\">Unknown</span> <span id=\"connStatusDesc\"></span> " +
+                $"<div class=\"infoContainer\" style=\"position: sticky;top: 0;z-index: 4;background-color: color-mix(in srgb, Canvas, transparent 30%);\">" +
+                $"  <span class=\"label\">Connection status:</span><span id=\"connStatus\" data-status=\"\">Unknown</span> <span id=\"connStatusDesc\"></span> " +
                     $"<button style=\"display: none\" id=\"reconnectButton\" type=\"button\" onclick=\"connect()\">Reconnect</button>" +
                 $"</div>" +
                 $"<div class=\"infoContainer\"><span class=\"label\">Server time of day:</span><span id=\"serverToD\">Unknown</span></div>" +
