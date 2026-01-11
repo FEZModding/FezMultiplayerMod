@@ -686,6 +686,7 @@ namespace FezMultiplayerDedicatedServer
             const string Uri_disconnects = "disconnects.dat";
             const string Uri_websocketUsers = "websocketusers.dat";
             const string Uri_connectionLog = "connectionLog.dat";
+            const string Uri_savedata = "save.dat";
             if (uriProviders == null)
             {
                 uriProviders = new Dictionary<string, (string, Func<bool, string>)>(){
@@ -705,6 +706,16 @@ namespace FezMultiplayerDedicatedServer
                     }) },
                     {Uri_appearances, ("text/plain", (_)=>string.Join("\n", PlayerAppearances.Select(kv => kv.Key+"\t"+kv.Value.PlayerName))) },
                     {Uri_disconnects, ("text/plain", (_)=>string.Join("\n", DisconnectedPlayers.Keys)) },
+                    {Uri_savedata, ("text/plain", (_)=>{
+                        byte[] bytes = new byte[0];
+                        using (MemoryStream ms = new MemoryStream())
+                        using (BinaryWriter writer = new BinaryWriter(ms))
+                        {
+                            writer.Write(sharedSaveData);
+                            bytes = ms.ToArray();
+                        }
+                        return Convert.ToBase64String(bytes);
+                    }) },
                     {Uri_websocketUsers, ("text/plain", (loopback)=>{
                         if (loopback){
                             return string.Join("\n", WebsocketUsers.Select(kp => kp.Key + "\t"
@@ -828,6 +839,14 @@ namespace FezMultiplayerDedicatedServer
                         border-block-end: 1px solid currentColor;
                     }}
                 }}
+                #savefileviewer {{
+                    width: 100%;
+                    box-sizing: border-box;
+                    height: 100vh;
+                    position: absolute;
+                    left: 0;
+                    right: 0;
+                }}
                 " +
                 #endregion webinterface_style
                 $"</style>" +
@@ -860,10 +879,12 @@ namespace FezMultiplayerDedicatedServer
                     const connStatusDesc=document.getElementById('connStatusDesc');
                     const reconnectButton=document.getElementById('reconnectButton');
                     const serverToD=document.getElementById('serverToD');
+                    const savefileviewer=document.getElementById('savefileviewer');
                     const tbod = pdat.tBodies[0] ?? pdat.createTBody();
                     const wsUri = 'ws://'+location.host+'/{Uri_players}';
                     reconnectButton.style.display = 'none';
                     connStatus.textContent = 'CONNECTING...';
+                    savefileviewer.contentWindow.postMessage('mode:noedit', '*');
                     websocket = new WebSocket(wsUri);
                     let errored = false;
                     websocket.addEventListener('open', () => {{
@@ -921,6 +942,7 @@ namespace FezMultiplayerDedicatedServer
                     }};
                     var lastAppearenceCheck = -Infinity;
                     var lastDisconnectCheck = -Infinity;
+                    var lastSaveDataCheck = -Infinity;
                     var wsuCheck = -Infinity;
                     var clgCheck = -Infinity;
                     websocket.addEventListener('message', (e) => {{
@@ -983,6 +1005,9 @@ namespace FezMultiplayerDedicatedServer
                             case '{Uri_disconnects}':
                                 message.split(""\n"").forEach(uuid=>tbod.querySelector('[data-uuid=""'+uuid+'""]')?.remove());
                                 break;
+                            case '{Uri_savedata}':
+                                savefileviewer.contentWindow.postMessage('loadsave:' + message, '*');
+                                break;
                             case '{Uri_appearances}':
                                 message.split(""\n"").forEach(a=>{{
                                     var sepLoc = a.indexOf(""\t"");
@@ -1015,6 +1040,9 @@ namespace FezMultiplayerDedicatedServer
                             }}else if(performance.now() - lastDisconnectCheck > 1000){{
                                 lastDisconnectCheck = performance.now();
                                 websocket.send('{Uri_disconnects}');
+                            }}else if(performance.now() - lastSaveDataCheck > 1000){{
+                                lastSaveDataCheck = performance.now();
+                                websocket.send('{Uri_savedata}');
                             }}{(isLoopback ? $@"else if(performance.now() - wsuCheck > 1000){{
                                 wsuCheck = performance.now();
                                 websocket.send('{Uri_websocketUsers}');
@@ -1043,6 +1071,7 @@ namespace FezMultiplayerDedicatedServer
                 $"<div class=\"infoContainer\"><span class=\"label\">Websocket Users:</span><pre id=\"{Uri_websocketUsers}\"></pre></div>" +
                 $"<div class=\"infoContainer\"><span class=\"label\">Connection Log:</span><pre id=\"{Uri_connectionLog}\"></pre></div>"
                 : "")+
+                $"<div class=\"infoContainer\" style=\"height: calc(100vh + 1lh);\"><span class=\"label\">Save Data:</span><br /><iframe id=\"savefileviewer\" src=\"https://jenna1337.github.io/FezTools/FezSaveFileEditor.html#noedit\"></iframe></div>" +
                 $"</body>" +
                 $"</html>";
                 contentType = "text/html";
