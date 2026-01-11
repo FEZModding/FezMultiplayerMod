@@ -112,7 +112,15 @@ namespace FezSharedTools
         }
         private static string ConvertToString(object obj)
         {
+            if(obj == null)
+            {
+                return null;
+            }
             Type t = obj.GetType();
+            if(t.Equals(typeof(string)))
+            {
+                return (string)obj;
+            }
             var m = t.GetMethod("Parse", new Type[] { typeof(string) });
             if(m!=null)
             {
@@ -144,6 +152,15 @@ namespace FezSharedTools
         }
         private static object ParseToType(Type t, string val)
         {
+            Type nt = Nullable.GetUnderlyingType(t);
+            if(nt != null)
+            {
+                t = nt;
+                if (val == "")
+                {
+                    return null;
+                }
+            }
             var m = t.GetMethod("Parse", new Type[] { typeof(string) });
             if(m!=null)
             {
@@ -182,6 +199,7 @@ namespace FezSharedTools
                 var entries = SharedConstants.UTF8.GetString(bytes).Split(SAVE_DATA_ENTRY_SEPARATOR);
 
                 List<string> ChangeLog = new List<string>();
+                int validEntries = 0;
                 foreach (var entry in entries)
                 {
                     try
@@ -191,6 +209,7 @@ namespace FezSharedTools
                         {
                             continue;
                         }
+                        validEntries += 1;
                         string[] keys = r[0].Split(SAVE_DATA_IDENTIFIER_SEPARATOR_STR);
                         ChangeType changeType = int.TryParse(r[1], out int t) ? (ChangeType)t : ChangeType.None;
                         string val = r[2];
@@ -243,7 +262,13 @@ namespace FezSharedTools
                                 {
                                     object g = val;
                                     bool valChanged = false;
-                                    if (!currType.Equals(typeof(string)))
+                                    if (currType.Equals(typeof(string)))
+                                    {
+                                        f.SetValue(parent, g);
+                                        valChanged = true;
+                                        ChangeLog.Add($"Set {r[0]} to {g}");
+                                    }
+                                    else
                                     {
                                         if (listType.IsAssignableFrom(currType))
                                         {
@@ -299,7 +324,7 @@ namespace FezSharedTools
                         System.Diagnostics.Debugger.Break();
                     }
                 }
-                if (entries.Length != ChangeLog.Count)
+                if (validEntries != ChangeLog.Count)
                 {
                     System.Diagnostics.Debugger.Launch();
                     System.Diagnostics.Debugger.Break();
