@@ -348,6 +348,7 @@ namespace FezSharedTools
         {
             //Note: this method reads save data from the network, but does not process it
             SaveData saveData = new SaveData();
+            long _ = r.ReadInt64();//from Common
             long num = r.ReadInt64();
             if (num != 6)
             {
@@ -442,6 +443,7 @@ namespace FezSharedTools
             saveData.ScoreDirty = true;
             saveData.HasDoneHeartReboot = r.ReadBoolean();
             saveData.PlayTime = r.ReadInt64();
+            bool isNew = r.ReadBoolean();
 #if FEZCLIENT
             saveData.IsNew = string.IsNullOrEmpty(saveData.Level) || saveData.CanNewGamePlus || saveData.World.Count == 0;
             saveData.HasFPView |= saveData.HasStereo3D;
@@ -519,8 +521,9 @@ namespace FezSharedTools
             return winConditions;
         }
 #if !FEZCLIENT
-        public static void Write(this BinaryNetworkWriter w, SaveData sd)
+        public static void Write(this BinaryWriter w, SaveData sd)
         {
+            w.Write(DateTime.Now.ToFileTime());//from Common
             w.Write(6L);
             w.Write(sd.CreationTime);
             w.Write(sd.Finished32);
@@ -587,9 +590,9 @@ namespace FezSharedTools
             w.Write(sd.ScoreDirty);
             w.Write(sd.HasDoneHeartReboot);
             w.Write(sd.PlayTime);
-            //w.Write(sd.IsNew);//this flag gets written to the end of normal save files in the game, but it is never read
+            w.Write(sd.IsNew);//this flag gets written to the end of normal save files in the game, but it is never read
         }
-        private static void WriteLevelSaveData(BinaryNetworkWriter w, LevelSaveData lsd)
+        private static void WriteLevelSaveData(BinaryWriter w, LevelSaveData lsd)
         {
             w.Write(lsd.DestroyedTriles.Count);
             foreach (TrileEmplacement destroyedTrile in lsd.DestroyedTriles)
@@ -637,7 +640,7 @@ namespace FezSharedTools
             w.Write(lsd.FirstVisit);
             WriteWonditions(w, lsd.FilledConditions);
         }
-        private static void WriteWonditions(BinaryNetworkWriter w, WinConditions wc)
+        private static void WriteWonditions(BinaryWriter w, WinConditions wc)
         {
             w.Write(wc.LockedDoorCount);
             w.Write(wc.UnlockedDoorCount);
