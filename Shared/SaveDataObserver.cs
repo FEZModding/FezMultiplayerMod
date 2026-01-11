@@ -161,6 +161,10 @@ namespace FezSharedTools
                     return null;
                 }
             }
+            if(t.Equals(typeof(string)))
+            {
+                return val;
+            }
             var m = t.GetMethod("Parse", new Type[] { typeof(string) });
             if(m!=null)
             {
