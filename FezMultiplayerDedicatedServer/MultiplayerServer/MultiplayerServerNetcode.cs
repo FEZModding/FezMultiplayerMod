@@ -573,7 +573,7 @@ namespace FezMultiplayerDedicatedServer
             }
             if (SaveDataObserver.newChanges.HasChanges)
             {
-                return SaveDataObserver.newChanges;
+                return null;// SaveDataObserver.newChanges;
             }
             return null;
         }

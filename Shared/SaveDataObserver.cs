@@ -24,9 +24,9 @@ namespace FezSharedTools
     {
         public bool HasChanges => KeyedChanges.Any() || ListChanges.Any();
 
-        private List<ChangeInfo> Changes => KeyedChanges.Values.Cast<ChangeInfo>().Concat(ListChanges.Values).ToList();
-        private readonly ConcurrentDictionary<string, KeyedChangeInfo> KeyedChanges = new ConcurrentDictionary<string, KeyedChangeInfo>();
-        private readonly ConcurrentDictionary<string, ChangeInfo> ListChanges = new ConcurrentDictionary<string, ChangeInfo>();
+        private static List<ChangeInfo> Changes => KeyedChanges.Values.Cast<ChangeInfo>().Concat(ListChanges.Values).ToList();
+        private static readonly ConcurrentDictionary<string, KeyedChangeInfo> KeyedChanges = new ConcurrentDictionary<string, KeyedChangeInfo>();
+        private static readonly ConcurrentDictionary<string, ChangeInfo> ListChanges = new ConcurrentDictionary<string, ChangeInfo>();
 
         public void ClearChanges()
         {
@@ -88,11 +88,7 @@ namespace FezSharedTools
                 return;
             }
             //Note this collection should only have a single entry per unique containerIdentifier and field combo
-            if (KeyedChanges.TryGetValue(uniqueIdentifier, out KeyedChangeInfo change))
-            {
-                oldVal = change.OldVal;
-            }
-            KeyedChanges[uniqueIdentifier] = new KeyedChangeInfo(uniqueIdentifier, newval, oldVal, ChangeType.Keyed);
+            KeyedChanges[uniqueIdentifier] = new KeyedChangeInfo(uniqueIdentifier, newval);
         }
 
         public override string ToString()
@@ -233,29 +229,25 @@ namespace FezSharedTools
                                 Type ktype = args[0];
                                 Type gtype = args[1];
                                 object k = key;
-                                bool entryAdded = false;
                                 if (!ktype.Equals(typeof(string)))
                                 {
                                     k = ParseToType(ktype, key);
                                 }
-                                if (!v.Contains(k))
+                                if (!v.Contains(k))//mainly for objects
                                 {
                                     v.Add(k, Activator.CreateInstance(gtype));
-                                    entryAdded = true;
                                 }
                                 currObj = v[k];
                                 currType = gtype;
                                 if (i == keys.Length - 1)
                                 {
-                                    if (!entryAdded)
+                                    object g = val;
+                                    if (!gtype.Equals(typeof(string)) && gtype.IsValueType)
                                     {
-                                        object g = val;
-                                        if (!gtype.Equals(typeof(string)) && gtype.IsValueType)
-                                        {
-                                            g = ParseToType(gtype, val);
-                                        }
-                                        v[k] = g;
+                                        g = ParseToType(gtype, val);
                                     }
+                                    v[k] = g;
+                                    KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g);
                                     ChangeLog.Add($"Added entry \"{val}\" to {r[0]}");
                                 }
                             }
@@ -273,6 +265,7 @@ namespace FezSharedTools
                                     {
                                         f.SetValue(parent, g);
                                         valChanged = true;
+                                        KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g);
                                         ChangeLog.Add($"Set {r[0]} to {g}");
                                     }
                                     else
@@ -291,11 +284,13 @@ namespace FezSharedTools
                                                     v.Add(g);
                                                 }
                                                 valChanged = true;
+                                                ListChanges[r[0]] = new ChangeInfo(ChangeType.List_Add, r[0], g);
                                                 ChangeLog.Add($"Added entry \"{g}\" to {r[0]}");
                                                 break;
                                             case ChangeType.List_Remove:
                                                 v.Remove(g);
                                                 valChanged = true;
+                                                ListChanges[r[0]] = new ChangeInfo(ChangeType.List_Remove, r[0], g);
                                                 ChangeLog.Add($"Removed entry \"{g}\" from {r[0]}");
                                                 break;
                                             case ChangeType.None:
@@ -312,6 +307,7 @@ namespace FezSharedTools
                                             g = ParseToType(currType, val);
                                             f.SetValue(parent, g);
                                             valChanged = true;
+                                            KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g);
                                             ChangeLog.Add($"Set {r[0]} to {g}");
                                         }
                                     }
@@ -364,17 +360,14 @@ namespace FezSharedTools
         }
         public class KeyedChangeInfo : ChangeInfo
         {
-            public readonly object OldVal;
-
-            public KeyedChangeInfo(string uniqueIdentifier, object currentVal, object oldVal, ChangeType changeType)
-                : base(changeType, uniqueIdentifier, currentVal)
+            public KeyedChangeInfo(string uniqueIdentifier, object currentVal)
+                : base(ChangeType.Keyed, uniqueIdentifier, currentVal)
             {
-                OldVal = oldVal;
             }
 
             public override string ToString()
             {
-                return $"(Key: {ContainerIdentifier}, CurrentVal: {Value}, OldVal: {OldVal}, ChangeType: {ChangeType})";
+                return $"(Key: {ContainerIdentifier}, CurrentVal: {Value}, ChangeType: {ChangeType})";
             }
         }
     }
