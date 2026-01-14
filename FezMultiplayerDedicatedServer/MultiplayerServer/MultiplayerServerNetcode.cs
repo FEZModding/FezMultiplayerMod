@@ -289,6 +289,9 @@ namespace FezMultiplayerDedicatedServer
             }
             long curTime = timer.ElapsedTicks;
             sharedSaveData.TimeOfDay += TimeSpan.FromTicks((long)Math.Round((curTime - lastTimeUpdate) * DefaultTimeFactor * TimeScale));
+            long timeDiff = curTime - lastTimeUpdate;
+            sharedSaveData.PlayTime += timeDiff;
+            sharedSaveData.SinceLastSaved += timeDiff;
             lastTimeUpdate = curTime;
             OnUpdate();
         }
