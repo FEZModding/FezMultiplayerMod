@@ -309,15 +309,22 @@ namespace FezSharedTools
             //writer.Write(playerAppearance.CustomCharacterAppearance);//TODO appearance format TBD
         }
 
-        internal static void ReadAndProcessSaveDataUpdate(this BinaryNetworkReader reader, bool SyncWorldState)
+        internal static void ReadAndProcessSaveDataUpdate(this BinaryNetworkReader reader, bool SyncWorldState, Guid source)
         {
             int len = reader.ReadInt32();
             byte[] data = reader.ReadBytes(len);
-            if (SyncWorldState)
+            if (SyncWorldState && len > 0)
             {
-                SaveDataChanges.DeserializeAndProcess(data);
+                SaveDataChanges.DeserializeAndProcess(data, source);
             }
         }
+        internal static void Write(this BinaryNetworkWriter writer, List<SaveDataChanges.ChangeInfo> saveDataUpdate)
+        {
+            byte[] bytes = SaveDataChanges.Serialize(saveDataUpdate);
+            writer.Write(bytes.Length);
+            writer.Write(bytes);
+        }
+
         internal static void Write(this BinaryNetworkWriter writer, SaveDataChanges saveDataUpdate)
         {
             byte[] bytes = saveDataUpdate.Serialize();
@@ -675,7 +682,7 @@ namespace FezSharedTools
 #region network packet stuff
         private const int MaxProtocolVersionLength = 32;
         public const string ProtocolSignature = "FezMultiplayer";// Do not change
-        public static readonly string ProtocolVersion = "nineteen-wip4";//Update this ever time you change something that affect the packets
+        public static readonly string ProtocolVersion = "nineteen-wip6";//Update this ever time you change something that affect the packets
 
         public volatile string ErrorMessage = null;//Note: this gets updated in the listenerThread
         /// <summary>
@@ -752,7 +759,7 @@ namespace FezSharedTools
             PlayerMetadata playerMetadata = reader.ReadPlayerMetadata();
             if (reader.ReadBoolean())
             {
-                reader.ReadAndProcessSaveDataUpdate(SyncWorldState);
+                reader.ReadAndProcessSaveDataUpdate(SyncWorldState, playerUuid);
             }
             if (reader.ReadBoolean())
             {
@@ -805,7 +812,7 @@ namespace FezSharedTools
 
                     writer.Write(playerMetadata);
                     writer.Write(saveDataUpdate != null);
-                    if (saveDataUpdate != null)
+                    if (saveDataUpdate != null && saveDataUpdate.HasChanges)
                     {
                         writer.Write(saveDataUpdate);
                     }
@@ -865,7 +872,7 @@ namespace FezSharedTools
             }
             if (reader.ReadBoolean())
             {
-                reader.ReadAndProcessSaveDataUpdate(SyncWorldState);
+                reader.ReadAndProcessSaveDataUpdate(SyncWorldState, Guid.Empty);
             }
             int activeLevelStateListLength = reader.ReadInt32();
             for (int i = 0; i < activeLevelStateListLength; ++i)
@@ -901,8 +908,9 @@ namespace FezSharedTools
         ///     Note: This method has a lot of arguments so it is more easily identifiable if one of the arguments is unused.<br />
         ///     Note: The data written by this method should be read by <seealso cref="ReadServerGameTickPacket"/>
         /// </remarks>
-        protected void WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, SaveDataChanges saveDataUpdate, ICollection<ActiveLevelState> levelStates,
-                                                            ICollection<Guid> disconnectedPlayers, IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
+        protected void WriteServerGameTickPacket(BinaryNetworkWriter writer0, List<PlayerMetadata> playerMetadatas, List<SaveDataChanges.ChangeInfo> saveDataUpdate,
+                                                            ICollection<ActiveLevelState> levelStates, ICollection<Guid> disconnectedPlayers,
+                                                            IDictionary<Guid, PlayerAppearance> appearances, Guid? NewClientGuid,
                                                             bool RequestAppearance, SaveData sharedSaveData, TimeSpan timeOfDay)
         {
             int datalength;

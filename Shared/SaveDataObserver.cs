@@ -24,9 +24,9 @@ namespace FezSharedTools
     {
         public bool HasChanges => KeyedChanges.Any() || ListChanges.Any();
 
-        private static List<ChangeInfo> Changes => KeyedChanges.Values.Cast<ChangeInfo>().Concat(ListChanges.Values).ToList();
-        private static readonly ConcurrentDictionary<string, KeyedChangeInfo> KeyedChanges = new ConcurrentDictionary<string, KeyedChangeInfo>();
-        private static readonly ConcurrentDictionary<string, ChangeInfo> ListChanges = new ConcurrentDictionary<string, ChangeInfo>();
+        internal static List<ChangeInfo> Changes => KeyedChanges.Values.Cast<ChangeInfo>().Concat(ListChanges.Values).ToList();
+        internal static readonly ConcurrentDictionary<string, KeyedChangeInfo> KeyedChanges = new ConcurrentDictionary<string, KeyedChangeInfo>();
+        internal static readonly ConcurrentDictionary<string, ChangeInfo> ListChanges = new ConcurrentDictionary<string, ChangeInfo>();
 
         public void ClearChanges()
         {
@@ -74,7 +74,7 @@ namespace FezSharedTools
             }
             //Note this collection should only have a single entry per unique containerIdentifier and field combo
             string uniqueIdentifier = containerIdentifier + SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR + entry;
-            ListChanges[uniqueIdentifier] = new ChangeInfo(changeType, containerIdentifier, entry);
+            ListChanges[uniqueIdentifier] = new ChangeInfo(changeType, containerIdentifier, entry, Guid.Empty);
         }
         internal void AddKeyedChange(string uniqueIdentifier, object newval, object oldVal)
         {
@@ -88,7 +88,7 @@ namespace FezSharedTools
                 return;
             }
             //Note this collection should only have a single entry per unique containerIdentifier and field combo
-            KeyedChanges[uniqueIdentifier] = new KeyedChangeInfo(uniqueIdentifier, newval);
+            KeyedChanges[uniqueIdentifier] = new KeyedChangeInfo(uniqueIdentifier, newval, Guid.Empty);
         }
 
         public override string ToString()
@@ -101,7 +101,11 @@ namespace FezSharedTools
         private static readonly char SAVE_DATA_IDENTIFIER_SEPARATOR_STR = SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR[0];
         public byte[] Serialize()
         {
-            return SharedConstants.UTF8.GetBytes(string.Join(SAVE_DATA_ENTRY_SEPARATOR_STR, Changes.Where(c=>c!=null).Select(c=>
+            return Serialize(Changes);
+        }
+        public static byte[] Serialize(List<ChangeInfo> changes)
+        {
+            return SharedConstants.UTF8.GetBytes(string.Join(SAVE_DATA_ENTRY_SEPARATOR_STR, changes.Where(c=>c!=null).Select(c=>
             {
                 return c.ContainerIdentifier + SAVE_DATA_DATA_SEPARATOR + ((int)c.ChangeType) + SAVE_DATA_DATA_SEPARATOR + ConvertToString(c.Value);
             })));
@@ -191,8 +195,12 @@ namespace FezSharedTools
         }
         private static readonly Type dictType = typeof(IDictionary);
         private static readonly Type listType = typeof(IList);
-        public static void DeserializeAndProcess(byte[] bytes)
+        public static void DeserializeAndProcess(byte[] bytes, Guid source)
         {
+            if(bytes.Length <= 0)
+            {
+                return;
+            }
             lock (SaveDataObserver.saveDataLock)
             {
                 SaveData saveData = SaveDataObserver.Instance.CurrentSaveData;
@@ -207,6 +215,11 @@ namespace FezSharedTools
                         string[] r = entry.Split(SAVE_DATA_DATA_SEPARATOR);
                         if (ignoredKeys.Contains(r[0]) || ignoreWorldRegex.IsMatch(r[0]))
                         {
+                            continue;
+                        }
+                        if (r.Length < 3)
+                        {
+                            System.Diagnostics.Debugger.Break();
                             continue;
                         }
                         validEntries += 1;
@@ -247,7 +260,7 @@ namespace FezSharedTools
                                         g = ParseToType(gtype, val);
                                     }
                                     v[k] = g;
-                                    KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g);
+                                    KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g, source);
                                     ChangeLog.Add($"Added entry \"{val}\" to {r[0]}");
                                 }
                             }
@@ -265,7 +278,7 @@ namespace FezSharedTools
                                     {
                                         f.SetValue(parent, g);
                                         valChanged = true;
-                                        KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g);
+                                        KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g, source);
                                         ChangeLog.Add($"Set {r[0]} to {g}");
                                     }
                                     else
@@ -284,13 +297,13 @@ namespace FezSharedTools
                                                     v.Add(g);
                                                 }
                                                 valChanged = true;
-                                                ListChanges[r[0]] = new ChangeInfo(ChangeType.List_Add, r[0], g);
+                                                ListChanges[r[0]] = new ChangeInfo(ChangeType.List_Add, r[0], g, source);
                                                 ChangeLog.Add($"Added entry \"{g}\" to {r[0]}");
                                                 break;
                                             case ChangeType.List_Remove:
                                                 v.Remove(g);
                                                 valChanged = true;
-                                                ListChanges[r[0]] = new ChangeInfo(ChangeType.List_Remove, r[0], g);
+                                                ListChanges[r[0]] = new ChangeInfo(ChangeType.List_Remove, r[0], g, source);
                                                 ChangeLog.Add($"Removed entry \"{g}\" from {r[0]}");
                                                 break;
                                             case ChangeType.None:
@@ -307,7 +320,7 @@ namespace FezSharedTools
                                             g = ParseToType(currType, val);
                                             f.SetValue(parent, g);
                                             valChanged = true;
-                                            KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g);
+                                            KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g, source);
                                             ChangeLog.Add($"Set {r[0]} to {g}");
                                         }
                                     }
@@ -346,28 +359,31 @@ namespace FezSharedTools
             public readonly ChangeType ChangeType;
             public readonly string ContainerIdentifier;
             public readonly object Value;
+            public readonly Guid Source;
+            public readonly ConcurrentBag<Guid> SentTo = new ConcurrentBag<Guid>();
 
-            public ChangeInfo(ChangeType changeType, string containerIdentifier, object value)
+            public ChangeInfo(ChangeType changeType, string containerIdentifier, object value, Guid source)
             {
                 ChangeType = changeType;
                 ContainerIdentifier = containerIdentifier;
                 Value = value;
+                Source = source;
             }
             public override string ToString()
             {
-                return $"(Container: {ContainerIdentifier}, CurrentVal: {Value}, ChangeType: {ChangeType})";
+                return $"(Container: {ContainerIdentifier}, CurrentVal: {Value}, ChangeType: {ChangeType}, Source: {Source})";
             }
         }
         public class KeyedChangeInfo : ChangeInfo
         {
-            public KeyedChangeInfo(string uniqueIdentifier, object currentVal)
-                : base(ChangeType.Keyed, uniqueIdentifier, currentVal)
+            public KeyedChangeInfo(string uniqueIdentifier, object currentVal, Guid source)
+                : base(ChangeType.Keyed, uniqueIdentifier, currentVal, source)
             {
             }
 
             public override string ToString()
             {
-                return $"(Key: {ContainerIdentifier}, CurrentVal: {Value}, ChangeType: {ChangeType})";
+                return $"(Key: {ContainerIdentifier}, CurrentVal: {Value}, ChangeType: {ChangeType}, Source: {Source})";
             }
         }
     }

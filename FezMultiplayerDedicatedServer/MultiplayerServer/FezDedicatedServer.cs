@@ -302,7 +302,7 @@ namespace FezMultiplayerDedicatedServer
             SaveDataObserver saveDataObserver = new SaveDataObserver();
 
             Timer myTimer = new Timer();
-            myTimer.Elapsed += (a, b) => { saveDataObserver.Update(); server.Update(); };
+            myTimer.Elapsed += (a, b) => { server.Update(); };
             myTimer.Interval = 1f / 60f * 1000; // 1000 ms is one second
             myTimer.Start();
 

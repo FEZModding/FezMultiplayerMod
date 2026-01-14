@@ -564,7 +564,7 @@ namespace FezMultiplayerDedicatedServer
             }
         }
 
-        private SaveDataChanges GetSaveDataUpdate(Guid uuid)
+        private List<SaveDataChanges.ChangeInfo> GetSaveDataUpdate(Guid uuid)
         {
             //TODO use uuid to keep track of what changes the client needs
             if (!SyncWorldState)
@@ -573,7 +573,21 @@ namespace FezMultiplayerDedicatedServer
             }
             if (SaveDataObserver.newChanges.HasChanges)
             {
-                return null;// SaveDataObserver.newChanges;
+                var keysToRemove = SaveDataChanges.KeyedChanges.Where(change => Players.Keys.All(pk => change.Value.SentTo.Contains(pk))).Select(kp => kp.Key).ToList();
+                foreach (var key in keysToRemove)
+                {
+                    _ = SaveDataChanges.KeyedChanges.TryRemove(key, out _); //
+                }
+                keysToRemove = SaveDataChanges.ListChanges.Where(change => Players.Keys.All(pk => change.Value.SentTo.Contains(pk))).Select(kp => kp.Key).ToList();
+                foreach (var key in keysToRemove)
+                {
+                    _ = SaveDataChanges.ListChanges.TryRemove(key, out _); //
+                }
+                var notA = SaveDataChanges.Changes.Where(change => !change.SentTo.Contains(uuid));
+                notA.Where(change => change.Source == uuid).ToList().ForEach(change => change.SentTo.Add(uuid));
+                var retVal = notA.Where(change => change.Source != uuid).ToList();
+                retVal.ForEach(change => change.SentTo.Add(uuid));
+                return retVal;
             }
             return null;
         }
