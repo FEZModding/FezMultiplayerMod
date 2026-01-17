@@ -83,6 +83,5 @@ added server `timescale` command to adjust the timescale for the server time of 
 improved memory usage
 fix client repeatedly trying to reconnect even if there's an IO error
 misc. bug fixes
-
-soon: Implemented SyncWorldState option to sync save data accross players
+Implemented SyncWorldState option to sync save data accross players
 
