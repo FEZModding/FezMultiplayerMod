@@ -889,6 +889,7 @@ namespace FezMultiplayerDedicatedServer
                     }});
                     connect();
                 }});
+                const MAX_RETRIES = 3;
                 let consecutiveErrors = 0;
                 let websocket;
                 function connect(){{
@@ -917,7 +918,6 @@ namespace FezMultiplayerDedicatedServer
                         pCountElem.textContent = 'Loading...';
                         websocket.send('{Uri_players}');
                     }});
-                    const MAX_RETRIES = 3;
                     websocket.addEventListener('error', (e) => {{
                         errored = true;
                         consecutiveErrors += 1;
@@ -1078,13 +1078,16 @@ namespace FezMultiplayerDedicatedServer
                         }}
                     }});
                     //workaround for some browsers (e.g., iOS Safari) being unable to initially open websocket connections when the page is loading
-                    window.setTimeout(()=>{{
-                        if(!websocket || websocket.readyState != WebSocket.OPEN){{
-                            if(websocket)
-                                websocket.close();
-                            connect();
-                        }}
-                    }},1000);
+                    if(isSafari){{
+                        window.setTimeout(()=>{{
+                            if(consecutiveErrors < MAX_RETRIES && (!websocket || websocket.readyState != WebSocket.OPEN)){{
+                                if(websocket)
+                                    websocket.close();
+                                ++consecutiveErrors;
+                                connect();
+                            }}
+                        }},1000);
+                    }}
                 }}
                 " +
                 #endregion webinterface_script
