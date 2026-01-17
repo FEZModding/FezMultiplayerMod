@@ -341,6 +341,17 @@ namespace FezSharedTools
                                             valChanged = true;
 #if !FEZCLIENT
                                             KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g, source);
+#else
+                                            if(r[0] == "GlobalWaterLevelModifier")
+                                            {
+                                                //TODO change the water level in the current level
+                                                ILevelManager LevelManager = ServiceHelper.Get<ILevelManager>();
+                                                if (LevelManager.WaterType == LiquidType.Water)
+                                                {
+                                                    IGameStateManager GameState = ServiceHelper.Get<IGameStateManager>();
+                                                    LevelManager.WaterHeight = LevelManager.OriginalWaterHeight + GameState.SaveData.GlobalWaterLevelModifier.Value;
+                                                }
+                                            }
 #endif
                                             ChangeLog.Add($"Set {r[0]} to {g}");
                                         }
