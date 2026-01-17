@@ -420,6 +420,7 @@ namespace FezMultiplayerDedicatedServer
                                             {
                                                 //Console.WriteLine($"Web browser {method} {uri} from {client.RemoteEndPoint}. Sending response...");
                                                 writer.Write(SharedConstants.UTF8.GetBytes(GenerateWebResponse(method, uri, isLoopback: isLoopback, includeHttpHeaders: true, closing: true)));
+                                                writer.Flush();
                                                 //Console.WriteLine($"Responded to {method} {uri} from {client.RemoteEndPoint}. Terminating connection.");
                                             }
                                         }
@@ -886,6 +887,14 @@ namespace FezMultiplayerDedicatedServer
 	                    thr.appendChild(th);
                     }});
                     connect();
+                    //workaround for some browsers (e.g., iOS Safari) being unable to initially open websocket connections when the page is loading
+                    window.setTimeout(()=>{{
+                        if(!websocket || websocket.readyState != WebSocket.OPEN){{
+                            if(websocket)
+                                websocket.close();
+                            connect();
+                        }}
+                    }},1000);
                 }});
                 let consecutiveErrors = 0;
                 let websocket;
@@ -898,7 +907,7 @@ namespace FezMultiplayerDedicatedServer
                     const serverToD=document.getElementById('serverToD');
                     const savefileviewer=document.getElementById('savefileviewer');
                     const tbod = pdat.tBodies[0] ?? pdat.createTBody();
-                    const wsUri = 'ws://'+location.host+'/{Uri_players}';
+                    const wsUri = 'ws://'+location.host+'/';
                     reconnectButton.style.display = 'none';
                     connStatus.textContent = 'CONNECTING...';
                     savefileviewer.contentWindow.postMessage('mode:noedit', '*');
