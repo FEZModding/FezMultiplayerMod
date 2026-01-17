@@ -596,6 +596,7 @@ namespace FezMultiplayerDedicatedServer
             return null;
         }
 
+        #region web interface
         private static string DecodeWebSocketMessage(byte[] bytes, out bool closing, out bool ping)
         {
 
@@ -705,6 +706,7 @@ namespace FezMultiplayerDedicatedServer
             const string Uri_websocketUsers = "websocketusers.dat";
             const string Uri_connectionLog = "connectionLog.dat";
             const string Uri_savedata = "save.dat";
+            const string Uri_savechangesdata = "savechanges.dat";
             if (uriProviders == null)
             {
                 uriProviders = new Dictionary<string, (string, Func<bool, string>)>(){
@@ -733,6 +735,9 @@ namespace FezMultiplayerDedicatedServer
                             bytes = ms.ToArray();
                         }
                         return Convert.ToBase64String(bytes);
+                    }) },
+                    {Uri_savechangesdata, ("text/plain", (_)=>{
+                        return SharedConstants.UTF8.GetString(SaveDataChanges.Serialize(SaveDataChanges.Changes));
                     }) },
                     {Uri_websocketUsers, ("text/plain", (loopback)=>{
                         if (loopback){
@@ -966,6 +971,7 @@ namespace FezMultiplayerDedicatedServer
                     var lastAppearenceCheck = -Infinity;
                     var lastDisconnectCheck = -Infinity;
                     var lastSaveDataCheck = -Infinity;
+                    var lastSaveChangeDataCheck = -Infinity;
                     var wsuCheck = -Infinity;
                     var clgCheck = -Infinity;
                     websocket.addEventListener('message', (e) => {{
@@ -1031,6 +1037,12 @@ namespace FezMultiplayerDedicatedServer
                             case '{Uri_savedata}':
                                 savefileviewer.contentWindow.postMessage('loadsave:' + message, '*');
                                 break;
+                            case '{Uri_savechangesdata}':
+                                message = message.replaceAll('{SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR}','/')
+                                        .replaceAll('{SaveDataChanges.SAVE_DATA_DATA_SEPARATOR}','\t')
+                                        .replaceAll('{SaveDataChanges.SAVE_DATA_ENTRY_SEPARATOR}','\n')
+                                document.getElementById(responseTo).textContent=message;
+                                break;
                             case '{Uri_appearances}':
                                 message.split(""\n"").forEach(a=>{{
                                     var sepLoc = a.indexOf(""\t"");
@@ -1066,6 +1078,9 @@ namespace FezMultiplayerDedicatedServer
                             }}else if(performance.now() - lastSaveDataCheck > 1000){{
                                 lastSaveDataCheck = performance.now();
                                 websocket.send('{Uri_savedata}');
+                            }}else if(performance.now() - lastSaveChangeDataCheck > (window.changeTest ?? 100)){{
+                                lastSaveChangeDataCheck = performance.now();
+                                websocket.send('{Uri_savechangesdata}');
                             }}{(isLoopback ? $@"else if(performance.now() - wsuCheck > 1000){{
                                 wsuCheck = performance.now();
                                 websocket.send('{Uri_websocketUsers}');
@@ -1106,6 +1121,7 @@ namespace FezMultiplayerDedicatedServer
                 $"<div class=\"infoContainer\"><span class=\"label\">Websocket Users:</span><pre id=\"{Uri_websocketUsers}\"></pre></div>" +
                 $"<div class=\"infoContainer\"><span class=\"label\">Connection Log:</span><pre id=\"{Uri_connectionLog}\"></pre></div>"
                 : "")+
+                $"<div class=\"infoContainer\"><span class=\"label\">Save data changes to propagate:</span><pre id=\"{Uri_savechangesdata}\"></pre></div>" +
                 $"<div class=\"infoContainer\" style=\"height: calc(100vh + 1lh);\"><span class=\"label\">Save Data:</span><br /><iframe id=\"savefileviewer\" src=\"https://jenna1337.github.io/FezTools/FezSaveFileEditor.html#noedit\"></iframe></div>" +
                 $"</body>" +
                 $"</html>";
@@ -1131,6 +1147,7 @@ namespace FezMultiplayerDedicatedServer
 
             return $"HTTP/1.1 {statusText}{CRLF}{headers}{CRLF}{body}";
         }
+        #endregion web interface
 
         protected override void ProcessDisconnect(Guid puid)
         {
