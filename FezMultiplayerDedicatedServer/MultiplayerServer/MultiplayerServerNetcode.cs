@@ -872,6 +872,7 @@ namespace FezMultiplayerDedicatedServer
                 $"<script>" +
                 #region webinterface_script
                 $@"
+                const isSafari = navigator.vendor=='Apple Computer, Inc.';
                 const colNames=['Uuid','PlayerName','client','CurrentLevelName','Action','CameraViewpoint','Position','joinTime','LastUpdateTimestamp','NetworkSpeedUpDown','ping'];
                 const constColumns = 2;
                 const nameIndex = colNames.indexOf('PlayerName') ;
@@ -887,14 +888,6 @@ namespace FezMultiplayerDedicatedServer
 	                    thr.appendChild(th);
                     }});
                     connect();
-                    //workaround for some browsers (e.g., iOS Safari) being unable to initially open websocket connections when the page is loading
-                    window.setTimeout(()=>{{
-                        if(!websocket || websocket.readyState != WebSocket.OPEN){{
-                            if(websocket)
-                                websocket.close();
-                            connect();
-                        }}
-                    }},1000);
                 }});
                 let consecutiveErrors = 0;
                 let websocket;
@@ -934,9 +927,13 @@ namespace FezMultiplayerDedicatedServer
                         pCountElem.textContent = '???';
                         serverToD.textContent = '???';
                         tbod.innerHTML = '';
-                        if(consecutiveErrors >= MAX_RETRIES){{
+                        if(isSafari || consecutiveErrors >= MAX_RETRIES){{
                             connStatus.textContent = 'DISCONNECTED';
-                            connStatusDesc.textContent = 'Failed to connect after '+consecutiveErrors+' attempts';
+                            if(isSafari){{
+                                connStatusDesc.textContent = 'No connection';
+                            }}else{{
+                                connStatusDesc.textContent = 'Failed to connect after '+consecutiveErrors+' attempts';
+                            }}
                             console.log('Failed to connect to server');
                             tbod.innerHTML = 'Failed to connect to server';
                             reconnectButton.style.display = '';
@@ -1080,6 +1077,14 @@ namespace FezMultiplayerDedicatedServer
                             }}
                         }}
                     }});
+                    //workaround for some browsers (e.g., iOS Safari) being unable to initially open websocket connections when the page is loading
+                    window.setTimeout(()=>{{
+                        if(!websocket || websocket.readyState != WebSocket.OPEN){{
+                            if(websocket)
+                                websocket.close();
+                            connect();
+                        }}
+                    }},1000);
                 }}
                 " +
                 #endregion webinterface_script
