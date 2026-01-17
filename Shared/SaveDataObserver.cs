@@ -61,6 +61,7 @@ namespace FezSharedTools
         private static readonly string SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED = Regex.Escape(SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR);
         private static readonly Regex ignoreWorldRegex = new Regex($@"^World{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}\w+{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}FirstVisit");
         private static readonly Regex ignoreWorldLevelRegex = new Regex($@"^World{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}\w+$");
+        private static readonly ConcurrentDictionary<string, object> RecentlyChanged = new ConcurrentDictionary<string, object>(); 
         internal void AddListChange(string containerIdentifier, object entry, ChangeType changeType)
         {
             containerIdentifier = containerIdentifier.Substring(ignoreLength);
@@ -74,6 +75,11 @@ namespace FezSharedTools
             }
             //Note this collection should only have a single entry per unique containerIdentifier and field combo
             string uniqueIdentifier = containerIdentifier + SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR + entry;
+            if (RecentlyChanged.TryGetValue(uniqueIdentifier, out object lastVal) && entry == lastVal)
+            {
+                RecentlyChanged.TryRemove(uniqueIdentifier, out _);
+                return;
+            }
             ListChanges[uniqueIdentifier] = new ChangeInfo(changeType, containerIdentifier, entry, Guid.Empty);
         }
         internal void AddKeyedChange(string uniqueIdentifier, object newval, object oldVal)
@@ -87,6 +93,11 @@ namespace FezSharedTools
             {
                 return;
             }
+            if (RecentlyChanged.TryGetValue(uniqueIdentifier, out object lastVal) && newval == lastVal)
+            {
+                RecentlyChanged.TryRemove(uniqueIdentifier, out _);
+                return;
+            }
             //Note this collection should only have a single entry per unique containerIdentifier and field combo
             KeyedChanges[uniqueIdentifier] = new KeyedChangeInfo(uniqueIdentifier, newval, Guid.Empty);
         }
@@ -95,8 +106,8 @@ namespace FezSharedTools
         {
             return string.Join(Environment.NewLine, Changes);
         }
-        private static readonly char SAVE_DATA_DATA_SEPARATOR = '\x1E';
-        private static readonly char SAVE_DATA_ENTRY_SEPARATOR = '\x1D';
+        internal static readonly char SAVE_DATA_DATA_SEPARATOR = '\x1E';
+        internal static readonly char SAVE_DATA_ENTRY_SEPARATOR = '\x1D';
         private static readonly string SAVE_DATA_ENTRY_SEPARATOR_STR = SAVE_DATA_ENTRY_SEPARATOR.ToString();
         private static readonly char SAVE_DATA_IDENTIFIER_SEPARATOR_STR = SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR[0];
         public byte[] Serialize()
@@ -107,7 +118,7 @@ namespace FezSharedTools
         {
             return SharedConstants.UTF8.GetBytes(string.Join(SAVE_DATA_ENTRY_SEPARATOR_STR, changes.Where(c=>c!=null).Select(c=>
             {
-                return c.ContainerIdentifier + SAVE_DATA_DATA_SEPARATOR + ((int)c.ChangeType) + SAVE_DATA_DATA_SEPARATOR + ConvertToString(c.Value);
+                return c.ContainerIdentifier + SAVE_DATA_DATA_SEPARATOR + ((int)c.ChangeType) + SAVE_DATA_DATA_SEPARATOR + ConvertToString(c.Value) + SAVE_DATA_DATA_SEPARATOR + c.Source.ToString();
             })));
         }
         private static string ConvertToString(object obj)
@@ -260,7 +271,9 @@ namespace FezSharedTools
                                         g = ParseToType(gtype, val);
                                     }
                                     v[k] = g;
+#if !FEZCLIENT
                                     KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g, source);
+#endif
                                     ChangeLog.Add($"Added entry \"{val}\" to {r[0]}");
                                 }
                             }
@@ -278,7 +291,9 @@ namespace FezSharedTools
                                     {
                                         f.SetValue(parent, g);
                                         valChanged = true;
+#if !FEZCLIENT
                                         KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g, source);
+#endif
                                         ChangeLog.Add($"Set {r[0]} to {g}");
                                     }
                                     else
@@ -297,13 +312,17 @@ namespace FezSharedTools
                                                     v.Add(g);
                                                 }
                                                 valChanged = true;
+#if !FEZCLIENT
                                                 ListChanges[r[0]] = new ChangeInfo(ChangeType.List_Add, r[0], g, source);
+#endif
                                                 ChangeLog.Add($"Added entry \"{g}\" to {r[0]}");
                                                 break;
                                             case ChangeType.List_Remove:
                                                 v.Remove(g);
                                                 valChanged = true;
+#if !FEZCLIENT
                                                 ListChanges[r[0]] = new ChangeInfo(ChangeType.List_Remove, r[0], g, source);
+#endif
                                                 ChangeLog.Add($"Removed entry \"{g}\" from {r[0]}");
                                                 break;
                                             case ChangeType.None:
@@ -320,7 +339,9 @@ namespace FezSharedTools
                                             g = ParseToType(currType, val);
                                             f.SetValue(parent, g);
                                             valChanged = true;
+#if !FEZCLIENT
                                             KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g, source);
+#endif
                                             ChangeLog.Add($"Set {r[0]} to {g}");
                                         }
                                     }
