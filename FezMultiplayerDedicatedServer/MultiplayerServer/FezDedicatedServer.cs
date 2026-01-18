@@ -8,6 +8,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using System.Text;
 using System.Globalization;
+using System.IO;
 
 namespace FezMultiplayerDedicatedServer
 {
@@ -245,6 +246,7 @@ namespace FezMultiplayerDedicatedServer
                         }
             ));
         }
+        private static volatile bool IsUpdating = false;
         static void Main(string[] prog_args)
         {
             //TODO add more to this, like command line parameters and connection logs
@@ -301,8 +303,40 @@ namespace FezMultiplayerDedicatedServer
 
             SaveDataObserver saveDataObserver = new SaveDataObserver();
 
+            if (settings.SyncWorldState)
+            {
+                Console.WriteLine("Save data will be saved to " + Path.GetFullPath(settings.SaveFileFullPath));
+            }
+
+            long SaveIntervalTicks = TimeSpan.FromSeconds(5.0f).Ticks;
             Timer myTimer = new Timer();
-            myTimer.Elapsed += (a, b) => { server.Update(); };
+            myTimer.Elapsed += (a, b) => {
+                if (!IsUpdating)
+                {
+                    IsUpdating = true;
+                    server.Update();
+                    if (settings.SyncWorldState)
+                    {
+                        if (!server.sharedSaveData.SinceLastSaved.HasValue || server.sharedSaveData.SinceLastSaved > SaveIntervalTicks)
+                        {
+                            try
+                            {
+                                using (FileStream fs = new FileStream(settings.SaveFileFullPath, FileMode.Create))
+                                using (BinaryWriter writer = new BinaryWriter(fs, Encoding.UTF8))
+                                {
+                                    writer.Write(server.sharedSaveData);
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine(e.Message);
+                            }
+                            server.sharedSaveData.SinceLastSaved = 0;
+                        }
+                    }
+                    IsUpdating = false;
+                }
+            };
             myTimer.Interval = 1f / 60f * 1000; // 1000 ms is one second
             myTimer.Start();
 

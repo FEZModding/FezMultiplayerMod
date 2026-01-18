@@ -55,6 +55,12 @@ namespace FezMultiplayerDedicatedServer
         public bool SyncWorldState = false;
 
         /// <summary>
+        /// The path (including file name) to use to save the synced save data.
+        /// </summary>
+        [Description("The path (including file name) to use to save the synced save data.")]
+        public string SaveFileFullPath = "FezMultiplayerSaveFile0";
+
+        /// <summary>
         /// If true, advertises the existence of this server over LAN.
         /// </summary>
         [Description("If true, advertises the existence of this server over LAN.")]
