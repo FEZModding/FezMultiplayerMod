@@ -10,11 +10,8 @@ namespace FezMultiplayerDedicatedServer
 
         public long CreationTime;
 
-        //TODO increment PlayTime
         public long PlayTime;
 
-        //TODO increment SinceLastSaved
-        //TODO use SinceLastSaved to save the server's save data somewhere and then reset SinceLastSaved
         public long? SinceLastSaved;
 
         #region mostly for full compatability with FEZ save files

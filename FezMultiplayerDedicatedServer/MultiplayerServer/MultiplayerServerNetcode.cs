@@ -570,7 +570,7 @@ namespace FezMultiplayerDedicatedServer
 
         private List<SaveDataChanges.ChangeInfo> GetSaveDataUpdate(Guid uuid)
         {
-            //TODO use uuid to keep track of what changes the client needs
+            //use uuid to keep track of what changes the client needs
             if (!SyncWorldState)
             {
                 return null;

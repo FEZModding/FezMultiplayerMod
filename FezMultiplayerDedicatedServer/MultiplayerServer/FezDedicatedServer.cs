@@ -283,8 +283,6 @@ namespace FezMultiplayerDedicatedServer
             Console.WriteLine("Initializing server...");
             server = new MultiplayerServerNetcode(settings);
 
-            //MultiplayerServerSettings.WriteSettingsFile(SettingsFilePath, settings);//TODO
-
             //Wait for the server netcode to finish initializing
             while (server.LocalEndPoint == null && server.FatalException == null)
             {

@@ -152,7 +152,6 @@ namespace FezSharedTools
                 TimeSpan ts = (TimeSpan)obj;
                 return "" + ts.Ticks;
             }
-            //TODO maybe handle other types like TimeSpan
             if (t.IsEnum)
             {
                 return "" + (int)obj;
@@ -195,7 +194,6 @@ namespace FezSharedTools
             {
                 return Enum.ToObject(t, int.Parse(val));
             }
-            //TODO maybe handle other types like Vector3 and TimeSpan
             if (t.IsEnum)
             {
                 return Enum.ToObject(t, int.Parse(val));
@@ -227,7 +225,7 @@ namespace FezSharedTools
                     IGameStateManager GameState = ServiceHelper.Get<IGameStateManager>();
                     if (keys[0] == "GlobalWaterLevelModifier")
                     {
-                        //TODO change the water level in the current level
+                        //change the water level in the current level
                         if (LevelManager.WaterType == LiquidType.Water)
                         {
                             LevelManager.WaterHeight = LevelManager.OriginalWaterHeight + GameState.SaveData.GlobalWaterLevelModifier.Value;
@@ -340,8 +338,6 @@ namespace FezSharedTools
                         ChangeType changeType = int.TryParse(r[1], out int t) ? (ChangeType)t : ChangeType.None;
                         string val = r[2];
 
-                        //TODO add/update these changes to KeyedChanges/ListChanges as per https://github.com/FEZModding/FezMultiplayerMod/issues/28 
-
                         Type currType = typeof(SaveData);
                         object currObj = saveData;
                         FieldInfo f = null;
@@ -412,7 +408,6 @@ namespace FezSharedTools
                                             switch (changeType)
                                             {
                                             case ChangeType.List_Add:
-                                                //TODO
                                                 if (!v.Contains(g))
                                                 {
                                                     v.Add(g);
@@ -687,7 +682,7 @@ namespace FezSharedTools
                     });
                     removedVals.ForEach(removedVal =>
                     {
-                            //TODO? idk if this ever actually happens, but should probably implement it somehow
+                            // idk if this ever actually happens, but should probably implement it somehow
                             changes.AddListChange(containerIdentifier + SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, removedVal, SaveDataChanges.ChangeType.List_Remove);
                     });
                 }
