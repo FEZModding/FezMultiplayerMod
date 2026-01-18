@@ -219,6 +219,108 @@ namespace FezSharedTools
 
                 List<string> ChangeLog = new List<string>();
                 int validEntries = 0;
+
+                void OnEntryChanged(string[] keys, object newVal, object oldval, bool removed = false)
+                {
+                    #if FEZCLIENT
+                    ILevelManager LevelManager = ServiceHelper.Get<ILevelManager>();
+                    IGameStateManager GameState = ServiceHelper.Get<IGameStateManager>();
+                    if (keys[0] == "GlobalWaterLevelModifier")
+                    {
+                        //TODO change the water level in the current level
+                        if (LevelManager.WaterType == LiquidType.Water)
+                        {
+                            LevelManager.WaterHeight = LevelManager.OriginalWaterHeight + GameState.SaveData.GlobalWaterLevelModifier.Value;
+                        }
+                    }
+                    if (keys[0] == "World" && LevelManager.Name == keys[1] && keys[2] != "FilledConditions")
+                    {
+                        switch (keys[2])
+                        {
+                        case "DestroyedTriles":
+                        case "InactiveTriles":
+                            LevelManager.ClearTrile((TrileEmplacement)newVal);
+                            break;
+                        case "InactiveArtObjects":
+                            LevelManager.ArtObjects.Remove((int)newVal);
+                            break;
+                        case "InactiveEvents":
+                            if (LevelManager.Scripts.TryGetValue((int)newVal, out FezEngine.Structure.Scripting.Script script))
+                            {
+                                script.Disabled = true;
+                            }
+                            break;
+                        case "InactiveGroups":
+                            int id = (int)newVal;
+                            if (LevelManager.Groups.TryGetValue(id, out TrileGroup group))
+                            {
+                                if (group.ActorType.IsPushSwitch())
+                                {
+                                    var SwitchService = ServiceHelper.Get<FezEngine.Services.Scripting.ISwitchService>();
+                                    SwitchService.OnPush(group.Id);
+                                }
+                                else
+                                {
+                                    //TODO ? idk what else might be here
+                                }
+                            }
+                            break;
+                        case "InactiveVolumes":
+                            if (LevelManager.Volumes.TryGetValue((int)newVal, out Volume volume))
+                            {
+                                volume.Enabled = false;
+                            }
+                            break;
+                        case "InactiveNPCs":
+                            if (LevelManager.NonPlayerCharacters.TryGetValue((int)newVal, out NpcInstance npc))
+                            {
+                                npc.State.CurrentAction = NpcAction.TakeOff;
+                                npc.Enabled = false;
+                            }
+                            break;
+                        case "PivotRotations":
+                            if (int.TryParse(keys[3], out int aoId))
+                            {
+                                ArtObjectInstance handleAo = LevelManager.ArtObjects[aoId];
+                                int value = (int)newVal - (int)oldval;
+                                int num = Math.Abs(value);
+                                float angle = (float)Math.PI / 2f * (float)Math.Sign(value);
+                                Quaternion quaternion = Quaternion.CreateFromAxisAngle(Vector3.UnitY, angle);
+                                handleAo.Rotation *= quaternion;
+
+                                if (handleAo.ActorSettings.AttachedGroup.HasValue
+                                    && LevelManager.Groups.TryGetValue(handleAo.ActorSettings.AttachedGroup.Value, out var Group))
+                                {
+                                    Type PivotsHostType = typeof(FezGame.Components.PivotsHost);
+                                    var pivotHost = ServiceHelper.Game.Components.First(c => c.GetType().Equals(PivotsHostType));
+                                    var ps = (IList)PivotsHostType.GetField("TrackedPivots", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(pivotHost);
+                                    Type PivotsStateType = ps.GetType().GetGenericArguments()[0];
+                                    MethodInfo ForceSpinTo = PivotsStateType.GetMethod("ForceSpinTo", BindingFlags.Instance | BindingFlags.NonPublic);
+                                    foreach (var pivotState in ps)
+                                    {
+                                        if (aoId == ((ArtObjectInstance)pivotState.GetType().GetField("HandleAo").GetValue(pivotState)).Id)
+                                        {
+                                            ForceSpinTo.Invoke(pivotState, new object[] { num });
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            break;
+                        case "LastStableLiquidHeight":
+                        case "ScriptingState":
+                        case "FirstVisit":
+                            //ignore
+                            break;
+                        default:
+                            System.Diagnostics.Debugger.Launch();
+                            System.Diagnostics.Debugger.Break();
+                            break;
+                        }
+                    }
+#endif
+                }
+
                 foreach (var entry in entries)
                 {
                     try
@@ -270,10 +372,12 @@ namespace FezSharedTools
                                     {
                                         g = ParseToType(gtype, val);
                                     }
+                                    object oldval = currObj;
                                     v[k] = g;
 #if !FEZCLIENT
                                     KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g, source);
 #endif
+                                    OnEntryChanged(keys, g, oldval);
                                     ChangeLog.Add($"Added entry \"{val}\" to {r[0]}");
                                 }
                             }
@@ -289,11 +393,13 @@ namespace FezSharedTools
                                     bool valChanged = false;
                                     if (currType.Equals(typeof(string)))
                                     {
+                                        object oldval = f.GetValue(parent);
                                         f.SetValue(parent, g);
                                         valChanged = true;
 #if !FEZCLIENT
                                         KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g, source);
 #endif
+                                        OnEntryChanged(keys, g, oldval);
                                         ChangeLog.Add($"Set {r[0]} to {g}");
                                     }
                                     else
@@ -315,6 +421,7 @@ namespace FezSharedTools
 #if !FEZCLIENT
                                                 ListChanges[r[0]] = new ChangeInfo(ChangeType.List_Add, r[0], g, source);
 #endif
+                                                OnEntryChanged(keys, g, null);
                                                 ChangeLog.Add($"Added entry \"{g}\" to {r[0]}");
                                                 break;
                                             case ChangeType.List_Remove:
@@ -323,6 +430,7 @@ namespace FezSharedTools
 #if !FEZCLIENT
                                                 ListChanges[r[0]] = new ChangeInfo(ChangeType.List_Remove, r[0], g, source);
 #endif
+                                                OnEntryChanged(keys, g, null, removed: true);
                                                 ChangeLog.Add($"Removed entry \"{g}\" from {r[0]}");
                                                 break;
                                             case ChangeType.None:
@@ -337,22 +445,13 @@ namespace FezSharedTools
                                         else
                                         {
                                             g = ParseToType(currType, val);
+                                            object oldval = f.GetValue(parent);
                                             f.SetValue(parent, g);
                                             valChanged = true;
 #if !FEZCLIENT
                                             KeyedChanges[r[0]] = new KeyedChangeInfo(r[0], g, source);
-#else
-                                            if(r[0] == "GlobalWaterLevelModifier")
-                                            {
-                                                //TODO change the water level in the current level
-                                                ILevelManager LevelManager = ServiceHelper.Get<ILevelManager>();
-                                                if (LevelManager.WaterType == LiquidType.Water)
-                                                {
-                                                    IGameStateManager GameState = ServiceHelper.Get<IGameStateManager>();
-                                                    LevelManager.WaterHeight = LevelManager.OriginalWaterHeight + GameState.SaveData.GlobalWaterLevelModifier.Value;
-                                                }
-                                            }
 #endif
+                                            OnEntryChanged(keys, g, oldval);
                                             ChangeLog.Add($"Set {r[0]} to {g}");
                                         }
                                     }
