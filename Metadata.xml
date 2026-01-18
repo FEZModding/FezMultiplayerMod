@@ -2,6 +2,6 @@
    <Name>FezMultiplayerMod</Name>
    <Description>So I heard you want multiplayer in your FEZ game</Description>
    <Author>Jenna Sloan</Author>
-   <Version>0.7.0</Version>
+   <Version>0.8.0</Version>
    <LibraryName>FezMultiplayerMod.dll</LibraryName>
 </Metadata>

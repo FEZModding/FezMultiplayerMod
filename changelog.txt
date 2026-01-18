@@ -74,7 +74,7 @@ Added in-game option to change name
 various bug fixes and improvements
 Made the player name default to the name of the current user (as long as it's not a default username)
 
-0.7.0
+0.7.0 - 2026-01-18T03:17:45Z
 Added server web interface to view various server data via HTTP. This is always allowed on the localhost, and external access is controlled via the "AllowRemoteWebInterface" field in the server settings.
 fixed a bug where TryParseIPEndPoint could crash
 added paste support to TextInputLogicComponent
@@ -85,4 +85,7 @@ fix client repeatedly trying to reconnect even if there's an IO error
 misc. bug fixes
 Implemented `SyncWorldState` option to sync save data across players
 added server `SaveFileFullPath` setting to decide where the shared save data should be saved
+
+0.8.0
+
 
