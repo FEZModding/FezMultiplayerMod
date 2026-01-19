@@ -95,7 +95,7 @@ namespace FezGame.MultiplayerMod
         public static FezMultiplayerMod Instance;
 
         private readonly MultiplayerClient mp;
-        public volatile bool ShowDebugInfo = 
+        public volatile bool ShowDebugInfo =
 #if DEBUG
             true;
 #else
@@ -157,6 +157,80 @@ namespace FezGame.MultiplayerMod
 
             drawer = new SpriteBatch(GraphicsDevice);
             mesh.AddFace(new Vector3(1f), new Vector3(0f, 0.25f, 0f), FaceOrientation.Front, centeredOnOrigin: true, doublesided: true);
+
+            _ = Waiters.Wait(() =>
+            {
+                return ServiceHelper.FirstLoadDone;
+            }, () =>
+            {
+                IGameComponent q = Game.Components.FirstOrDefault(c => c.GetType().FullName.Equals("FEZUG.Fezug"));
+                if (q != null)
+                {
+                    var FezugConsole = q.GetType().Assembly?.GetType("FEZUG.Features.Console.FezugConsole");
+                    var FezugConsoleAddCommandFunc = FezugConsole?.GetMethod("AddCommand");
+                    var FezugConsolePrintFunc = FezugConsole?.GetMethod("Print", new Type[] { typeof(string), typeof(Color) });
+                    if (FezugConsoleAddCommandFunc != null)
+                    {
+                        void FezugConsolePrint(string txt, Color color)
+                        {
+                            if (FezugConsolePrintFunc != null)
+                            {
+                                _ = FezugConsolePrintFunc.Invoke(null, new object[] { txt, color });
+                            }
+                        }
+                        void AddCommand(string name, string helpText, Func<string[], List<string>> autocompleteProvider, Func<string[], bool> executeCommand)
+                        {
+                            _ = FezugConsoleAddCommandFunc.Invoke(null, new object[] {
+                                name,
+                                helpText,
+                                autocompleteProvider,
+                                executeCommand
+                            });
+                        }
+                        mp.OnConnect += () => { FezugConsolePrint($"Connected to {mp.RemoteEndpoint}", Color.Green); };
+                        mp.OnDisconnect += () =>
+                        {
+                            if (mp.FatalException != null)
+                            {
+                                FezugConsolePrint($"Disconnected from {mp.RemoteEndpoint}. Reason: {mp.FatalException.Message}", Color.Red);
+                            }
+                            else
+                            {
+                                FezugConsolePrint($"Disconnected from {mp.RemoteEndpoint}", Color.Yellow);
+                            }
+                        };
+                        var ips = settings.ServerList.Select(s => s.Endpoint.ToString()).Concat(new List<string>() { "127.0.0.1", "[::1]" }.Select(a => a + ":" + SharedConstants.DefaultPort)).Distinct();
+                        AddCommand("mp_connect",
+                                $"mp_connect <ip> - [{nameof(FezMultiplayerMod)}] connect to the given IP address",
+                                args => ips.Where(s => s.StartsWith(args[0])).ToList(), args =>
+                                {
+                                    if (args.Length != 1)
+                                    {
+                                        FezugConsolePrint($"Incorrect number of parameters: '{args.Length}'", Color.Yellow);
+                                        return false;
+                                    }
+                                    if (IniTools.TryParseIPEndPoint(args[0], out var endpoint))
+                                    {
+                                        FezugConsolePrint($"Connecting to {args[0]}...", Color.White);
+                                        mp.ConnectToServerAsync(endpoint);
+                                        return true;
+                                    }
+                                    else
+                                    {
+                                        FezugConsolePrint($"\"{args[0]}\" is not a valid endpoint.", Color.Red);
+                                        return false;
+                                    }
+                                });
+                        AddCommand("mp_disconnect",
+                                $"mp_disconnect - [{nameof(FezMultiplayerMod)}] disconnects from the current server",
+                                null, args =>
+                                {
+                                    mp.Disconnect();
+                                    return true;
+                                });
+                    }
+                }
+             });
         }
 
         private bool disposing = false;
@@ -208,7 +282,7 @@ namespace FezGame.MultiplayerMod
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
-            if(mp.LastExtraMessageUpdate.ElapsedMilliseconds > 3000)
+            if (mp.LastExtraMessageUpdate.ElapsedMilliseconds > 3000)
             {
                 mp.ExtraMessage = null;
             }
@@ -428,7 +502,8 @@ namespace FezGame.MultiplayerMod
             }
             if (mp.FatalException != null)
             {
-                if(!ShowingFatalException){
+                if (!ShowingFatalException)
+                {
                     ShowingFatalException = true;
                     ShowingFatalExceptionStartTimestamp = gameTime.TotalGameTime;
 #if DEBUG
