@@ -41,7 +41,7 @@ namespace FezGame.MultiplayerMod
         public static ServerInfo Parse(string str)
         {
             string[] parts = str.Split(GroupSeparator);
-            if(parts.Length != 2 || !IniTools.TryParseIPEndPoint(parts[1], out IPEndPoint endpoint))
+            if (parts.Length != 2 || !IniTools.TryParseIPEndPoint(parts[1], out IPEndPoint endpoint))
             {
                 throw new ArgumentException("Invalid ServerInfo Format");
             }
@@ -162,7 +162,7 @@ namespace FezGame.MultiplayerMod
         //declared on class scope so we can toggle Enabled
         private readonly MenuListOption OptionDisconnect;
 
-        private readonly MenuLevel Menu_None = new MenuLevel("", null, (list)=> { });
+        private readonly MenuLevel Menu_None = new MenuLevel("", null, (list) => { });
         private readonly MenuLevel Menu_ChangeName;
         private readonly MenuLevel Menu_ServerList;
         private readonly MenuLevel Menu_ServerSelected;
@@ -277,8 +277,10 @@ namespace FezGame.MultiplayerMod
                     new Action<Action<object, GameTime>, object, GameTime>((orig, self, gametime) =>
                     {
                         orig(self, gametime);
-                        if(Instance.HasFocus)
-                        SinceMouseMovedInternal.SetValue(self, 3f);
+                        if (Instance.HasFocus)
+                        {
+                            SinceMouseMovedInternal.SetValue(self, 3f);
+                        }
                     })
                 );
             }
@@ -484,7 +486,7 @@ namespace FezGame.MultiplayerMod
             get => __currentMenu;
             set
             {
-                if(value == null)
+                if (value == null)
                 {
                     System.Diagnostics.Debugger.Launch();
                     System.Diagnostics.Debugger.Break();
@@ -619,12 +621,12 @@ namespace FezGame.MultiplayerMod
         public static float ScrollDirection = -1;//TODO make customizable?
         public override void Update(GameTime gameTime)
         {
-            if(!ServiceHelper.FirstLoadDone)
+            if (!ServiceHelper.FirstLoadDone)
             {
                 return;
             }
             SinceLastUpdateList += gameTime.ElapsedGameTime;
-            if(SinceLastUpdateList > FirstUpdateInterval)
+            if (SinceLastUpdateList > FirstUpdateInterval)
             {
                 cachedMenuListOptions = GetListOptions();
                 SinceLastUpdateList = TimeSpan.Zero;
@@ -670,7 +672,7 @@ namespace FezGame.MultiplayerMod
                 bool mouseMoved = MouseState.Movement != Point.Zero;
                 if (InputManager.Up == FezButtonState.Pressed)
                 {
-                    if(currentIndex > 0)
+                    if (currentIndex > 0)
                     {
                         CurrentMenuItem?.OnMoveToOtherOption?.Invoke();
                         sCursorUp.Emit();
@@ -737,7 +739,7 @@ namespace FezGame.MultiplayerMod
         }
         private void DrawTextRichShadow(string text, Vector2 position, Vector2? scale = null, Color? color = null, Color? shadow = null)
         {
-            if(scale == null)
+            if (scale == null)
             {
                 scale = Vector2.One;
             }
@@ -807,7 +809,7 @@ namespace FezGame.MultiplayerMod
                     string optionName = option.DisplayText;
                     Color textColor = Color.White;
                     Color bgColor = selected ? Color.Gray : Color.Black;
-                    if(!option.Enabled)
+                    if (!option.Enabled)
                     {
                         textColor = Color.Gray;
                         bgColor = Color.Black;
@@ -820,7 +822,7 @@ namespace FezGame.MultiplayerMod
                     {
                         position.Y += lineHeightModifier;
                     }
-                    if(i==0)
+                    if (i == 0)
                     {
                         position.Y += selectedItemPaddingBlock;
                     }

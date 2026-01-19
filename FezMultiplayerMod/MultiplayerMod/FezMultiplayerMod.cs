@@ -230,7 +230,7 @@ namespace FezGame.MultiplayerMod
                                 });
                     }
                 }
-             });
+            });
         }
 
         private bool disposing = false;
