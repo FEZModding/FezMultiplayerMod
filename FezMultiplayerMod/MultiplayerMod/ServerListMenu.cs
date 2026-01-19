@@ -190,14 +190,19 @@ namespace FezGame.MultiplayerMod
             ServerInfoList.AddRange(settings.ServerList);
         }
         private static readonly Hook MenuInitHook = null;
+        private static readonly Hook MenuUpdateHook = null;
         private static readonly Hook MenuUpOneLevelHook = null;
         private static readonly List<Tuple<string, Action>> CustomMenuOptions = new List<Tuple<string, Action>>();
         private static event Action OnMenuUpOneLevel = () => { };
         private static FieldInfo MenuCursorSelectable;
         private static FieldInfo MenuCursorClicking;
         private static object MenuBaseInstance;
+        private static bool CursorClicking = false;
+        private static bool CursorSelectable = false;
         private static void SetMenuCursorState(bool selectable, bool clicking)
         {
+            CursorSelectable = selectable;
+            CursorClicking = selectable && clicking;
             MenuCursorSelectable.SetValue(MenuBaseInstance, selectable);
             MenuCursorClicking.SetValue(MenuBaseInstance, selectable && clicking);
         }
@@ -207,6 +212,7 @@ namespace FezGame.MultiplayerMod
             Type MainMenuType = typeof(Fez).Assembly.GetType("FezGame.Components.MainMenu");
             Type MenuBaseType = typeof(Fez).Assembly.GetType("FezGame.Components.MenuBase");
             Type MenuLevelType = typeof(Fez).Assembly.GetType("FezGame.Structure.MenuLevel");
+            FieldInfo SinceMouseMovedInternal = MenuBaseType.GetField("SinceMouseMoved", BindingFlags.Instance | BindingFlags.NonPublic);
             MenuCursorSelectable = MenuBaseType.GetField("CursorSelectable");
             MenuCursorClicking = MenuBaseType.GetField("CursorClicking");
 
@@ -266,6 +272,15 @@ namespace FezGame.MultiplayerMod
                         CreateAndAddCustomLevels(self);
                     })
                 );
+                MenuUpdateHook = new Hook(
+                    MenuBaseType.GetMethod("Update"),
+                    new Action<Action<object, GameTime>, object, GameTime>((orig, self, gametime) =>
+                    {
+                        orig(self, gametime);
+                        if(Instance.HasFocus)
+                        SinceMouseMovedInternal.SetValue(self, 3f);
+                    })
+                );
             }
             if (MenuUpOneLevelHook == null)
             {
@@ -287,7 +302,7 @@ namespace FezGame.MultiplayerMod
 
         public ServerListMenu(Game game, MultiplayerClient client) : base(game)
         {
-            DrawOrder = 2007;
+            DrawOrder = 2300;
             Instance = this;
             drawer = new SpriteBatch(GraphicsDevice);
 
@@ -592,6 +607,7 @@ namespace FezGame.MultiplayerMod
             }
         }
         private static readonly TimeSpan menuChangeDelay = TimeSpan.FromMilliseconds(100);
+        private float SinceMouseMoved = 3f;
         private bool mouseWasDown = false;
         private float scrollY = 0;
         private float contentHeight = 0;
@@ -618,6 +634,15 @@ namespace FezGame.MultiplayerMod
                 RemoveOldLANServers();
                 cachedMenuListOptions = GetListOptions();
                 SinceLastUpdateList = TimeSpan.Zero;
+            }
+            SinceMouseMoved += (float)gameTime.ElapsedGameTime.TotalSeconds;
+            if (MouseState.Movement.X != 0 || MouseState.Movement.Y != 0)
+            {
+                SinceMouseMoved = 0f;
+            }
+            if (MouseState.LeftButton.State != 0)
+            {
+                SinceMouseMoved = 0f;
             }
             bool mouseDown = MouseState.LeftButton.State == MouseButtonStates.Down;
             if (HasFocus)
@@ -688,7 +713,6 @@ namespace FezGame.MultiplayerMod
                 //TODO add cursor clicking scrollbar arrows support; use ScrollBarArrowUpHitbox and ScrollBarArrowDownHitbox
 
                 var frameRect = new Vector3(512, 256f, 1f) * base.GraphicsDevice.GetViewScale();
-                if (CurrentMenuItem.BoundingClientRect.Y > frameRect.Y)
                 SetMenuCursorState(hasHoveredOption, mouseDown);
                 if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed
                     || (mouseDown && !mouseWasDown && hasHoveredOption))
@@ -724,8 +748,18 @@ namespace FezGame.MultiplayerMod
         private const int selectedItemBorderThickness = 1;
         private const int selectedItemPaddingBlock = 1 + selectedItemBorderThickness;
         private const int selectedItemOutlinePaddingInlineEmFrac = 3;
+        private Texture2D CanClickCursor;
+        private Texture2D PointerCursor;
+        private Texture2D ClickedCursor;
         public override void Draw(GameTime gameTime)
         {
+            if (PointerCursor == null && CMProvider?.Global != null)
+            {
+                ContentManager contentManager = CMProvider.Global;
+                PointerCursor = contentManager.Load<Texture2D>("Other Textures/cursor/CURSOR_POINTER");
+                CanClickCursor = contentManager.Load<Texture2D>("Other Textures/cursor/CURSOR_CLICKER_A");
+                ClickedCursor = contentManager.Load<Texture2D>("Other Textures/cursor/CURSOR_CLICKER_B");
+            }
             if (GraphicsDevice != null)
             {
                 //magic numbers
@@ -877,6 +911,16 @@ namespace FezGame.MultiplayerMod
                 }
                 drawer.End();
                 GraphicsDevice.Viewport = viewport;
+
+                //fix to get the cursor to appear on top of the menu
+                if (ClickedCursor != null)
+                {
+                    drawer.BeginPoint();
+                    float num3 = GraphicsDevice.GetViewScale() * 2f;
+                    Point point = MouseState.PositionInViewport();
+                    drawer.Draw(CursorClicking ? ClickedCursor : (CursorSelectable ? CanClickCursor : PointerCursor), new Vector2((float)point.X - num3 * 11.5f, (float)point.Y - num3 * 8.5f), null, new Color(1f, 1f, 1f, FezMath.Saturate(1f - (SinceMouseMoved - 2f))), 0f, Vector2.Zero, num3, SpriteEffects.None, 0f);
+                    drawer.End();
+                }
             }
         }
     }
