@@ -287,7 +287,7 @@ namespace FezGame.MultiplayerMod
 
         public ServerListMenu(Game game, MultiplayerClient client) : base(game)
         {
-            DrawOrder = 2300;
+            DrawOrder = 2007;
             Instance = this;
             drawer = new SpriteBatch(GraphicsDevice);
 
@@ -594,7 +594,9 @@ namespace FezGame.MultiplayerMod
         private static readonly TimeSpan menuChangeDelay = TimeSpan.FromMilliseconds(100);
         private bool mouseWasDown = false;
         private float scrollY = 0;
+        private float contentHeight = 0;
         private Rectangle MenuFrameRect = new Rectangle();
+        public static float ScrollDirection = -1;//TODO make customizable?
         public override void Update(GameTime gameTime)
         {
             if(!ServiceHelper.FirstLoadDone)
@@ -616,6 +618,27 @@ namespace FezGame.MultiplayerMod
             bool mouseDown = MouseState.LeftButton.State == MouseButtonStates.Down;
             if (HasFocus)
             {
+                void OnChangeSelectedOption()
+                {
+                    // adjust scroll based on current selection
+                    float menuFrameTop = MenuFrameRect.Y;
+                    float menuFrameBottom = menuFrameTop + MenuFrameRect.Height;
+                    float currScrollBottom = menuFrameBottom + scrollY;
+                    float currItemTop = CurrentMenuItem.BoundingClientRect.Y - selectedItemPaddingBlock;
+                    float currItemBottom = currItemTop + CurrentMenuItem.BoundingClientRect.Height + selectedItemPaddingBlock;
+
+                    // If the top of the current item is above the visible area, scroll up
+                    if (currItemTop < menuFrameTop)
+                    {
+                        scrollY += currItemTop - menuFrameTop;
+                    }
+                    // If the bottom of the current item is below the visible area, scroll down
+                    else if (currItemBottom > menuFrameBottom)
+                    {
+                        scrollY += currItemBottom - menuFrameBottom;
+                    }
+                }
+                bool mouseMoved = MouseState.Movement != Point.Zero;
                 if (InputManager.Up == FezButtonState.Pressed)
                 {
                     if(currentIndex > 0)
@@ -623,6 +646,7 @@ namespace FezGame.MultiplayerMod
                         CurrentMenuItem?.OnMoveToOtherOption?.Invoke();
                         sCursorUp.Emit();
                         currentIndex--;
+                        OnChangeSelectedOption();
                     }
                 }
                 int maxIndex = cachedMenuListOptions.Count - 1;
@@ -633,8 +657,14 @@ namespace FezGame.MultiplayerMod
                         CurrentMenuItem?.OnMoveToOtherOption?.Invoke();
                         sCursorDown.Emit();
                         currentIndex++;
+                        OnChangeSelectedOption();
                     }
                 }
+                //apparently most standard mice use 120 for one notch on the scroll wheel
+                const float WheelDelta = 120f;
+                scrollY += ScrollDirection * MouseState.WheelTurns / WheelDelta * RichTextRenderer.MeasureString(Fonts, "A").Y;
+
+                scrollY = MathHelper.Clamp(scrollY, -selectedItemPaddingBlock, Math.Max(0, contentHeight - MenuFrameRect.Height + selectedItemPaddingBlock));
                 if ((InputManager.CancelTalk == FezButtonState.Pressed) || InputManager.Back == FezButtonState.Pressed)
                 {
                     MenuBack();
@@ -644,7 +674,7 @@ namespace FezGame.MultiplayerMod
                     option.BoundingClientRect.Contains(positionPt)
                 );
                 bool hasHoveredOption = hoveredOption != null;
-                if (hasHoveredOption)
+                if (mouseMoved && hasHoveredOption)
                 {
                     currentIndex = hoveredOption.Index;
                 }
@@ -682,6 +712,9 @@ namespace FezGame.MultiplayerMod
             RichTextRenderer.DrawString(drawer, Fonts, text, position + Vector2.One, shadow ?? Color.Black, Color.Transparent, scale.Value);
             RichTextRenderer.DrawString(drawer, Fonts, text, position, color ?? Color.White, Color.Transparent, scale.Value);
         }
+        private const int selectedItemBorderThickness = 1;
+        private const int selectedItemPaddingBlock = 1 + selectedItemBorderThickness;
+        private const int selectedItemOutlinePaddingInlineEmFrac = 3;
         public override void Draw(GameTime gameTime)
         {
             if (GraphicsDevice != null)
@@ -693,14 +726,8 @@ namespace FezGame.MultiplayerMod
             }
             if (HasFocus && cachedMenuListOptions != null && drawer != null)
             {
-                Viewport viewport = GraphicsDevice.Viewport;
-                //restrict drawing to inside menu frame
-                GraphicsDevice.Viewport = new Viewport(MenuFrameRect);
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 Vector2 position = Vector2.Zero;
-                position.Y = 0;
-                const float lineHeightModifier = 8;
-                int i = 0;
                 //draw title
                 {
                     const string underlineStart = "\x1B[21m";
@@ -713,11 +740,23 @@ namespace FezGame.MultiplayerMod
 
                     Vector2 titleScale = new Vector2(1.5f);
                     Vector2 lineSize = RichTextRenderer.MeasureString(Fonts, menuTitle) * titleScale;
+                    position.Y = MenuFrameRect.Y;
                     position.X = GraphicsDevice.Viewport.Width / 2 - lineSize.X / 2;
                     DrawTextRichShadow(menuTitle, position, titleScale);
-                    //drawTextRichShadow(menuTitle, position);
-                    position.Y += lineSize.Y;
+                    MenuFrameRect.Y += (int)lineSize.Y;
+                    MenuFrameRect.Height -= (int)lineSize.Y;
                 }
+                drawer.End();
+
+                const float lineHeightModifier = 8;
+
+                Viewport viewport = GraphicsDevice.Viewport;
+                //restrict drawing to inside menu frame
+                GraphicsDevice.Viewport = new Viewport(MenuFrameRect);
+                drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                position = Vector2.Zero;
+                position.Y = 0;
+                int i = 0;
                 position.Y -= scrollY;
                 foreach (MenuListOption option in cachedMenuListOptions)
                 {
@@ -738,28 +777,64 @@ namespace FezGame.MultiplayerMod
                     {
                         position.Y += lineHeightModifier;
                     }
+                    if(i==0)
+                    {
+                        position.Y += selectedItemPaddingBlock;
+                    }
                     option.BoundingClientRect = new Rectangle((int)position.X + MenuFrameRect.X, (int)position.Y + MenuFrameRect.Y, (int)lineSize.X, (int)lineSize.Y);
                     option.Index = i;
                     RichTextRenderer.DrawString(drawer, Fonts, text, position + Vector2.One, bgColor);
                     RichTextRenderer.DrawString(drawer, Fonts, text, position, textColor);
                     position.Y += lineSize.Y;
                     ++i;
-                    if(position.Y > GraphicsDevice.Viewport.Height)
-                    {
-                        break;
-                    }
+                }
+                contentHeight = position.Y + scrollY;
+                bool overflowY = contentHeight > MenuFrameRect.Height;
+                bool overflowTop = scrollY > 0;
+                bool overflowBottom = position.Y > MenuFrameRect.Height;
+                if (overflowY)
+                {
+                    //draw scroll bar
+                    float vHeight = GraphicsDevice.Viewport.Height;
+                    float vWidth = GraphicsDevice.Viewport.Width;
+                    float scrollBarSizeWidth = (float)Math.Max(vWidth * 0.03, 5);
+                    float scrollBarSizeWidthInnerOffset = (float)Math.Max(vWidth * 0.001, 1);
+                    Color scrollBarBgColor = Color.Gray;
+                    Color scrollBarScrollerColor = Color.White;
+                    float scrollBarSizePercent = (float)MenuFrameRect.Height / (float)contentHeight;
+                    float scrollBarBottomEdgePercent = (float)MenuFrameRect.Height / (float)position.Y;
+                    float scrollBarTopEdgePercent = scrollBarBottomEdgePercent - scrollBarSizePercent;
+                    drawer.DrawRect(
+                        new Vector2(vWidth - scrollBarSizeWidth,
+                        0),
+                        scrollBarSizeWidth,
+                        vHeight,
+                        scrollBarBgColor);
+                    drawer.DrawRect(
+                        new Vector2(vWidth - scrollBarSizeWidth + scrollBarSizeWidthInnerOffset,
+                        vHeight * scrollBarTopEdgePercent),
+                        scrollBarSizeWidth - scrollBarSizeWidthInnerOffset * 2,
+                        vHeight * scrollBarSizePercent,
+                        scrollBarScrollerColor);
+                }
+                if (overflowTop)
+                {
+                    //TODO indicate overflow on top edge of container? 
+                }
+                if (overflowBottom)
+                {
+                    //TODO indicate overflow on bottom edge of container? 
                 }
                 MenuListOption menuitem = CurrentMenuItem;
                 if (menuitem != null)
                 {
-                    int paddingInline = menuitem.BoundingClientRect.Height / 3;
-                    int paddingBlock = menuitem.BoundingClientRect.Height / 20;
-                    int lineThickness = 1;
+                    int paddingInline = menuitem.BoundingClientRect.Height / selectedItemOutlinePaddingInlineEmFrac;
+                    int paddingBlock = 0;
                     Vector2 origin = new Vector2(menuitem.BoundingClientRect.X - paddingInline - MenuFrameRect.X, menuitem.BoundingClientRect.Y - paddingBlock - MenuFrameRect.Y);
                     drawer.DrawRectWireframe(origin,
                         menuitem.BoundingClientRect.Width + 2 * paddingInline,
                         menuitem.BoundingClientRect.Height + 2 * paddingBlock,
-                        lineThickness,
+                        selectedItemBorderThickness,
                         Color.White);
                 }
                 drawer.End();

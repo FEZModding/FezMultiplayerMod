@@ -88,4 +88,5 @@ added server `SaveFileFullPath` setting to decide where the shared save data sho
 
 0.8.0
 Added mouse support to client multiplayer menu
+Added scrolling to server list menu
 
