@@ -673,8 +673,9 @@ namespace FezGame.MultiplayerMod
                 MenuListOption hoveredOption = cachedMenuListOptions.FirstOrDefault(option =>
                     option.BoundingClientRect.Contains(positionPt)
                 );
-                bool hasHoveredOption = hoveredOption != null;
-                if (mouseMoved && hasHoveredOption)
+                bool cursorInFrame = MenuFrameRect.Contains(positionPt);
+                bool hasHoveredOption = cursorInFrame && hoveredOption != null;
+                if (mouseMoved && hasHoveredOption && cursorInFrame)
                 {
                     currentIndex = hoveredOption.Index;
                 }
