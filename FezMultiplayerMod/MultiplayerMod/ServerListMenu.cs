@@ -593,6 +593,8 @@ namespace FezGame.MultiplayerMod
         }
         private static readonly TimeSpan menuChangeDelay = TimeSpan.FromMilliseconds(100);
         private bool mouseWasDown = false;
+        private float scrollY = 0;
+        private Rectangle MenuFrameRect = new Rectangle();
         public override void Update(GameTime gameTime)
         {
             if(!ServiceHelper.FirstLoadDone)
@@ -646,6 +648,8 @@ namespace FezGame.MultiplayerMod
                 {
                     currentIndex = hoveredOption.Index;
                 }
+                var frameRect = new Vector3(512, 256f, 1f) * base.GraphicsDevice.GetViewScale();
+                if (CurrentMenuItem.BoundingClientRect.Y > frameRect.Y)
                 SetMenuCursorState(hasHoveredOption, mouseDown);
                 if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed
                     || (mouseDown && !mouseWasDown && hasHoveredOption))
@@ -680,11 +684,21 @@ namespace FezGame.MultiplayerMod
         }
         public override void Draw(GameTime gameTime)
         {
+            if (GraphicsDevice != null)
+            {
+                //magic numbers
+                var frameScale = new Vector2(512f, 256f) * base.GraphicsDevice.GetViewScale() * 2;
+                var frameOrigin = new Vector2((base.GraphicsDevice.Viewport.Width - frameScale.X) / 2, (base.GraphicsDevice.Viewport.Height - frameScale.Y) / 2);
+                MenuFrameRect = new Rectangle((int)frameOrigin.X, (int)frameOrigin.Y, (int)frameScale.X, (int)frameScale.Y);
+            }
             if (HasFocus && cachedMenuListOptions != null && drawer != null)
             {
+                Viewport viewport = GraphicsDevice.Viewport;
+                //restrict drawing to inside menu frame
+                GraphicsDevice.Viewport = new Viewport(MenuFrameRect);
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 Vector2 position = Vector2.Zero;
-                position.Y = GraphicsDevice.Viewport.Height * 0.15f;
+                position.Y = 0;
                 const float lineHeightModifier = 8;
                 int i = 0;
                 //draw title
@@ -704,6 +718,7 @@ namespace FezGame.MultiplayerMod
                     //drawTextRichShadow(menuTitle, position);
                     position.Y += lineSize.Y;
                 }
+                position.Y -= scrollY;
                 foreach (MenuListOption option in cachedMenuListOptions)
                 {
                     bool selected = i == currentIndex;
@@ -723,7 +738,7 @@ namespace FezGame.MultiplayerMod
                     {
                         position.Y += lineHeightModifier;
                     }
-                    option.BoundingClientRect = new Rectangle((int)position.X, (int)position.Y, (int)lineSize.X, (int)lineSize.Y);
+                    option.BoundingClientRect = new Rectangle((int)position.X + MenuFrameRect.X, (int)position.Y + MenuFrameRect.Y, (int)lineSize.X, (int)lineSize.Y);
                     option.Index = i;
                     RichTextRenderer.DrawString(drawer, Fonts, text, position + Vector2.One, bgColor);
                     RichTextRenderer.DrawString(drawer, Fonts, text, position, textColor);
@@ -738,11 +753,17 @@ namespace FezGame.MultiplayerMod
                 if (menuitem != null)
                 {
                     int paddingInline = menuitem.BoundingClientRect.Height / 3;
-                    Vector2 origin = new Vector2(menuitem.BoundingClientRect.X - paddingInline, menuitem.BoundingClientRect.Y);
-                    drawer.DrawRectWireframe(origin, menuitem.BoundingClientRect.Width + 2 * paddingInline, menuitem.BoundingClientRect.Height, 1, Color.White);
+                    int paddingBlock = menuitem.BoundingClientRect.Height / 20;
+                    int lineThickness = 1;
+                    Vector2 origin = new Vector2(menuitem.BoundingClientRect.X - paddingInline - MenuFrameRect.X, menuitem.BoundingClientRect.Y - paddingBlock - MenuFrameRect.Y);
+                    drawer.DrawRectWireframe(origin,
+                        menuitem.BoundingClientRect.Width + 2 * paddingInline,
+                        menuitem.BoundingClientRect.Height + 2 * paddingBlock,
+                        lineThickness,
+                        Color.White);
                 }
-
                 drawer.End();
+                GraphicsDevice.Viewport = viewport;
             }
         }
     }
