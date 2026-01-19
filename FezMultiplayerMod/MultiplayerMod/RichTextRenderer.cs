@@ -13,6 +13,28 @@ namespace FezGame.MultiplayerMod
 {
     public static class TypeExtensions
     {
+        private static Texture2D _texture;
+        public static void DrawRect(this SpriteBatch batch, Vector2 start, float width, float height, Color color)
+        {
+            if (_texture == null)
+            {
+                _texture = new Texture2D(batch.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
+                _texture.SetData(new[] { Color.White });
+            }
+            batch.Draw(_texture, start, null, color, 0f, Vector2.Zero, new Vector2(width, height), SpriteEffects.None, 0f);
+        }
+        public static void DrawRectWireframe(this SpriteBatch batch, Vector2 boxOrigin, float boxWidth, float boxHeight, float lineThickness, Color color)
+        {
+            //top
+            batch.DrawRect(boxOrigin, boxWidth, lineThickness, color);
+            //left
+            batch.DrawRect(boxOrigin, lineThickness, boxHeight, color);
+            //bottom
+            batch.DrawRect(boxOrigin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, color);
+            //right
+            batch.DrawRect(boxOrigin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, color);
+        }
+
         public static bool HasValue(this Type type, char value)
         {
             return type.GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public).Any(field =>
@@ -561,8 +583,6 @@ namespace FezGame.MultiplayerMod
         }
         #endregion
 
-        private static Texture2D _texture;
-
         /// <param name="batch">The <see cref="SpriteBatch"/> to use to draw the text.</param>
         /// <param name="defaultFont">
         ///         The default font to use for the text. <br />
@@ -597,16 +617,6 @@ namespace FezGame.MultiplayerMod
             if (text is null)
             {
                 throw new ArgumentNullException(nameof(text));
-            }
-
-            void DrawRect(Vector2 start, float width, float height, Color color)
-            {
-                if (_texture == null)
-                {
-                    _texture = new Texture2D(batch.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
-                    _texture.SetData(new[] { Color.White });
-                }
-                batch.Draw(_texture, start, null, color, 0f, Vector2.Zero, new Vector2(width, height), SpriteEffects.None, 0f);
             }
 
             /*
@@ -655,7 +665,7 @@ namespace FezGame.MultiplayerMod
                 Vector2 tokenSize = fontData.Font.MeasureString(token.Text) * fontData.Scale * scale;
                 float tokenWidth = tokenSize.X + letterSpacing;
 
-                DrawRect(offsetPosition, tokenSize.X, tokenSize.Y, backgroundColor);
+                batch.DrawRect(offsetPosition, tokenSize.X, tokenSize.Y, backgroundColor);
 
                 bool IsConcealed = decoration.HasFlag(TextDecoration.Concealed);
 
@@ -669,30 +679,30 @@ namespace FezGame.MultiplayerMod
                     {
                         Vector2 underlinePosition = offsetPosition + underlineOffset * Vector2.UnitY;
                         // draw line with width of token starting at position underlinePosition
-                        DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
+                        batch.DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
                         if (decoration.HasFlag(TextDecoration.DoubleUnderline))
                         {
                             underlinePosition += doublelineOffsetOffset * Vector2.UnitY;
                             // draw line with width of token starting at position underlinePosition
-                            DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
+                            batch.DrawRect(underlinePosition, tokenWidth, lineThickness, decorationColor);
                         }
                     }
                     if (decoration.HasFlag(TextDecoration.Strikethrough))
                     {
                         Vector2 strikethroughPosition = offsetPosition + strikethroughOffset * Vector2.UnitY;
                         // draw line with width of token starting at position strikethroughPosition
-                        DrawRect(strikethroughPosition, tokenWidth, lineThickness, decorationColor);
+                        batch.DrawRect(strikethroughPosition, tokenWidth, lineThickness, decorationColor);
                     }
                     if (decoration.HasFlag(TextDecoration.Overline))
                     {
                         Vector2 overlinePosition = offsetPosition + overlineOffset * Vector2.UnitY;
                         // draw line with width of token starting at position overlinePosition
-                        DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
+                        batch.DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
                         if (decoration.HasFlag(TextDecoration.DoubleOverline))
                         {
                             overlinePosition -= doublelineOffsetOffset * Vector2.UnitY;
                             // draw line with width of token starting at position overlinePosition
-                            DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
+                            batch.DrawRect(overlinePosition, tokenWidth, lineThickness, decorationColor);
                         }
                     }
                     if (decoration.HasFlag(TextDecoration.StressMarking))
@@ -710,20 +720,20 @@ namespace FezGame.MultiplayerMod
                 if (decoration.HasFlag(TextDecoration.Framed))
                 {
                     //top
-                    DrawRect(boxOrigin, boxWidth, lineThickness, decorationColor);
+                    batch.DrawRect(boxOrigin, boxWidth, lineThickness, decorationColor);
                     //left; check the previous token isn't also framed
                     if (tokenIndex <= 0 || !tokens[tokenIndex - 1].Style.Decoration.HasFlag(TextDecoration.Framed))
                     {
                         //left
-                        DrawRect(boxOrigin, lineThickness, boxHeight, decorationColor);
+                        batch.DrawRect(boxOrigin, lineThickness, boxHeight, decorationColor);
                     }
                     //bottom
-                    DrawRect(boxOrigin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, decorationColor);
+                    batch.DrawRect(boxOrigin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, decorationColor);
                     //right; check the next token isn't also framed
                     if (tokenIndex+1 >= tokens.Count || !tokens[tokenIndex + 1].Style.Decoration.HasFlag(TextDecoration.Framed))
                     {
                         //right
-                        DrawRect(boxOrigin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
+                        batch.DrawRect(boxOrigin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
                     }
                 }
                 //check the previous token isn't also circled
