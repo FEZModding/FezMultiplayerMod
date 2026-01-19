@@ -503,6 +503,7 @@ namespace FezGame.MultiplayerMod
         }
         private void MenuBack()
         {
+            CurrentMenuItem?.OnMoveToOtherOption?.Invoke();
             CurrentMenuLevel = CurrentMenuLevel.ParentMenu;
         }
 
