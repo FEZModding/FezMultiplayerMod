@@ -87,5 +87,5 @@ Implemented `SyncWorldState` option to sync save data across players
 added server `SaveFileFullPath` setting to decide where the shared save data should be saved
 
 0.8.0
-
+Added mouse support to client multiplayer menu
 

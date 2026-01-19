@@ -63,6 +63,8 @@ namespace FezGame.MultiplayerMod
             public readonly Action Action;
             public readonly Action OnMoveToOtherOption;
             public bool Enabled = true;
+            internal Rectangle BoundingClientRect = new Rectangle(-100, -100, 0, 0);
+            internal int Index = -1;
 
             public MenuListOption()
             {
@@ -144,6 +146,7 @@ namespace FezGame.MultiplayerMod
         private IContentManagerProvider CMProvider { get; set; }
         private IInputManager InputManager { get; set; }
         private IFontManager Fonts { get; set; }
+        private IMouseStateManager MouseState { get; set; }
         #endregion
 
         public static ServerListMenu Instance;
@@ -190,12 +193,22 @@ namespace FezGame.MultiplayerMod
         private static readonly Hook MenuUpOneLevelHook = null;
         private static readonly List<Tuple<string, Action>> CustomMenuOptions = new List<Tuple<string, Action>>();
         private static event Action OnMenuUpOneLevel = () => { };
+        private static FieldInfo MenuCursorSelectable;
+        private static FieldInfo MenuCursorClicking;
+        private static object MenuBaseInstance;
+        private static void SetMenuCursorState(bool selectable, bool clicking)
+        {
+            MenuCursorSelectable.SetValue(MenuBaseInstance, selectable);
+            MenuCursorClicking.SetValue(MenuBaseInstance, selectable && clicking);
+        }
         static ServerListMenu()
         {
             const BindingFlags privBind = BindingFlags.NonPublic | BindingFlags.Instance;
             Type MainMenuType = typeof(Fez).Assembly.GetType("FezGame.Components.MainMenu");
             Type MenuBaseType = typeof(Fez).Assembly.GetType("FezGame.Components.MenuBase");
             Type MenuLevelType = typeof(Fez).Assembly.GetType("FezGame.Structure.MenuLevel");
+            MenuCursorSelectable = MenuBaseType.GetField("CursorSelectable");
+            MenuCursorClicking = MenuBaseType.GetField("CursorClicking");
 
             void CreateAndAddCustomLevels(object MenuBase)
             {
@@ -249,6 +262,7 @@ namespace FezGame.MultiplayerMod
                     new Action<Action<object>, object>((orig, self) =>
                     {
                         orig(self);
+                        MenuBaseInstance = self;
                         CreateAndAddCustomLevels(self);
                     })
                 );
@@ -293,6 +307,7 @@ namespace FezGame.MultiplayerMod
                 CMProvider = ServiceHelper.Get<IContentManagerProvider>();
                 InputManager = ServiceHelper.Get<IInputManager>();
                 Fonts = ServiceHelper.Get<IFontManager>();
+                MouseState = ServiceHelper.Get<IMouseStateManager>();
 
                 ContentManager contentManager = CMProvider.Global;
                 sCancel = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/Cancel");
@@ -555,6 +570,28 @@ namespace FezGame.MultiplayerMod
             }
         }
         private int currentIndex = 0;
+        private MenuListOption CurrentMenuItem
+        {
+            get
+            {
+                if (cachedMenuListOptions == null)
+                {
+                    return null;
+                }
+                if (currentIndex < 0)
+                {
+                    currentIndex = 0;
+                }
+                int maxIndex = cachedMenuListOptions.Count - 1;
+                if (currentIndex > maxIndex)
+                {
+                    currentIndex = maxIndex;
+                }
+                return cachedMenuListOptions.ElementAt(currentIndex);
+            }
+        }
+        private static readonly TimeSpan menuChangeDelay = TimeSpan.FromMilliseconds(100);
+        private bool mouseWasDown = false;
         public override void Update(GameTime gameTime)
         {
             if(!ServiceHelper.FirstLoadDone)
@@ -573,13 +610,14 @@ namespace FezGame.MultiplayerMod
                 cachedMenuListOptions = GetListOptions();
                 SinceLastUpdateList = TimeSpan.Zero;
             }
+            bool mouseDown = MouseState.LeftButton.State == MouseButtonStates.Down;
             if (HasFocus)
             {
                 if (InputManager.Up == FezButtonState.Pressed)
                 {
                     if(currentIndex > 0)
                     {
-                        cachedMenuListOptions?.ElementAt(currentIndex)?.OnMoveToOtherOption?.Invoke();
+                        CurrentMenuItem?.OnMoveToOtherOption?.Invoke();
                         sCursorUp.Emit();
                         currentIndex--;
                     }
@@ -589,27 +627,30 @@ namespace FezGame.MultiplayerMod
                 {
                     if (currentIndex < maxIndex)
                     {
-                        cachedMenuListOptions?.ElementAt(currentIndex)?.OnMoveToOtherOption?.Invoke();
+                        CurrentMenuItem?.OnMoveToOtherOption?.Invoke();
                         sCursorDown.Emit();
                         currentIndex++;
                     }
-                }
-                if (currentIndex < 0)
-                {
-                    currentIndex = 0;
-                }
-                if (currentIndex > maxIndex)
-                {
-                    currentIndex = maxIndex;
                 }
                 if ((InputManager.CancelTalk == FezButtonState.Pressed) || InputManager.Back == FezButtonState.Pressed)
                 {
                     MenuBack();
                 }
-                if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed)
+                Point positionPt = MouseState.PositionInViewport();
+                MenuListOption hoveredOption = cachedMenuListOptions.FirstOrDefault(option =>
+                    option.BoundingClientRect.Contains(positionPt)
+                );
+                bool hasHoveredOption = hoveredOption != null;
+                if (hasHoveredOption)
                 {
-                    var menuitem = cachedMenuListOptions.ElementAt(currentIndex);
-                    if (!justGotFocus && menuitem.Enabled)
+                    currentIndex = hoveredOption.Index;
+                }
+                SetMenuCursorState(hasHoveredOption, mouseDown);
+                if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed
+                    || (mouseDown && !mouseWasDown && hasHoveredOption))
+                {
+                    MenuListOption menuitem = CurrentMenuItem;
+                    if (!justGotFocus && menuitem.Enabled && SinceLastUpdateList > menuChangeDelay)
                     {
                         menuitem.Action.Invoke();
                         if (menuitem.DisplayText.Equals(OptionBack.DisplayText))
@@ -621,9 +662,9 @@ namespace FezGame.MultiplayerMod
                             sConfirm.Emit();
                         }
                     }
-                    //Note: having  here can cause the sound to play twice when opening the server list menu
                 }
             }
+            mouseWasDown = mouseDown;
             justGotFocus = false;
         }
         private void DrawTextRichShadow(string text, Vector2 position, Vector2? scale = null, Color? color = null, Color? shadow = null)
@@ -645,6 +686,7 @@ namespace FezGame.MultiplayerMod
                 position.Y = GraphicsDevice.Viewport.Height * 0.15f;
                 const float lineHeightModifier = 8;
                 int i = 0;
+                //draw title
                 {
                     const string underlineStart = "\x1B[21m";
                     const string underlinePadding = "    ";
@@ -661,13 +703,16 @@ namespace FezGame.MultiplayerMod
                     //drawTextRichShadow(menuTitle, position);
                     position.Y += lineSize.Y;
                 }
-                foreach (var option in cachedMenuListOptions)
+                foreach (MenuListOption option in cachedMenuListOptions)
                 {
                     bool selected = i == currentIndex;
                     string optionName = option.DisplayText;
+                    Color textColor = Color.White;
+                    Color bgColor = selected ? Color.Gray : Color.Black;
                     if(!option.Enabled)
                     {
-                        optionName = "\x1B[90m" + optionName + "\x1B[0m";
+                        textColor = Color.Gray;
+                        bgColor = Color.Black;
                     }
                     string text = $"{(selected ? ">" : " ")} {optionName} {(selected ? "<" : " ")}";
                     Vector2 lineSize = RichTextRenderer.MeasureString(Fonts, text);
@@ -677,8 +722,10 @@ namespace FezGame.MultiplayerMod
                     {
                         position.Y += lineHeightModifier;
                     }
-                    RichTextRenderer.DrawString(drawer, Fonts, text, position + Vector2.One, Color.Black);
-                    RichTextRenderer.DrawString(drawer, Fonts, text, position, Color.White);
+                    option.BoundingClientRect = new Rectangle((int)position.X, (int)position.Y, (int)lineSize.X, (int)lineSize.Y);
+                    option.Index = i;
+                    RichTextRenderer.DrawString(drawer, Fonts, text, position + Vector2.One, bgColor);
+                    RichTextRenderer.DrawString(drawer, Fonts, text, position, textColor);
                     position.Y += lineSize.Y;
                     ++i;
                     if(position.Y > GraphicsDevice.Viewport.Height)
@@ -686,6 +733,14 @@ namespace FezGame.MultiplayerMod
                         break;
                     }
                 }
+                MenuListOption menuitem = CurrentMenuItem;
+                if (menuitem != null)
+                {
+                    int paddingInline = menuitem.BoundingClientRect.Height / 3;
+                    Vector2 origin = new Vector2(menuitem.BoundingClientRect.X - paddingInline, menuitem.BoundingClientRect.Y);
+                    drawer.DrawRectWireframe(origin, menuitem.BoundingClientRect.Width + 2 * paddingInline, menuitem.BoundingClientRect.Height, 1, Color.White);
+                }
+
                 drawer.End();
             }
         }
