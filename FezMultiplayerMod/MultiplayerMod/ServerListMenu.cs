@@ -596,6 +596,10 @@ namespace FezGame.MultiplayerMod
         private float scrollY = 0;
         private float contentHeight = 0;
         private Rectangle MenuFrameRect = new Rectangle();
+        private Rectangle ScrollBarTrackHitbox = new Rectangle();
+        private Rectangle ScrollBarThumbHitbox = new Rectangle();
+        private Rectangle ScrollBarArrowUpHitbox = new Rectangle();
+        private Rectangle ScrollBarArrowDownHitbox = new Rectangle();
         public static float ScrollDirection = -1;//TODO make customizable?
         public override void Update(GameTime gameTime)
         {
@@ -679,6 +683,10 @@ namespace FezGame.MultiplayerMod
                 {
                     currentIndex = hoveredOption.Index;
                 }
+                //TODO add cursor dragging scrollbar support; use ScrollBarThumbHitbox
+                //TODO add cursor clicking scrollbar support; use ScrollBarTrackHitbox
+                //TODO add cursor clicking scrollbar arrows support; use ScrollBarArrowUpHitbox and ScrollBarArrowDownHitbox
+
                 var frameRect = new Vector3(512, 256f, 1f) * base.GraphicsDevice.GetViewScale();
                 if (CurrentMenuItem.BoundingClientRect.Y > frameRect.Y)
                 SetMenuCursorState(hasHoveredOption, mouseDown);
@@ -742,7 +750,7 @@ namespace FezGame.MultiplayerMod
                     Vector2 titleScale = new Vector2(1.5f);
                     Vector2 lineSize = RichTextRenderer.MeasureString(Fonts, menuTitle) * titleScale;
                     position.Y = MenuFrameRect.Y;
-                    position.X = GraphicsDevice.Viewport.Width / 2 - lineSize.X / 2;
+                    position.X = (GraphicsDevice.Viewport.Width / 2) - (lineSize.X / 2);
                     DrawTextRichShadow(menuTitle, position, titleScale);
                     MenuFrameRect.Y += (int)lineSize.Y;
                     MenuFrameRect.Height -= (int)lineSize.Y;
@@ -772,7 +780,7 @@ namespace FezGame.MultiplayerMod
                     }
                     string text = $"{(selected ? ">" : " ")} {optionName} {(selected ? "<" : " ")}";
                     Vector2 lineSize = RichTextRenderer.MeasureString(Fonts, text);
-                    position.X = GraphicsDevice.Viewport.Width / 2 - lineSize.X / 2;
+                    position.X = (GraphicsDevice.Viewport.Width / 2) - (lineSize.X / 2);
                     if (text.Contains($"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}")
                     || text.Contains($"{RichTextRenderer.ESC}{RichTextRenderer.C1_EscapeSequences.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}"))
                     {
@@ -798,33 +806,62 @@ namespace FezGame.MultiplayerMod
                     //draw scroll bar
                     float vHeight = GraphicsDevice.Viewport.Height;
                     float vWidth = GraphicsDevice.Viewport.Width;
+                    float scrollBarSizeHeight = vHeight;
                     float scrollBarSizeWidth = (float)Math.Max(vWidth * 0.03, 5);
-                    float scrollBarSizeWidthInnerOffset = (float)Math.Max(vWidth * 0.001, 1);
+                    float scrollBarSizeWidthInnerOffsetInline = (float)Math.Max(vWidth * 0.003, 1);
+                    float scrollBarArrowSize = scrollBarSizeWidth;//TODO use for drawing arrows
+                    float scrollBarSizeWidthInnerOffsetBlock = scrollBarSizeWidth;//TODO use for drawing arrows
                     Color scrollBarBgColor = Color.Gray;
                     Color scrollBarScrollerColor = Color.White;
                     float scrollBarSizePercent = (float)MenuFrameRect.Height / (float)contentHeight;
                     float scrollBarBottomEdgePercent = (float)MenuFrameRect.Height / (float)position.Y;
                     float scrollBarTopEdgePercent = scrollBarBottomEdgePercent - scrollBarSizePercent;
+
+                    float scrollBarOriginX = vWidth - scrollBarSizeWidth;
+
+                    ScrollBarTrackHitbox = new Rectangle((int)scrollBarOriginX,
+                        0,
+                        (int)scrollBarSizeWidth,
+                        (int)scrollBarSizeHeight);
                     drawer.DrawRect(
-                        new Vector2(vWidth - scrollBarSizeWidth,
+                        new Vector2(scrollBarOriginX,
                         0),
                         scrollBarSizeWidth,
-                        vHeight,
+                        scrollBarSizeHeight,
                         scrollBarBgColor);
+
+                    ScrollBarThumbHitbox = new Rectangle((int)scrollBarOriginX,
+                        (int)((scrollBarSizeHeight * scrollBarTopEdgePercent) + scrollBarSizeWidthInnerOffsetBlock),
+                        (int)scrollBarSizeWidth,
+                        (int)((scrollBarSizeHeight * scrollBarSizePercent) - (scrollBarSizeWidthInnerOffsetBlock * 2))
+                    );
                     drawer.DrawRect(
-                        new Vector2(vWidth - scrollBarSizeWidth + scrollBarSizeWidthInnerOffset,
-                        vHeight * scrollBarTopEdgePercent),
-                        scrollBarSizeWidth - scrollBarSizeWidthInnerOffset * 2,
-                        vHeight * scrollBarSizePercent,
+                        new Vector2(scrollBarOriginX + scrollBarSizeWidthInnerOffsetInline,
+                        (scrollBarSizeHeight * scrollBarTopEdgePercent) + scrollBarSizeWidthInnerOffsetBlock),
+                        scrollBarSizeWidth - (scrollBarSizeWidthInnerOffsetInline * 2),
+                        (scrollBarSizeHeight * scrollBarSizePercent) - (scrollBarSizeWidthInnerOffsetBlock * 2),
                         scrollBarScrollerColor);
-                }
-                if (overflowTop)
-                {
-                    //TODO indicate overflow on top edge of container? 
-                }
-                if (overflowBottom)
-                {
-                    //TODO indicate overflow on bottom edge of container? 
+
+                    ScrollBarArrowUpHitbox = new Rectangle((int)scrollBarOriginX,
+                        0,
+                        (int)scrollBarArrowSize,
+                        (int)scrollBarArrowSize
+                    );
+                    ScrollBarArrowDownHitbox = new Rectangle((int)scrollBarOriginX,
+                        (int)(scrollBarSizeHeight - scrollBarArrowSize),
+                        (int)scrollBarArrowSize,
+                        (int)scrollBarArrowSize
+                    );
+
+                    //TODO draw arrows on scroll bar
+                    if (overflowTop)
+                    {
+                        //TODO indicate overflow on top edge of container? 
+                    }
+                    if (overflowBottom)
+                    {
+                        //TODO indicate overflow on bottom edge of container? 
+                    }
                 }
                 MenuListOption menuitem = CurrentMenuItem;
                 if (menuitem != null)
@@ -833,8 +870,8 @@ namespace FezGame.MultiplayerMod
                     int paddingBlock = 0;
                     Vector2 origin = new Vector2(menuitem.BoundingClientRect.X - paddingInline - MenuFrameRect.X, menuitem.BoundingClientRect.Y - paddingBlock - MenuFrameRect.Y);
                     drawer.DrawRectWireframe(origin,
-                        menuitem.BoundingClientRect.Width + 2 * paddingInline,
-                        menuitem.BoundingClientRect.Height + 2 * paddingBlock,
+                        menuitem.BoundingClientRect.Width + (2 * paddingInline),
+                        menuitem.BoundingClientRect.Height + (2 * paddingBlock),
                         selectedItemBorderThickness,
                         Color.White);
                 }
