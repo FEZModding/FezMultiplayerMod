@@ -197,8 +197,8 @@ namespace FezGame.MultiplayerMod
         private static readonly Hook MenuUpOneLevelHook = null;
         private static readonly List<Tuple<string, Action>> CustomMenuOptions = new List<Tuple<string, Action>>();
         private static event Action OnMenuUpOneLevel = () => { };
-        private static FieldInfo MenuCursorSelectable;
-        private static FieldInfo MenuCursorClicking;
+        private static readonly FieldInfo MenuCursorSelectable;
+        private static readonly FieldInfo MenuCursorClicking;
         private static object MenuBaseInstance;
         private static bool CursorClicking = false;
         private static bool CursorSelectable = false;

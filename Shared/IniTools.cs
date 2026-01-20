@@ -43,8 +43,7 @@ namespace FezSharedTools
             int portsepindex = str.LastIndexOf(':');
             var portMatch = Regex.Match(str, @":(\d+)$");
             bool hasPort = portMatch.Success;
-            int portsepindex2 = portMatch.Index;
-            string addr;//Note: the replaces are for IPv6
+            string addr;
             int port;
             if (!hasPort)
             {

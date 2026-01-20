@@ -599,7 +599,8 @@ namespace FezMultiplayerDedicatedServer
         #region web interface
         private static string DecodeWebSocketMessage(byte[] bytes, out bool closing, out bool ping)
         {
-
+            //TODO add WebSocket frame fragmentation support? idk if it's needed since the client is only sending like 10 bytes at a time
+            // RFC 6455 requires WebSockets handle fragmented messages
             bool fin = (bytes[0] & 0b10000000) != 0,
                 mask = (bytes[1] & 0b10000000) != 0; // must be true, "All messages from the client to the server have this bit set"
             int opcode = bytes[0] & 0b00001111; // expecting 1 - text message
@@ -648,7 +649,7 @@ namespace FezMultiplayerDedicatedServer
             byte[] rawData = rawBytes ?? SharedConstants.UTF8.GetBytes(message);
             int length = rawData.Length;
             byte[] frame;
-            int indexStartData = 0;
+            int indexStartData;
 
             // A text message frame starts with opcode 0x81 (FIN bit set + Text opcode)
             byte opcodeByte = (byte)(0x80 | opcode);
@@ -673,8 +674,18 @@ namespace FezMultiplayerDedicatedServer
             else
             {
                 // For very large messages, use 8-byte extended payload length
-                // (omitted for brevity, but follows the same pattern as above)
-                throw new NotSupportedException("Messages larger than 65535 bytes not implemented in this example.");
+                frame = new byte[10 + length];
+                frame[0] = opcodeByte;
+                frame[1] = 127; // Extended extended payload length marker
+                frame[2] = (byte)((length >> 56) & 255);
+                frame[3] = (byte)((length >> 48) & 255);
+                frame[4] = (byte)((length >> 40) & 255);
+                frame[5] = (byte)((length >> 32) & 255);
+                frame[6] = (byte)((length >> 24) & 255);
+                frame[7] = (byte)((length >> 16) & 255);
+                frame[8] = (byte)((length >> 8) & 255);
+                frame[9] = (byte)(length & 255);
+                indexStartData = 10;
             }
 
             // Copy the raw message data into the frame
