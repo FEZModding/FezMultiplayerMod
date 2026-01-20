@@ -90,4 +90,7 @@ added server `SaveFileFullPath` setting to decide where the shared save data sho
 Added mouse support to client multiplayer menu
 Added scrolling to server list menu
 performance improvements
+fixed server not loading save file
+bug fixes
+
 
