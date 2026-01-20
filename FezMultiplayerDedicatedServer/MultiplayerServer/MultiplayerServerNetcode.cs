@@ -577,12 +577,7 @@ namespace FezMultiplayerDedicatedServer
             }
             if (SaveDataObserver.newChanges.HasChanges)
             {
-                var keysToRemove = SaveDataChanges.KeyedChanges.Where(change => Players.Keys.All(pk => change.Value.SentTo.Contains(pk))).Select(kp => kp.Key).ToList();
-                foreach (var key in keysToRemove)
-                {
-                    _ = SaveDataChanges.KeyedChanges.TryRemove(key, out _); //
-                }
-                keysToRemove = SaveDataChanges.ListChanges.Where(change => Players.Keys.All(pk => change.Value.SentTo.Contains(pk))).Select(kp => kp.Key).ToList();
+                var keysToRemove = SaveDataChanges.ListChanges.Where(change => Players.Keys.All(pk => change.Value.SentTo.Contains(pk))).Select(kp => kp.Key).ToList();
                 foreach (var key in keysToRemove)
                 {
                     _ = SaveDataChanges.ListChanges.TryRemove(key, out _); //
