@@ -33,6 +33,7 @@ namespace FezSharedTools
 {
     internal static class SharedTools
     {
+        public static event Action<string, int> OnLogWarning = (string message, int severity) => {};
         public static void LogWarning(string ComponentName, string message, int LogSeverity = 1)
         {
             string ThreadName = System.Threading.Thread.CurrentThread.Name;
@@ -66,6 +67,7 @@ namespace FezSharedTools
 #endif
             Console.WriteLine(message);
             System.Diagnostics.Debug.WriteLine(message);
+            OnLogWarning(message, LogSeverity);
         }
         public static void ForceDisconnect(this System.Net.Sockets.Socket socket)
         {
