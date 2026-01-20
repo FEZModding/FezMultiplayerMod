@@ -32,13 +32,13 @@ namespace FezGame.MultiplayerMod
             {
                 this.value = value;
                 _ = ConstrainCaretPosition();
-                OnUpdate();
+                OnUpdate(false);
             }
         }
         public string DisplayValue => HasFocus ? Value.PadRightAnsi(TextboxPadRight - caret.Length).Insert(ConstrainCaretPosition(), showCaret ? caret : noCaret) : Value.PadRightAnsi(TextboxPadRight);
 
         public int MaxLength = 10000;
-        public event Action OnUpdate = () => { };
+        public event Action<bool> OnUpdate = (onlyCaretBlinking) => { };
         /// <summary>
         /// If this textbox has focus
         /// </summary>
@@ -61,7 +61,7 @@ namespace FezGame.MultiplayerMod
                     TextInputEXT.StopTextInput();
                 }
                 showCaret = true;
-                OnUpdate();
+                OnUpdate(false);
             }
         }
 
@@ -82,14 +82,14 @@ namespace FezGame.MultiplayerMod
                 caretPosition -= 1;
                 showCaret = true;
                 blinkStartTime = totalSeconds;
-                OnUpdate();
+                OnUpdate(false);
             });
             right = new KeyRepeatState(Keys.Right, (totalSeconds) =>
             {
                 caretPosition += 1;
                 showCaret = true;
                 blinkStartTime = totalSeconds;
-                OnUpdate();
+                OnUpdate(false);
             });
         }
 
@@ -168,18 +168,24 @@ namespace FezGame.MultiplayerMod
                 }
                 break;
             }
-            OnUpdate();
+            OnUpdate(true);
         }
 
         private static double blinkStartTime = 0d;
         public override void Update(GameTime gameTime)
         {
+            if (!HasFocus)
+            {
+                left.ClearKeyState();
+                right.ClearKeyState();
+                return;
+            }
             double totalSeconds = gameTime.TotalGameTime.TotalSeconds;
             bool newShowCaretValue = (((totalSeconds - blinkStartTime) * caretBlinksPerSecond) % 1.0d) < 0.5d;
             if (newShowCaretValue != showCaret)
             {
                 showCaret = newShowCaretValue;
-                OnUpdate();
+                OnUpdate(true);
             }
             KeyboardState keyboard = Keyboard.GetState();
             left.UpdateKeyState(keyboard, totalSeconds);
@@ -211,6 +217,11 @@ namespace FezGame.MultiplayerMod
                 this.OnKeyPress = OnKeyPress;
             }
 
+            public void ClearKeyState()
+            {
+                isKeyHeld = false;
+                sinceKeyHeld = 0d;
+            }
             public void UpdateKeyState(KeyboardState keyboardState, double totalSeconds)
             {
                 KeyState keyState = keyboardState[key];

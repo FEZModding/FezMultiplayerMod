@@ -107,10 +107,13 @@ namespace FezGame.MultiplayerMod
                 hiddenInputElement = new TextInputLogicComponent(game);
                 ServiceHelper.AddComponent(hiddenInputElement);
                 MenuListOption = new MenuListOption(label + textboxInitialText, () => hiddenInputElement.HasFocus = true, () => hiddenInputElement.HasFocus = false);
-                hiddenInputElement.OnUpdate += () =>
+                hiddenInputElement.OnUpdate += (onlyCaretBlinking) =>
                 {
                     MenuListOption.DisplayText = baseName + hiddenInputElement.DisplayValue + textResetFormattingEscapeCode;
-                    OnUpdate?.Invoke(hiddenInputElement.Value);
+                    if (!onlyCaretBlinking)
+                    {
+                        OnUpdate?.Invoke(hiddenInputElement.Value);
+                    }
                 };
             }
         }
