@@ -41,9 +41,12 @@ namespace FezSharedTools
         {
             str = str.Trim();
             int portsepindex = str.LastIndexOf(':');
+            var portMatch = Regex.Match(str, @":(\d+)$");
+            bool hasPort = portMatch.Success;
+            int portsepindex2 = portMatch.Index;
             string addr;//Note: the replaces are for IPv6
             int port;
-            if (portsepindex < 0)
+            if (!hasPort)
             {
                 portsepindex = str.Length;
                 port = SharedConstants.DefaultPort;
@@ -55,7 +58,7 @@ namespace FezSharedTools
             }
             else
             {
-                if(!int.TryParse(str.Substring(portsepindex + 1), out port))
+                if(!int.TryParse(portMatch.Groups[1].Value, out port))
                 {
                     ipEndpoint = default;
                     return false;
