@@ -306,6 +306,25 @@ namespace FezMultiplayerDedicatedServer
                 Console.WriteLine("Save data will be saved to " + Path.GetFullPath(settings.SaveFileFullPath));
             }
 
+            if (settings.SyncWorldState)
+            {
+                try
+                {
+                    if (File.Exists(settings.SaveFileFullPath))
+                    {
+                        using (FileStream fs = new FileStream(settings.SaveFileFullPath, FileMode.Open))
+                        using (BinaryReader reader = new BinaryReader(fs, Encoding.UTF8))
+                        {
+                            reader.ReadSharedSaveData().CloneInto(server.sharedSaveData);
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+                }
+            }
+
             long SaveIntervalTicks = TimeSpan.FromSeconds(5.0f).Ticks;
             Timer myTimer = new Timer();
             myTimer.Elapsed += (a, b) => {
