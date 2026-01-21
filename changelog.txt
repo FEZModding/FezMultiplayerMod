@@ -92,5 +92,7 @@ Added scrolling to server list menu
 performance improvements
 fixed server not loading save file
 bug fixes
+changed behaviour of `blocklist` and `allowlist` commands
+added server-side `UseAllowList` and `AllowRemoteWebInterface` commands
 
 

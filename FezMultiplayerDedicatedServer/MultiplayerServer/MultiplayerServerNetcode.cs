@@ -59,7 +59,7 @@ namespace FezMultiplayerDedicatedServer
         private readonly Socket listenerSocket;
         private readonly int listenPort;
         protected readonly int overduetimeout;
-        public readonly bool useAllowList;
+        internal bool useAllowList;
         public readonly IPFilter AllowList;
         public readonly IPFilter BlockList;
         public bool AllowRemoteWebInterface;

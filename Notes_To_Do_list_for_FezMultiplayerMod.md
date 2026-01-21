@@ -13,7 +13,7 @@
 
 - [ ] Add more data integrity checks, since rn if a bit gets corrupted it could disconnect the client.
 
-- [ ] add ability to modify the "blocklist" and "allowlist" directly via the server's interface while the server is running
+- [x] add ability to modify the "blocklist" and "allowlist" directly via the server's interface while the server is running
 
 - [ ] add a "kick" option to the server's interface, to forcibly disconnect players
 

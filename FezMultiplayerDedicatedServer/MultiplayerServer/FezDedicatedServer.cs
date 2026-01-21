@@ -17,16 +17,22 @@ namespace FezMultiplayerDedicatedServer
         public struct CommandLineCommand
         {
             public string Description { get; }
+            public string HelpText { get; }
             public Action<string[]> Action { get; }
 
-            public CommandLineCommand(string description, Action<string[]> action)
+            public CommandLineCommand(string description, string helptext, Action<string[]> action)
             {
                 Description = description;
+                HelpText = helptext;
                 Action = action;
             }
             public static implicit operator CommandLineCommand((string description, Action<string[]> action) tuple)
             {
-                return new CommandLineCommand(tuple.description, tuple.action);
+                return new CommandLineCommand(tuple.description, tuple.description, tuple.action);
+            }
+            public static implicit operator CommandLineCommand((string description, string helptext, Action<string[]> action) tuple)
+            {
+                return new CommandLineCommand(tuple.description, tuple.helptext, tuple.action);
             }
         }
 
@@ -42,6 +48,118 @@ namespace FezMultiplayerDedicatedServer
         public static string GetArgOrPrompt(string[] args, int index, string text)
         {
             return args.Length <= index ? Prompt(text) : args[index];
+        }
+        public static bool TryGetArg(string[] args, int index, out string result)
+        {
+            if (args.Length > index)
+            {
+                result = args[index];
+                return true;
+            }
+            result = null;
+            return false;
+        }
+        /// <summary>
+        /// Forcibly disconnects the player(s) with the given IP address, if any, and returns the number of players disconnected
+        /// </summary>
+        /// <param name="address">The IP address to disconnect</param>
+        /// <returns>the number of players disconnected</returns>
+        private static int ForciblyDisconnect(IPAddress address)
+        {
+            var matchingPlayers = server.Players.Where(player =>
+            {
+                IPAddress a = ((IPEndPoint)player.Value.client?.RemoteEndPoint)?.Address;
+                if (a.IsIPv4MappedToIPv6)
+                {
+                    a = a.MapToIPv4();
+                }
+                return address.Equals(a);
+            });
+            int count = 0;
+            foreach (var player in matchingPlayers)
+            {
+                // forcibly terminate the connections
+                player.Value.client.ForceDisconnect();
+                ++count;
+            }
+            return count;
+        }
+        private static readonly string filterListCommandUsage = " [options]\n" +
+        "Prints or modifies the specified IP filter. If no valid optionas are provided, this command will default to printing the IP filter\n" +
+        "\n" +
+        "OPTIONS:\n" +
+        "    print          \n" +
+        "    add [ip]       \n" +
+        "    remove [ip]    ";
+        private static void PrintOrModifyIPFilterListCommand(string[] args, IPFilter filter, string listName, Func<IPAddress, int> onAdd = null, Func<IPAddress, int> onRemove = null)
+        {
+            if (!TryGetArg(args, 1, out string op))
+            {
+                Console.WriteLine(filter.ToDetailedString());
+                return;
+            }
+            switch (op)
+            {
+            case "print":
+            default:
+                Console.WriteLine(filter.ToDetailedString());
+                break;
+            case "add":
+                {
+                    string arg = GetArgOrPrompt(args, 2, "Which IP?");
+
+                    if (IPAddress.TryParse(arg, out IPAddress address))
+                    {
+                        if (address.IsIPv4MappedToIPv6)
+                        {
+                            address = address.MapToIPv4();
+                        }
+                        //Note: server.BlockList and settings.BlockList point to the same object
+                        filter.FilterString += "," + address.ToString();
+                        //write the changes to settings to the server settings file
+                        IniTools.WriteSettingsFile(SettingsFilePath, settings);
+                        Console.WriteLine($"added IP {address} to {listName}");
+                        if (onAdd != null)
+                        {
+                            int pCount = onAdd(address);
+                            Console.WriteLine($"affected {pCount} player{(pCount == 1 ? "" : "s")}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid IP: \"" + arg + "\"");
+                    }
+                    break;
+                }
+            case "remove":
+                {
+                    string arg = GetArgOrPrompt(args, 2, "Which IP?");
+
+                    if (IPAddress.TryParse(arg, out IPAddress address))
+                    {
+                        if (address.IsIPv4MappedToIPv6)
+                        {
+                            filter.FilterString = filter.FilterString.Replace(address.ToString(), "");
+                            address = address.MapToIPv4();
+                        }
+                        //Note: server.BlockList and settings.BlockList point to the same object
+                        filter.FilterString = filter.FilterString.Replace(address.ToString(), "");
+                        //write the changes to settings to the server settings file
+                        IniTools.WriteSettingsFile(SettingsFilePath, settings);
+                        Console.WriteLine($"Removed IP {address} from {listName}");
+                        if (onRemove != null)
+                        {
+                            int pCount = onRemove(address);
+                            Console.WriteLine($"affected {pCount} player{(pCount == 1 ? "" : "s")}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("Invalid IP: \"" + arg + "\"");
+                    }
+                    break;
+                }
+            }
         }
 
         public static readonly Dictionary<string, CommandLineCommand> cliActions = new Dictionary<string, CommandLineCommand>
@@ -102,16 +220,16 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "blocklist".ToLowerInvariant(),
-                        ("Prints out the blocklsit", (_) =>
+                        ("Prints or modifies the blocklist", "blocklist" + filterListCommandUsage, (args) =>
                         {
-                            Console.WriteLine(settings.BlockList.ToDetailedString());
+                            PrintOrModifyIPFilterListCommand(args, server.BlockList, "blocklist", onAdd: ForciblyDisconnect);
                         })
                     },
                     {
                         "allowlist".ToLowerInvariant(),
-                        ("Prints out the allowlist", (_) =>
+                        ("Prints or modifies the allowlist", "allowlist" + filterListCommandUsage, (args) =>
                         {
-                            Console.WriteLine(settings.AllowList.ToDetailedString());
+                            PrintOrModifyIPFilterListCommand(args, server.AllowList, "allowlist", onRemove: ForciblyDisconnect);
                         })
                     },
                     {
@@ -132,7 +250,7 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "ban".ToLowerInvariant(),
-                        ("IP ban", (args) =>
+                        ("IP ban", "IP ban. Shorthand for 'blocklist add'", (args) =>
                         {
                             string arg = GetArgOrPrompt(args, 1, "Which IP?");
 
@@ -144,21 +262,10 @@ namespace FezMultiplayerDedicatedServer
                                 }
                                 //Note: server.BlockList and settings.BlockList point to the same object
                                 settings.BlockList.FilterString += ","+address.ToString();
-                                //TODO write the changes to settings to the server settings file
+                                //write the changes to settings to the server settings file
+                                IniTools.WriteSettingsFile(SettingsFilePath, settings);
                                 Console.WriteLine("banned IP " + address);
-
-                                var matchingPlayers = server.Players.Where(player => {
-                                    IPAddress a = ((IPEndPoint)player.Value.client?.RemoteEndPoint)?.Address;
-                                    if(a.IsIPv4MappedToIPv6){
-                                        a = a.MapToIPv4();
-                                    }
-                                    return address.Equals(a);
-                                });
-                                foreach(var player in matchingPlayers)
-                                {
-                                    // forcibly terminate the connections
-                                    player.Value.client.ForceDisconnect();
-                                }
+                                ForciblyDisconnect(address);
                             }
                             else
                             {
@@ -226,6 +333,48 @@ namespace FezMultiplayerDedicatedServer
                             }
                         })
                     },
+                    {
+                        "UseAllowList".ToLowerInvariant(),
+                        ("Gets or sets the useallowlist setting", (args) =>
+                        {
+                            if (TryGetArg(args, 1, out string response))
+                            {
+                                if(bool.TryParse(response, out bool b))
+                                {
+                                    server.useAllowList = b;
+                                    settings.UseAllowList = b;
+                                    Console.WriteLine("UseAllowList has been set to " + b.ToString());
+                                    IniTools.WriteSettingsFile(SettingsFilePath, settings);
+                                    return;
+                                }
+                                Console.WriteLine($"\"{response}\" could not be converted to a valid true/false value");
+                                return;
+                            }
+                            Console.WriteLine("UseAllowList is currently " + server.useAllowList);
+                            return;
+                        })
+                    },
+                    {
+                        "AllowRemoteWebInterface".ToLowerInvariant(),
+                        ("Gets or sets the AllowRemoteWebInterface setting", (args) =>
+                        {
+                            if (TryGetArg(args, 1, out string response))
+                            {
+                                if(bool.TryParse(response, out bool b))
+                                {
+                                    server.AllowRemoteWebInterface = b;
+                                    settings.AllowRemoteWebInterface = b;
+                                    Console.WriteLine("AllowRemoteWebInterface has been set to " + b.ToString());
+                                    IniTools.WriteSettingsFile(SettingsFilePath, settings);
+                                    return;
+                                }
+                                Console.WriteLine($"\"{response}\" could not be converted to a valid true/false value");
+                                return;
+                            }
+                            Console.WriteLine("AllowRemoteWebInterface is currently " + server.AllowRemoteWebInterface);
+                            return;
+                        })
+                    },
                 };
         internal static MultiplayerServerNetcode server;
         private static MultiplayerServerSettings settings;
@@ -236,16 +385,29 @@ namespace FezMultiplayerDedicatedServer
         {
             int maxCommandLength = cliActions.Max(kv => kv.Key.Length);
             cliActions.Add(helpCmdName,
-                HelpCommand = ("Lists available commands", (_) =>
+                HelpCommand = ("Lists available commands", (args) =>
+                {
+                    if (TryGetArg(args, 1, out string commandName))
+                    {
+                        if (cliActions.TryGetValue(commandName, out CommandLineCommand command))
                         {
-                            Console.WriteLine("Available commands:");
-                            foreach (var kvpair in cliActions)
+                            Console.WriteLine(commandName + " - " + command.Description);
+                            if (command.Description != command.HelpText)
                             {
-                                Console.WriteLine($"{kvpair.Key.PadRight(maxCommandLength, ' ')} - {kvpair.Value.Description}");
+                                Console.WriteLine(command.HelpText);
                             }
+                            return;
                         }
+                    }
+                    Console.WriteLine("Available commands:");
+                    foreach (var kvpair in cliActions)
+                    {
+                        Console.WriteLine($"{kvpair.Key.PadRight(maxCommandLength, ' ')} - {kvpair.Value.Description}");
+                    }
+                }
             ));
         }
+        private static string SettingsFilePath = "FezMultiplayerServer.ini";
         private static volatile bool IsUpdating = false;
         static void Main(string[] prog_args)
         {
@@ -259,7 +421,6 @@ namespace FezMultiplayerDedicatedServer
                 queue.Enqueue(item);
             }
 
-            string SettingsFilePath = "FezMultiplayerServer.ini";
 
             //Note: to include spaces in the file path, enclose the entire path in double quotes ""
             while (queue.Count > 0)
@@ -327,7 +488,8 @@ namespace FezMultiplayerDedicatedServer
 
             long SaveIntervalTicks = TimeSpan.FromSeconds(5.0f).Ticks;
             Timer myTimer = new Timer();
-            myTimer.Elapsed += (a, b) => {
+            myTimer.Elapsed += (a, b) =>
+            {
                 if (!IsUpdating)
                 {
                     IsUpdating = true;
@@ -359,9 +521,6 @@ namespace FezMultiplayerDedicatedServer
 
             //Note: gotta keep the program busy otherwise it'll close
 
-            //TODO make the CLI better; see https://learn.microsoft.com/en-us/dotnet/api/system.console , particularly Console.SetCursorPosition
-            //I want a nice animated one that automatically updates what it writes on the screen
-
             try
             {
                 string line;
@@ -372,7 +531,7 @@ namespace FezMultiplayerDedicatedServer
                 {
                     line = ReadLineInvariant();
                     MatchCollection matches = Regex.Matches(line, @"([^""'\s]+|""(?:\\.|[^""])*""|'(?:\\.|[^'])*')");
-                    string[] cmd_args = matches.Cast<Match>().Select(m=>m.Value).ToArray();
+                    string[] cmd_args = matches.Cast<Match>().Select(m => m.Value).ToArray();
                     string cmd_name = cmd_args.Length > 0 ? cmd_args[0] : "";
                     bool validAction = cliActions.TryGetValue(cmd_name, out CommandLineCommand tuple);
                     if (validAction)
@@ -482,7 +641,7 @@ namespace FezMultiplayerDedicatedServer
         {
             public int Compare(IPAddress addr1, IPAddress addr2)
             {
-                if(addr1.AddressFamily != addr2.AddressFamily)
+                if (addr1.AddressFamily != addr2.AddressFamily)
                 {
                     return addr1.AddressFamily - addr2.AddressFamily;
                 }
