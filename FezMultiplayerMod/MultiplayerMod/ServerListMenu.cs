@@ -638,7 +638,8 @@ namespace FezGame.MultiplayerMod
         private static readonly TimeSpan menuChangeDelay = TimeSpan.FromMilliseconds(100);
         private float SinceMouseMoved = 3f;
         private bool mouseWasDown = false;
-        private float scrollY = 0;
+        private const float scrollTop = -selectedItemPaddingBlock;
+        private float scrollY = scrollTop;
         private float contentHeight = 0;
         private Rectangle MenuFrameRect = new Rectangle();
         private Rectangle ScrollBarTrackHitbox = new Rectangle();
@@ -689,6 +690,11 @@ namespace FezGame.MultiplayerMod
             {
                 void OnChangeSelectedOption()
                 {
+                    if (CurrentMenuItem.Index == 0)
+                    {
+                        scrollY = scrollTop;
+                        return;
+                    }
                     // adjust scroll based on current selection
                     float menuFrameTop = MenuFrameRect.Y;
                     float menuFrameBottom = menuFrameTop + MenuFrameRect.Height;
@@ -803,7 +809,7 @@ namespace FezGame.MultiplayerMod
                         scrollY += MenuFrameRect.Height * Math.Sign(positionPt.Y - (ScrollBarThumbHitbox.Y + ScrollBarThumbHitbox.Height / 2));
                     }
                 }
-                scrollY = MathHelper.Clamp(scrollY, -selectedItemPaddingBlock, Math.Max(0, contentHeight - MenuFrameRect.Height + selectedItemPaddingBlock));
+                scrollY = MathHelper.Clamp(scrollY, -selectedItemPaddingBlock, Math.Max(scrollTop, contentHeight - MenuFrameRect.Height + selectedItemPaddingBlock));
 
                 var frameRect = new Vector3(512, 256f, 1f) * base.GraphicsDevice.GetViewScale();
                 SetMenuCursorState(hasHoveredOption, mouseDown);
@@ -930,7 +936,7 @@ namespace FezGame.MultiplayerMod
                 }
                 contentHeight = position.Y + scrollY;
                 bool overflowY = contentHeight > MenuFrameRect.Height;
-                bool overflowTop = scrollY > 0;
+                bool overflowTop = scrollY > scrollTop;
                 bool overflowBottom = position.Y > MenuFrameRect.Height;
                 if (overflowY)
                 {
