@@ -24,6 +24,30 @@ using static FezEngine.Structure.SoundEffectExtensions;
 
 namespace FezGame.MultiplayerMod
 {
+    internal static class RectangleExtentions
+    {
+        public static Rectangle Inset(this Rectangle rect, float inline, float block)
+        {
+        return new Rectangle((int)(rect.X + inline),
+            (int)(rect.Y + block),
+            (int)(rect.Width - inline * 2),
+            (int)(rect.Height - block * 2));
+        }
+        public static Rectangle Inset(this Rectangle rect, int inline, int block)
+        {
+        return new Rectangle(rect.X + inline,
+            rect.Y + block,
+            rect.Width - inline * 2,
+            rect.Height - block * 2);
+        }
+        public static Rectangle OffsetOrigin(this Rectangle rect, int offX, int offY)
+        {
+        return new Rectangle(rect.X + offX,
+            rect.Y + offY,
+            rect.Width,
+            rect.Height);
+        }
+    }
     public class ServerInfo
     {
         private const char GroupSeparator = '\x1D';
@@ -622,6 +646,17 @@ namespace FezGame.MultiplayerMod
         private Rectangle ScrollBarArrowUpHitbox = new Rectangle();
         private Rectangle ScrollBarArrowDownHitbox = new Rectangle();
         public static float ScrollDirection = -1;//TODO make customizable?
+        private static readonly double scrollButtonRepeatInterval = 0.1d;
+        private static readonly double scrollButtonRepeatDelay = 0.3d;
+        private class ScrollButtonState
+        {
+            internal double sinceScrollButtonHeld = 0;
+            internal double sinceScrollButtonLastRepeat = 0;
+            internal bool isheld = false;
+            internal bool focus = false;
+            internal bool containsPointer = false;
+        }
+        private static Dictionary<int, ScrollButtonState> scrollButtonStates = new Dictionary<int, ScrollButtonState>();
         public override void Update(GameTime gameTime)
         {
             if (!ServiceHelper.FirstLoadDone)
@@ -649,7 +684,7 @@ namespace FezGame.MultiplayerMod
             {
                 SinceMouseMoved = 0f;
             }
-            bool mouseDown = MouseState.LeftButton.State == MouseButtonStates.Down;
+            bool mouseDown = Microsoft.Xna.Framework.Input.Mouse.GetState().LeftButton == Microsoft.Xna.Framework.Input.ButtonState.Pressed;
             if (HasFocus)
             {
                 void OnChangeSelectedOption()
@@ -696,9 +731,9 @@ namespace FezGame.MultiplayerMod
                 }
                 //apparently most standard mice use 120 for one notch on the scroll wheel
                 const float WheelDelta = 120f;
-                scrollY += ScrollDirection * MouseState.WheelTurns / WheelDelta * RichTextRenderer.MeasureString(Fonts, "A").Y;
+                float scrollDistanceBase = RichTextRenderer.MeasureString(Fonts, "A").Y;
+                scrollY += ScrollDirection * MouseState.WheelTurns / WheelDelta * scrollDistanceBase;
 
-                scrollY = MathHelper.Clamp(scrollY, -selectedItemPaddingBlock, Math.Max(0, contentHeight - MenuFrameRect.Height + selectedItemPaddingBlock));
                 if ((InputManager.CancelTalk == FezButtonState.Pressed) || InputManager.Back == FezButtonState.Pressed)
                 {
                     MenuBack();
@@ -713,9 +748,62 @@ namespace FezGame.MultiplayerMod
                 {
                     currentIndex = hoveredOption.Index;
                 }
-                //TODO add cursor dragging scrollbar support; use ScrollBarThumbHitbox
-                //TODO add cursor clicking scrollbar support; use ScrollBarTrackHitbox
-                //TODO add cursor clicking scrollbar arrows support; use ScrollBarArrowUpHitbox and ScrollBarArrowDownHitbox
+                void AttempScrollButtonPress(bool containsPointer, int sign)
+                {
+                    if (!scrollButtonStates.TryGetValue(sign, out ScrollButtonState scrollButtonState))
+                    {
+                        scrollButtonStates[sign] = scrollButtonState = new ScrollButtonState();
+                    }
+                    if (mouseDown && containsPointer)
+                    {
+                        scrollButtonState.sinceScrollButtonHeld += gameTime.ElapsedGameTime.TotalSeconds;
+                        scrollButtonState.sinceScrollButtonLastRepeat += gameTime.ElapsedGameTime.TotalSeconds;
+                        if (!scrollButtonState.isheld)
+                        {
+                            scrollButtonState.focus = true;
+                            scrollButtonState.isheld = true;
+                            scrollY += scrollDistanceBase * sign;
+                        }
+                        else
+                        {
+                            if (scrollButtonState.sinceScrollButtonHeld > scrollButtonRepeatDelay)
+                            {
+                                if (scrollButtonState.sinceScrollButtonLastRepeat > scrollButtonRepeatInterval)
+                                {
+                                    scrollButtonState.sinceScrollButtonLastRepeat = 0d;
+                                    scrollY += scrollDistanceBase * sign;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        scrollButtonState.sinceScrollButtonHeld = 0d;
+                        scrollButtonState.sinceScrollButtonLastRepeat = 0d;
+                    }
+                    if(!mouseDown)
+                    {
+                        scrollButtonState.focus = false;
+                    }
+                    scrollButtonState.isheld = mouseDown;
+                    scrollButtonState.containsPointer = containsPointer;
+                }
+                AttempScrollButtonPress(ScrollBarArrowUpHitbox.Contains(positionPt), -1);
+                AttempScrollButtonPress(ScrollBarArrowDownHitbox.Contains(positionPt), 1);
+                if (mouseDown)
+                {
+                    if (ScrollBarThumbHitbox.Contains(positionPt))
+                    {
+                        
+                        //TODO add cursor dragging scrollbar support; use ScrollBarThumbHitbox
+                    }
+                    else if (!scrollButtonStates.Any(s => s.Value.focus) && ScrollBarTrackHitbox.Contains(positionPt))
+                    {
+                        //cursor clicking scrollbar support; use ScrollBarTrackHitbox
+                        scrollY += MenuFrameRect.Height * Math.Sign(positionPt.Y - (ScrollBarThumbHitbox.Y + ScrollBarThumbHitbox.Height / 2));
+                    }
+                }
+                scrollY = MathHelper.Clamp(scrollY, -selectedItemPaddingBlock, Math.Max(0, contentHeight - MenuFrameRect.Height + selectedItemPaddingBlock));
 
                 var frameRect = new Vector3(512, 256f, 1f) * base.GraphicsDevice.GetViewScale();
                 SetMenuCursorState(hasHoveredOption, mouseDown);
@@ -756,6 +844,8 @@ namespace FezGame.MultiplayerMod
         private Texture2D CanClickCursor;
         private Texture2D PointerCursor;
         private Texture2D ClickedCursor;
+        private Texture2D arrowTexture;
+        private Texture2D arrowTexture2;
         public override void Draw(GameTime gameTime)
         {
             if (PointerCursor == null && CMProvider?.Global != null)
@@ -764,6 +854,8 @@ namespace FezGame.MultiplayerMod
                 PointerCursor = contentManager.Load<Texture2D>("Other Textures/cursor/CURSOR_POINTER");
                 CanClickCursor = contentManager.Load<Texture2D>("Other Textures/cursor/CURSOR_CLICKER_A");
                 ClickedCursor = contentManager.Load<Texture2D>("Other Textures/cursor/CURSOR_CLICKER_B");
+                arrowTexture = contentManager.Load<Texture2D>("Other Textures/glyphs/LeftArrow");
+                arrowTexture2 = contentManager.Load<Texture2D>("Other Textures/glyphs/RightArrow");
             }
             if (GraphicsDevice != null)
             {
@@ -843,56 +935,70 @@ namespace FezGame.MultiplayerMod
                 if (overflowY)
                 {
                     //draw scroll bar
-                    float vHeight = GraphicsDevice.Viewport.Height;
-                    float vWidth = GraphicsDevice.Viewport.Width;
-                    float scrollBarSizeHeight = vHeight;
-                    float scrollBarSizeWidth = (float)Math.Max(vWidth * 0.03, 5);
+                    int vHeight = GraphicsDevice.Viewport.Height;
+                    int vWidth = GraphicsDevice.Viewport.Width;
+                    int scrollBarSizeHeight = vHeight;
+                    int scrollBarSizeWidth = (int)Math.Max(vWidth * 0.03, 5);
                     float scrollBarSizeWidthInnerOffsetInline = (float)Math.Max(vWidth * 0.003, 1);
-                    float scrollBarArrowSize = scrollBarSizeWidth;//TODO use for drawing arrows
-                    float scrollBarSizeWidthInnerOffsetBlock = scrollBarSizeWidth;//TODO use for drawing arrows
+                    int scrollBarArrowSize = scrollBarSizeWidth;
+                    float scrollBarSizeWidthInnerOffsetBlock = scrollBarSizeWidth + scrollBarSizeWidthInnerOffsetInline;
                     Color scrollBarBgColor = Color.Gray;
                     Color scrollBarScrollerColor = Color.White;
+                    Color scrollBarHeldColor = Color.LightGray;
+                    Color scrollBarFocusColor = new Color(233, 233, 233);
                     float scrollBarSizePercent = (float)MenuFrameRect.Height / (float)contentHeight;
                     float scrollBarBottomEdgePercent = (float)MenuFrameRect.Height / (float)position.Y;
                     float scrollBarTopEdgePercent = scrollBarBottomEdgePercent - scrollBarSizePercent;
 
-                    float scrollBarOriginX = vWidth - scrollBarSizeWidth;
+                    int scrollBarOriginX = vWidth - scrollBarSizeWidth;
+                    int scrollBarOriginX_adjusted = scrollBarOriginX + MenuFrameRect.X;
+                    int scrollBarOriginY_adjusted = MenuFrameRect.Y;
 
-                    ScrollBarTrackHitbox = new Rectangle((int)scrollBarOriginX,
-                        0,
-                        (int)scrollBarSizeWidth,
-                        (int)scrollBarSizeHeight);
-                    drawer.DrawRect(
-                        new Vector2(scrollBarOriginX,
-                        0),
+                    
+                    ScrollBarTrackHitbox = new Rectangle(scrollBarOriginX_adjusted,
+                        scrollBarOriginY_adjusted,
                         scrollBarSizeWidth,
-                        scrollBarSizeHeight,
+                        scrollBarSizeHeight).Inset(0, scrollBarArrowSize);
+                    drawer.DrawRect(ScrollBarTrackHitbox.Inset(0, -scrollBarArrowSize).OffsetOrigin(-MenuFrameRect.X, -MenuFrameRect.Y),
                         scrollBarBgColor);
 
-                    ScrollBarThumbHitbox = new Rectangle((int)scrollBarOriginX,
-                        (int)((scrollBarSizeHeight * scrollBarTopEdgePercent) + scrollBarSizeWidthInnerOffsetBlock),
-                        (int)scrollBarSizeWidth,
-                        (int)((scrollBarSizeHeight * scrollBarSizePercent) - (scrollBarSizeWidthInnerOffsetBlock * 2))
-                    );
-                    drawer.DrawRect(
-                        new Vector2(scrollBarOriginX + scrollBarSizeWidthInnerOffsetInline,
-                        (scrollBarSizeHeight * scrollBarTopEdgePercent) + scrollBarSizeWidthInnerOffsetBlock),
-                        scrollBarSizeWidth - (scrollBarSizeWidthInnerOffsetInline * 2),
-                        (scrollBarSizeHeight * scrollBarSizePercent) - (scrollBarSizeWidthInnerOffsetBlock * 2),
+                    ScrollBarThumbHitbox = new Rectangle(scrollBarOriginX_adjusted,
+                        scrollBarOriginY_adjusted + (int)(scrollBarSizeHeight * scrollBarTopEdgePercent),
+                        scrollBarSizeWidth,
+                        (int)(scrollBarSizeHeight * scrollBarSizePercent)
+                    ).Inset(0, scrollBarSizeWidthInnerOffsetBlock);
+                    drawer.DrawRect(ScrollBarThumbHitbox.Inset(scrollBarSizeWidthInnerOffsetInline, 0).OffsetOrigin(-MenuFrameRect.X, -MenuFrameRect.Y),
                         scrollBarScrollerColor);
 
-                    ScrollBarArrowUpHitbox = new Rectangle((int)scrollBarOriginX,
+                    var ScrollBarArrowUpRect = new Rectangle(
+                        scrollBarOriginX,
                         0,
-                        (int)scrollBarArrowSize,
-                        (int)scrollBarArrowSize
+                        scrollBarArrowSize,
+                        scrollBarArrowSize
                     );
-                    ScrollBarArrowDownHitbox = new Rectangle((int)scrollBarOriginX,
-                        (int)(scrollBarSizeHeight - scrollBarArrowSize),
-                        (int)scrollBarArrowSize,
-                        (int)scrollBarArrowSize
-                    );
+                    ScrollBarArrowUpHitbox = ScrollBarArrowUpRect.OffsetOrigin(MenuFrameRect.X, MenuFrameRect.Y);
+                    bool upScrollInside = scrollButtonStates.ContainsKey(-1) ? scrollButtonStates[-1].containsPointer : false;
+                    bool upScrollFocus = scrollButtonStates.ContainsKey(-1) ? scrollButtonStates[-1].focus : false;
+                    ScrollBarArrowUpRect = ScrollBarArrowUpRect.Inset(scrollBarSizeWidthInnerOffsetInline, scrollBarSizeWidthInnerOffsetInline);
+                    drawer.DrawRect(ScrollBarArrowUpRect,
+                        upScrollFocus ? (upScrollInside ? scrollBarHeldColor : scrollBarFocusColor) :scrollBarScrollerColor);
+                    ScrollBarArrowUpRect = ScrollBarArrowUpRect.OffsetOrigin(ScrollBarArrowUpRect.Width / 2, ScrollBarArrowUpRect.Height / 2);
+                    drawer.Draw(arrowTexture, ScrollBarArrowUpRect, null, Color.Blue, (float)(Math.PI / 2), new Vector2(arrowTexture.Width / 2, arrowTexture.Height / 2), SpriteEffects.None, 0);
 
-                    //TODO draw arrows on scroll bar
+                    Rectangle ScrollBarArrowDownRect = new Rectangle(
+                        scrollBarOriginX,
+                        scrollBarSizeHeight - scrollBarArrowSize,
+                        scrollBarArrowSize,
+                        scrollBarArrowSize
+                    );
+                    ScrollBarArrowDownHitbox = ScrollBarArrowDownRect.OffsetOrigin(MenuFrameRect.X, MenuFrameRect.Y);
+                    bool downScrollInside = scrollButtonStates.ContainsKey(1) ? scrollButtonStates[1].containsPointer : false;
+                    bool downScrollFocus = scrollButtonStates.ContainsKey(1) ? scrollButtonStates[1].focus : false;
+                    ScrollBarArrowDownRect = ScrollBarArrowDownRect.Inset(scrollBarSizeWidthInnerOffsetInline, scrollBarSizeWidthInnerOffsetInline);
+                    drawer.DrawRect(ScrollBarArrowDownRect,
+                        downScrollFocus ? (downScrollInside ? scrollBarHeldColor : scrollBarFocusColor) : scrollBarScrollerColor);
+                    ScrollBarArrowDownRect = ScrollBarArrowDownRect.OffsetOrigin(ScrollBarArrowDownRect.Width / 2, ScrollBarArrowDownRect.Height / 2);
+                    drawer.Draw(arrowTexture2, ScrollBarArrowDownRect, null, Color.Blue, (float)(Math.PI / 2), new Vector2(arrowTexture.Width / 2, arrowTexture.Height / 2), SpriteEffects.None, 0);
                     if (overflowTop)
                     {
                         //TODO indicate overflow on top edge of container? 

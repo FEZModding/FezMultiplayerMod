@@ -14,6 +14,15 @@ namespace FezGame.MultiplayerMod
     public static class TypeExtensions
     {
         private static Texture2D _texture;
+        public static void DrawRect(this SpriteBatch batch, Rectangle rect, Color color)
+        {
+            if (_texture == null)
+            {
+                _texture = new Texture2D(batch.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
+                _texture.SetData(new[] { Color.White });
+            }
+            batch.Draw(_texture, new Vector2(rect.X, rect.Y), null, color, 0f, Vector2.Zero, new Vector2(rect.Width, rect.Height), SpriteEffects.None, 0f);
+        }
         public static void DrawRect(this SpriteBatch batch, Vector2 start, float width, float height, Color color)
         {
             if (_texture == null)
