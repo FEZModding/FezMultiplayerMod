@@ -72,21 +72,7 @@ namespace FezSharedTools
             }
             //Note this collection should only have a single entry per unique containerIdentifier and field combo
             string uniqueIdentifier = containerIdentifier + SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR + entry;
-            ListChanges[uniqueIdentifier] = new ChangeInfo(changeType, containerIdentifier, entry, Guid.Empty);
-        }
-        internal void AddKeyedChange(string uniqueIdentifier, object newval)
-        {
-            uniqueIdentifier = uniqueIdentifier.Substring(ignoreLength);
-            if (ignoredKeys.Contains(uniqueIdentifier))
-            {
-                return;
-            }
-            if (ignoreWorldLevelRegex.IsMatch(uniqueIdentifier))
-            {
-                return;
-            }
-            //Note this collection should only have a single entry per unique containerIdentifier and field combo
-            ListChanges[uniqueIdentifier] = new ChangeInfo(ChangeType.Keyed, uniqueIdentifier, newval, Guid.Empty);
+            ListChanges[uniqueIdentifier] = new ChangeInfo(changeType, uniqueIdentifier, entry, Guid.Empty);
         }
 
         public override string ToString()
@@ -336,6 +322,10 @@ namespace FezSharedTools
                         string[] keys = r[0].Split(SAVE_DATA_IDENTIFIER_SEPARATOR_STR);
                         ChangeType changeType = int.TryParse(r[1], out int t) ? (ChangeType)t : ChangeType.None;
                         string val = r[2];
+                        if (changeType == ChangeType.List_Add || changeType == ChangeType.List_Remove)
+                        {
+                            keys = keys.Take(keys.Length - 1).ToArray();
+                        }
 
                         Type currType = typeof(SaveData);
                         object currObj = saveData;
@@ -360,6 +350,10 @@ namespace FezSharedTools
                                         v.Add(k, Activator.CreateInstance(gtype));
                                 }
                                 currObj = v[k];
+                                if (currObj == null)
+                                {
+                                    System.Diagnostics.Debugger.Launch();
+                                }
                                 currType = gtype;
                                 if (i == keys.Length - 1)
                                 {
@@ -388,7 +382,15 @@ namespace FezSharedTools
                             {
                                 f = currType.GetField(key);
                                 object parent = currObj;
+                                if (f == null)
+                                {
+                                    System.Diagnostics.Debugger.Launch();
+                                }
                                 currObj = f.GetValue(currObj);
+                                if (currObj == null)
+                                {
+                                    System.Diagnostics.Debugger.Launch();
+                                }
                                 currType = f.FieldType;
                                 if (i == keys.Length - 1)
                                 {
@@ -452,6 +454,10 @@ namespace FezSharedTools
                                     else
                                     {
                                         g = ParseToType(currType, val);
+                                        if (f == null)
+                                        {
+                                            System.Diagnostics.Debugger.Launch();
+                                        }
                                         object oldval = f.GetValue(parent);
                                         f.SetValue(parent, g);
                                         valChanged = true;
