@@ -167,7 +167,7 @@ namespace FezGame.MultiplayerMod
                             ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
                             if (!disconnectRequested)
                             {
-                                ActiveLevelState? activeLevelState = null;
+                                ActiveLevelState activeLevelState = null;
                                 if (SyncWorldState)
                                 {
                                     activeLevelState = GetCurrentLevelState();

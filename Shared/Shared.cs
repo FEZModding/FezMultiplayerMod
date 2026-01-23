@@ -193,14 +193,14 @@ namespace FezSharedTools
         }
     }
     [Serializable]
-    public struct ActiveLevelState
+    public class ActiveLevelState
     {
-        public int TODO;
+        public string LevelName = "";
+        public ConcurrentDictionary<Guid, TrileEmplacement> carriedTriles;
         //TODO not yet implemented
 
-        public ActiveLevelState(int TODO)
+        public ActiveLevelState()
         {
-            this.TODO = TODO;
         }
     }
 
@@ -800,7 +800,7 @@ namespace FezSharedTools
         ///     Note: The data written by this method should be read by <seealso cref="ReadClientGameTickPacket"/>
         /// </remarks>
         /// <returns>the amount of time, in ticks, it took to write the data to the network</returns>
-        protected long WriteClientGameTickPacket(BinaryNetworkWriter writer0, PlayerMetadata playerMetadata, SaveDataChanges saveDataUpdate, ActiveLevelState? levelState,
+        protected long WriteClientGameTickPacket(BinaryNetworkWriter writer0, PlayerMetadata playerMetadata, SaveDataChanges saveDataUpdate, ActiveLevelState levelState,
                 PlayerAppearance? appearance, ICollection<Guid> requestPlayerAppearance, bool Disconnecting, bool ResendSaveData)
         {
             Stopwatch sw = new Stopwatch();
@@ -818,10 +818,10 @@ namespace FezSharedTools
                     {
                         writer.Write(saveDataUpdate);
                     }
-                    writer.Write(levelState.HasValue);
-                    if (levelState.HasValue)
+                    writer.Write(levelState != null);
+                    if (levelState != null)
                     {
-                        writer.Write(levelState.Value);
+                        writer.Write(levelState);
                     }
                     writer.Write(appearance.HasValue);
                     if (appearance.HasValue)
