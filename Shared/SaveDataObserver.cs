@@ -58,7 +58,7 @@ namespace FezSharedTools
         private static readonly int ignoreLength = ("SaveData" + SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR).Length;
         private static readonly string SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED = Regex.Escape(SaveDataObserver.SAVE_DATA_IDENTIFIER_SEPARATOR);
         private static readonly Regex ignoreWorldRegex = new Regex($@"^World{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}\w+{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}FirstVisit");
-        private static readonly Regex ignoreWorldLevelRegex = new Regex($@"^World{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}\w+$");
+        private static readonly Regex ignoreWorldLevelRegex = new Regex($@"^World{SAVE_DATA_IDENTIFIER_SEPARATOR_ESCAPED}\w+?$");
         internal void AddChange(string containerIdentifier, object entry, ChangeType changeType)
         {
             containerIdentifier = containerIdentifier.Substring(ignoreLength);
@@ -89,46 +89,46 @@ namespace FezSharedTools
         }
         public static byte[] Serialize(List<ChangeInfo> changes)
         {
-            return SharedConstants.UTF8.GetBytes(string.Join(SAVE_DATA_ENTRY_SEPARATOR_STR, changes.Where(c=>c!=null).Select(c=>
-            {
-                try
+            return SharedConstants.UTF8.GetBytes(string.Join(SAVE_DATA_ENTRY_SEPARATOR_STR, changes.Where(c => c != null).Select(c =>
                 {
-                    return c.ContainerIdentifier + SAVE_DATA_DATA_SEPARATOR + ((int)c.ChangeType) + SAVE_DATA_DATA_SEPARATOR + ConvertToString(c.Value) + SAVE_DATA_DATA_SEPARATOR + c.Source.ToString();
-                }
-                catch (Exception e)
-                {
-                    SharedTools.LogWarning(nameof(SaveDataObserver), $"Failed to serialize save data change for \"{c.ContainerIdentifier}\". Reason: " + e.Message);
-                    return null;
-                }
-            }).Where(s => s != null)));
+                    try
+                    {
+                        return c.ContainerIdentifier + SAVE_DATA_DATA_SEPARATOR + ((int)c.ChangeType) + SAVE_DATA_DATA_SEPARATOR + ConvertToString(c.Value) + SAVE_DATA_DATA_SEPARATOR + c.Source.ToString();
+                    }
+                    catch (Exception e)
+                    {
+                        SharedTools.LogWarning(nameof(SaveDataObserver), $"Failed to serialize save data change for \"{c.ContainerIdentifier}\". Reason: " + e.Message);
+                        return null;
+                    }
+                }).Where(s => s != null)));
         }
         private static string ConvertToString(object obj)
         {
-            if(obj == null)
+            if (obj == null)
             {
                 return null;
             }
             Type t = obj.GetType();
-            if(t.Equals(typeof(string)))
+            if (t.Equals(typeof(string)))
             {
                 return (string)obj;
             }
             var m = t.GetMethod("Parse", new Type[] { typeof(string) });
-            if(m!=null)
+            if (m != null)
             {
                 return "" + obj;
             }
-            if(t.Equals(typeof(TrileEmplacement)))
+            if (t.Equals(typeof(TrileEmplacement)))
             {
                 TrileEmplacement emplacement = (TrileEmplacement)obj;
                 return emplacement.X + ";" + emplacement.Y + ";" + emplacement.Z;
             }
-            if(t.Equals(typeof(Vector3)))
+            if (t.Equals(typeof(Vector3)))
             {
                 Vector3 vector = (Vector3)obj;
                 return vector.X + ";" + vector.Y + ";" + vector.Z;
             }
-            if(t.Equals(typeof(TimeSpan)))
+            if (t.Equals(typeof(TimeSpan)))
             {
                 TimeSpan ts = (TimeSpan)obj;
                 return "" + ts.Ticks;
@@ -144,7 +144,7 @@ namespace FezSharedTools
         private static object ParseToType(Type t, string val)
         {
             Type nt = Nullable.GetUnderlyingType(t);
-            if(nt != null)
+            if (nt != null)
             {
                 t = nt;
                 if (val == "")
@@ -152,12 +152,12 @@ namespace FezSharedTools
                     return null;
                 }
             }
-            if(t.Equals(typeof(string)))
+            if (t.Equals(typeof(string)))
             {
                 return val;
             }
             var m = t.GetMethod("Parse", new Type[] { typeof(string) });
-            if(m!=null)
+            if (m != null)
             {
                 return m.Invoke(null, new object[] { val });
             }
@@ -187,7 +187,7 @@ namespace FezSharedTools
         private static readonly Type listType = typeof(IList);
         public static void DeserializeAndProcess(byte[] bytes, Guid source)
         {
-            if(bytes.Length <= 0)
+            if (bytes.Length <= 0)
             {
                 return;
             }
@@ -208,96 +208,127 @@ namespace FezSharedTools
 #if FEZCLIENT
                     ILevelManager LevelManager = ServiceHelper.Get<ILevelManager>();
                     IGameStateManager GameState = ServiceHelper.Get<IGameStateManager>();
-                    if (keys[0] == "GlobalWaterLevelModifier")
+                    if (keys.Length > 0)
                     {
-                        //change the water level in the current level
-                        if (LevelManager.WaterType == LiquidType.Water)
+                        switch (keys[0])
                         {
-                            LevelManager.WaterHeight = LevelManager.OriginalWaterHeight + GameState.SaveData.GlobalWaterLevelModifier.Value;
-                        }
-                    }
-                    if (keys[0] == "World" && LevelManager.Name == keys[1] && keys[2] != "FilledConditions")
-                    {
-                        switch (keys[2])
-                        {
-                        case "DestroyedTriles":
-                        case "InactiveTriles":
-                            LevelManager.ClearTrile((TrileEmplacement)newVal);
-                            break;
-                        case "InactiveArtObjects":
-                            LevelManager.ArtObjects.Remove((int)newVal);
-                            break;
-                        case "InactiveEvents":
-                            if (LevelManager.Scripts.TryGetValue((int)newVal, out FezEngine.Structure.Scripting.Script script))
+                        case "GlobalWaterLevelModifier":
+                            //change the water level in the current level
+                            if (LevelManager.WaterType == LiquidType.Water)
                             {
-                                script.Disabled = true;
+                                LevelManager.WaterHeight = LevelManager.OriginalWaterHeight + GameState.SaveData.GlobalWaterLevelModifier.Value;
                             }
                             break;
-                        case "InactiveGroups":
-                            int id = (int)newVal;
-                            if (LevelManager.Groups.TryGetValue(id, out TrileGroup group))
+                        case "World":
+                            if (keys.Length > 1)
                             {
-                                if (group.ActorType.IsPushSwitch())
+                                if (LevelManager.Name == keys[1])
                                 {
-                                    var SwitchService = ServiceHelper.Get<FezEngine.Services.Scripting.ISwitchService>();
-                                    SwitchService.OnPush(group.Id);
+                                    if (keys.Length > 2)
+                                    {
+                                        switch (keys[2])
+                                        {
+                                        case "DestroyedTriles":
+                                        case "InactiveTriles":
+                                            LevelManager.ClearTrile((TrileEmplacement)newVal);
+                                            LevelManager.RecullAt((TrileEmplacement)newVal);
+                                            break;
+                                        case "InactiveArtObjects":
+                                            LevelManager.ArtObjects.Remove((int)newVal);
+                                            break;
+                                        case "InactiveEvents":
+                                            if (LevelManager.Scripts.TryGetValue((int)newVal, out FezEngine.Structure.Scripting.Script script))
+                                            {
+                                                script.Disabled = true;
+                                            }
+                                            break;
+                                        case "InactiveGroups":
+                                            int id = (int)newVal;
+                                            if (LevelManager.Groups.TryGetValue(id, out TrileGroup group))
+                                            {
+                                                if (group.ActorType.IsPushSwitch())
+                                                {
+                                                    var SwitchService = ServiceHelper.Get<FezEngine.Services.Scripting.ISwitchService>();
+                                                    SwitchService.OnPush(group.Id);
+                                                }
+                                                else
+                                                {
+                                                    //TODO ? idk what else might be here
+                                                }
+                                            }
+                                            break;
+                                        case "InactiveVolumes":
+                                            if (LevelManager.Volumes.TryGetValue((int)newVal, out Volume volume))
+                                            {
+                                                volume.Enabled = false;
+                                            }
+                                            break;
+                                        case "InactiveNPCs":
+                                            if (LevelManager.NonPlayerCharacters.TryGetValue((int)newVal, out NpcInstance npc))
+                                            {
+                                                npc.State.CurrentAction = NpcAction.TakeOff;
+                                                npc.Enabled = false;
+                                            }
+                                            break;
+                                        case "PivotRotations":
+                                            if (int.TryParse(keys[3], out int aoId))
+                                            {
+                                                ArtObjectInstance handleAo = LevelManager.ArtObjects[aoId];
+                                                int value = (int)newVal - (int)oldval;
+                                                int num = Math.Abs(value);
+                                                float angle = (float)Math.PI / 2f * (float)Math.Sign(value);
+                                                Quaternion quaternion = Quaternion.CreateFromAxisAngle(Vector3.UnitY, angle);
+                                                handleAo.Rotation *= quaternion;
+
+                                                if (handleAo.ActorSettings.AttachedGroup.HasValue
+                                                    && LevelManager.Groups.TryGetValue(handleAo.ActorSettings.AttachedGroup.Value, out var Group))
+                                                {
+                                                    Type PivotsHostType = typeof(FezGame.Components.PivotsHost);
+                                                    var pivotHost = ServiceHelper.Game.Components.First(c => c.GetType().Equals(PivotsHostType));
+                                                    var ps = (IList)PivotsHostType.GetField("TrackedPivots", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(pivotHost);
+                                                    Type PivotsStateType = ps.GetType().GetGenericArguments()[0];
+                                                    MethodInfo ForceSpinTo = PivotsStateType.GetMethod("ForceSpinTo", BindingFlags.Instance | BindingFlags.NonPublic);
+                                                    foreach (var pivotState in ps)
+                                                    {
+                                                        if (aoId == ((ArtObjectInstance)pivotState.GetType().GetField("HandleAo").GetValue(pivotState)).Id)
+                                                        {
+                                                            ForceSpinTo.Invoke(pivotState, new object[] { num });
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            break;
+                                        case "LastStableLiquidHeight":
+                                        case "ScriptingState":
+                                        case "FirstVisit":
+                                        case "FilledConditions":
+                                            //ignore
+                                            break;
+                                        default:
+                                            System.Diagnostics.Debugger.Launch();
+                                            System.Diagnostics.Debugger.Break();
+                                            break;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (typeof(LevelSaveData).Equals(newVal?.GetType() ?? oldval?.GetType()))
+                                        {
+                                            saveData.World[keys[1]] = (LevelSaveData)newVal;
+                                        }
+                                    }
                                 }
                                 else
                                 {
-                                    //TODO ? idk what else might be here
-                                }
-                            }
-                            break;
-                        case "InactiveVolumes":
-                            if (LevelManager.Volumes.TryGetValue((int)newVal, out Volume volume))
-                            {
-                                volume.Enabled = false;
-                            }
-                            break;
-                        case "InactiveNPCs":
-                            if (LevelManager.NonPlayerCharacters.TryGetValue((int)newVal, out NpcInstance npc))
-                            {
-                                npc.State.CurrentAction = NpcAction.TakeOff;
-                                npc.Enabled = false;
-                            }
-                            break;
-                        case "PivotRotations":
-                            if (int.TryParse(keys[3], out int aoId))
-                            {
-                                ArtObjectInstance handleAo = LevelManager.ArtObjects[aoId];
-                                int value = (int)newVal - (int)oldval;
-                                int num = Math.Abs(value);
-                                float angle = (float)Math.PI / 2f * (float)Math.Sign(value);
-                                Quaternion quaternion = Quaternion.CreateFromAxisAngle(Vector3.UnitY, angle);
-                                handleAo.Rotation *= quaternion;
-
-                                if (handleAo.ActorSettings.AttachedGroup.HasValue
-                                    && LevelManager.Groups.TryGetValue(handleAo.ActorSettings.AttachedGroup.Value, out var Group))
-                                {
-                                    Type PivotsHostType = typeof(FezGame.Components.PivotsHost);
-                                    var pivotHost = ServiceHelper.Game.Components.First(c => c.GetType().Equals(PivotsHostType));
-                                    var ps = (IList)PivotsHostType.GetField("TrackedPivots", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(pivotHost);
-                                    Type PivotsStateType = ps.GetType().GetGenericArguments()[0];
-                                    MethodInfo ForceSpinTo = PivotsStateType.GetMethod("ForceSpinTo", BindingFlags.Instance | BindingFlags.NonPublic);
-                                    foreach (var pivotState in ps)
+                                    if (typeof(LevelSaveData).Equals(newVal?.GetType() ?? oldval?.GetType()))
                                     {
-                                        if (aoId == ((ArtObjectInstance)pivotState.GetType().GetField("HandleAo").GetValue(pivotState)).Id)
-                                        {
-                                            ForceSpinTo.Invoke(pivotState, new object[] { num });
-                                            break;
-                                        }
+                                        saveData.World[keys[1]] = (LevelSaveData)newVal;
                                     }
                                 }
                             }
                             break;
-                        case "LastStableLiquidHeight":
-                        case "ScriptingState":
-                        case "FirstVisit":
-                            //ignore
-                            break;
                         default:
-                            System.Diagnostics.Debugger.Launch();
-                            System.Diagnostics.Debugger.Break();
                             break;
                         }
                     }
@@ -309,6 +340,7 @@ namespace FezSharedTools
                     try
                     {
                         string[] r = entry.Split(SAVE_DATA_DATA_SEPARATOR);
+                        r[0] = r[0].Trim(SAVE_DATA_IDENTIFIER_SEPARATOR_STR);
                         if (ignoredKeys.Contains(r[0]) || ignoreWorldRegex.IsMatch(r[0]))
                         {
                             continue;
@@ -346,8 +378,7 @@ namespace FezSharedTools
                                 }
                                 if (!v.Contains(k))//mainly for objects
                                 {
-                                    if(changeType != ChangeType.Dict_Remove)
-                                        v.Add(k, Activator.CreateInstance(gtype));
+                                    v.Add(k, Activator.CreateInstance(gtype));
                                 }
                                 currObj = v[k];
                                 if (currObj == null)
@@ -579,7 +610,7 @@ namespace FezSharedTools
                 return r;
             }
         }
-        
+
 #if FEZCLIENT
         public override void Update(GameTime gameTime)
         {
@@ -685,8 +716,8 @@ namespace FezSharedTools
                     });
                     removedVals.ForEach((removedVal =>
                     {
-                            // idk if this ever actually happens, but should probably implement it somehow
-                            changes.AddChange(containerIdentifier + SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, removedVal, SaveDataChanges.ChangeType.List_Remove);
+                        // idk if this ever actually happens, but should probably implement it somehow
+                        changes.AddChange(containerIdentifier + SAVE_DATA_IDENTIFIER_SEPARATOR + field.Name, removedVal, SaveDataChanges.ChangeType.List_Remove);
                     }));
                 }
             }
