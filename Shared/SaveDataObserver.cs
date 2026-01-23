@@ -354,7 +354,7 @@ namespace FezSharedTools
                         string[] keys = r[0].Split(SAVE_DATA_IDENTIFIER_SEPARATOR_STR);
                         ChangeType changeType = int.TryParse(r[1], out int t) ? (ChangeType)t : ChangeType.None;
                         string val = r[2];
-                        if (changeType == ChangeType.List_Add || changeType == ChangeType.List_Remove)
+                        if (changeType == ChangeType.List_Add || changeType == ChangeType.List_Remove || changeType == ChangeType.Keyed)
                         {
                             keys = keys.Take(keys.Length - 1).ToArray();
                         }
