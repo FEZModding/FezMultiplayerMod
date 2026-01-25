@@ -660,6 +660,7 @@ namespace FezGame.MultiplayerMod
         public static float ScrollDirection = -1;//TODO make customizable?
         private static readonly double scrollButtonRepeatInterval = 0.1d;
         private static readonly double scrollButtonRepeatDelay = 0.3d;
+        private bool ScrollBarThumbHasHover = false;
         private bool ScrollBarThumbHasFocus = false;
         private class ScrollButtonState
         {
@@ -668,8 +669,13 @@ namespace FezGame.MultiplayerMod
             internal bool isheld = false;
             internal bool focus = false;
             internal bool containsPointer = false;
+            internal readonly int sign;
+            public ScrollButtonState(int sign)
+            {
+                this.sign = sign;
+            }
         }
-        private static Dictionary<int, ScrollButtonState> scrollButtonStates = new Dictionary<int, ScrollButtonState>();
+        private static readonly ScrollButtonState scrollButtonUp = new ScrollButtonState(-1), scrollButtonDown = new ScrollButtonState(1);
         public override void Update(GameTime gameTime)
         {
             if (!ServiceHelper.FirstLoadDone)
@@ -766,12 +772,9 @@ namespace FezGame.MultiplayerMod
                 {
                     currentIndex = hoveredOption.Index;
                 }
-                void AttempScrollButtonPress(bool containsPointer, int sign)
+                void AttempScrollButtonPress(bool containsPointer, ScrollButtonState scrollButtonState)
                 {
-                    if (!scrollButtonStates.TryGetValue(sign, out ScrollButtonState scrollButtonState))
-                    {
-                        scrollButtonStates[sign] = scrollButtonState = new ScrollButtonState();
-                    }
+                    int sign = scrollButtonState.sign;
                     if (mouseDown && containsPointer)
                     {
                         scrollButtonState.sinceScrollButtonHeld += gameTime.ElapsedGameTime.TotalSeconds;
@@ -806,17 +809,18 @@ namespace FezGame.MultiplayerMod
                     scrollButtonState.isheld = mouseDown;
                     scrollButtonState.containsPointer = containsPointer;
                 }
-                AttempScrollButtonPress(ScrollBarArrowUpHitbox.Contains(positionPt), -1);
-                AttempScrollButtonPress(ScrollBarArrowDownHitbox.Contains(positionPt), 1);
+                AttempScrollButtonPress(ScrollBarArrowUpHitbox.Contains(positionPt), scrollButtonUp);
+                AttempScrollButtonPress(ScrollBarArrowDownHitbox.Contains(positionPt), scrollButtonDown);
+                ScrollBarThumbHasHover = ScrollBarThumbHitbox.Contains(positionPt);
                 if (mouseDown)
                 {
-                    if (ScrollBarThumbHasFocus || ScrollBarThumbHitbox.Contains(positionPt))
+                    if (ScrollBarThumbHasFocus || ScrollBarThumbHasHover)
                     {
                         ScrollBarThumbHasFocus = true;
                         scrollY += MouseState.Movement.Y;
                         // cursor dragging scrollbar support
                     }
-                    else if (!scrollButtonStates.Any(s => s.Value.focus) && ScrollBarTrackHitbox.Contains(positionPt))
+                    else if (!(scrollButtonUp.focus || scrollButtonDown.focus) && ScrollBarTrackHitbox.Contains(positionPt))
                     {
                         //cursor clicking scrollbar support
                         scrollY += MenuFrameRect.Height * Math.Sign(positionPt.Y - (ScrollBarThumbHitbox.Y + ScrollBarThumbHitbox.Height / 2));
@@ -828,7 +832,6 @@ namespace FezGame.MultiplayerMod
                 }
                 scrollY = MathHelper.Clamp(scrollY, -selectedItemPaddingBlock, Math.Max(scrollTop, contentHeight - MenuFrameRect.Height + selectedItemPaddingBlock));
 
-                var frameRect = new Vector3(512, 256f, 1f) * base.GraphicsDevice.GetViewScale();
                 SetMenuCursorState(hasHoveredOption, mouseDown);
                 if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed
                     || (mouseDown && !mouseWasDown && hasHoveredOption))
@@ -869,13 +872,26 @@ namespace FezGame.MultiplayerMod
         private Texture2D ClickedCursor;
         private Texture2D arrowTexture;
         private Texture2D arrowTexture2;
+
+        private static readonly Color LighterGray = new Color(233, 233, 233);
         private static readonly Color scrollBarBgColor = Color.Gray;
-        private static readonly Color scrollBarScrollerColor = Color.White;
-        private static readonly Color scrollBarHeldColor = Color.LightGray;
+
+        private static readonly Color scrollButtonIdleColor = Color.White;
         private static readonly Color scrollArrowIdleColor = Color.Black;
-        private static readonly Color scrollArrowFocusColor = Color.Blue;
+
+        private static readonly Color scrollButtonHoverColor = LighterGray;
+        private static readonly Color scrollArrowHoverColor = Color.DarkBlue;
+
+        private static readonly Color scrollButtonHeldColor = Color.LightGray;
         private static readonly Color scrollArrowHeldColor = Color.DarkBlue;
-        private static readonly Color scrollBarFocusColor = new Color(233, 233, 233);
+
+        private static readonly Color scrollButtonFocusColor = LighterGray;
+        private static readonly Color scrollArrowFocusColor = Color.Blue;
+
+        private static readonly Color scrollThumbIdleColor = scrollButtonIdleColor;
+        private static readonly Color scrollThumbHoverColor = scrollButtonHoverColor;
+        private static readonly Color scrollThumbFocusColor = scrollButtonHeldColor;
+
         public override void Draw(GameTime gameTime)
         {
             if (PointerCursor == null && CMProvider?.Global != null)
@@ -898,6 +914,7 @@ namespace FezGame.MultiplayerMod
             {
                 drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 Vector2 position = Vector2.Zero;
+                Vector2 titleLineSize;
                 //draw title
                 {
                     const string underlineStart = "\x1B[21m";
@@ -909,12 +926,12 @@ namespace FezGame.MultiplayerMod
                     string menuTitle = nameStart + CurrentMenuLevel.Name + nameEnd;
 
                     Vector2 titleScale = new Vector2(1.5f);
-                    Vector2 lineSize = RichTextRenderer.MeasureString(Fonts, menuTitle) * titleScale;
+                    titleLineSize = RichTextRenderer.MeasureString(Fonts, menuTitle) * titleScale;
                     position.Y = MenuFrameRect.Y;
-                    position.X = (GraphicsDevice.Viewport.Width / 2) - (lineSize.X / 2);
+                    position.X = (GraphicsDevice.Viewport.Width / 2) - (titleLineSize.X / 2);
                     DrawTextRichShadow(menuTitle, position, titleScale);
-                    MenuFrameRect.Y += (int)lineSize.Y;
-                    MenuFrameRect.Height -= (int)lineSize.Y;
+                    MenuFrameRect.Y += (int)titleLineSize.Y;
+                    MenuFrameRect.Height -= (int)titleLineSize.Y;
                 }
                 drawer.End();
 
@@ -980,13 +997,13 @@ namespace FezGame.MultiplayerMod
                     int scrollBarOriginX_adjusted = scrollBarOriginX + MenuFrameRect.X;
                     int scrollBarOriginY_adjusted = MenuFrameRect.Y;
 
-                    Color getArrowColor(bool hasScrollFocus, bool hasScrollInside)
+                    Color getArrowColor(bool hasMouseFocus, bool hasMouseInside)
                     {
-                        return hasScrollFocus ? (hasScrollInside ? scrollArrowHeldColor : scrollArrowFocusColor) : scrollArrowIdleColor;
+                        return hasMouseFocus ? (hasMouseInside ? scrollArrowHeldColor : scrollArrowFocusColor) : (hasMouseInside ? scrollArrowHoverColor : scrollArrowIdleColor);
                     }
-                    Color getArrowBackColor(bool hasScrollFocus, bool hasScrollInside)
+                    Color getArrowBackColor(bool hasMouseFocus, bool hasMouseInside)
                     {
-                        return hasScrollFocus ? (hasScrollInside ? scrollBarHeldColor : scrollBarFocusColor) : scrollBarScrollerColor;
+                        return hasMouseFocus ? (hasMouseInside ? scrollButtonHeldColor : scrollButtonFocusColor) : (hasMouseInside ? scrollButtonHoverColor : scrollButtonIdleColor);
                     }
 
                     ScrollBarTrackHitbox = new Rectangle(scrollBarOriginX_adjusted,
@@ -1002,7 +1019,7 @@ namespace FezGame.MultiplayerMod
                         (int)(scrollBarSizeHeight * scrollBarSizePercent)
                     ).Inset(0, scrollBarSizeWidthInnerOffsetBlock);
                     drawer.DrawRect(ScrollBarThumbHitbox.Inset(scrollBarSizeWidthInnerOffsetInline, 0).OffsetOrigin(-MenuFrameRect.X, -MenuFrameRect.Y),
-                        scrollBarScrollerColor);
+                        ScrollBarThumbHasFocus ? scrollThumbFocusColor : (ScrollBarThumbHasHover ? scrollThumbHoverColor : scrollThumbIdleColor));
 
                     var ScrollBarArrowUpRect = new Rectangle(
                         scrollBarOriginX,
@@ -1011,8 +1028,8 @@ namespace FezGame.MultiplayerMod
                         scrollBarArrowSize
                     );
                     ScrollBarArrowUpHitbox = ScrollBarArrowUpRect.OffsetOrigin(MenuFrameRect.X, MenuFrameRect.Y);
-                    bool upScrollInside = scrollButtonStates.ContainsKey(-1) && scrollButtonStates[-1].containsPointer;
-                    bool upScrollFocus = scrollButtonStates.ContainsKey(-1) && scrollButtonStates[-1].focus;
+                    bool upScrollInside = scrollButtonUp.containsPointer;
+                    bool upScrollFocus = scrollButtonUp.focus;
                     ScrollBarArrowUpRect = ScrollBarArrowUpRect.Inset(scrollBarSizeWidthInnerOffsetInline);
                     drawer.DrawRect(ScrollBarArrowUpRect, getArrowBackColor(upScrollFocus, upScrollInside));
                     ScrollBarArrowUpRect = ScrollBarArrowUpRect.Inset(scrollBarSizeWidthInnerOffsetInline).OffsetOriginForRotateRect();
@@ -1026,8 +1043,8 @@ namespace FezGame.MultiplayerMod
                         scrollBarArrowSize
                     );
                     ScrollBarArrowDownHitbox = ScrollBarArrowDownRect.OffsetOrigin(MenuFrameRect.X, MenuFrameRect.Y);
-                    bool downScrollInside = scrollButtonStates.ContainsKey(1) && scrollButtonStates[1].containsPointer;
-                    bool downScrollFocus = scrollButtonStates.ContainsKey(1) && scrollButtonStates[1].focus;
+                    bool downScrollInside = scrollButtonDown.containsPointer;
+                    bool downScrollFocus = scrollButtonDown.focus;
                     ScrollBarArrowDownRect = ScrollBarArrowDownRect.Inset(scrollBarSizeWidthInnerOffsetInline);
                     drawer.DrawRect(ScrollBarArrowDownRect, getArrowBackColor(downScrollFocus, downScrollInside));
                     ScrollBarArrowDownRect = ScrollBarArrowDownRect.Inset(scrollBarSizeWidthInnerOffsetInline).OffsetOriginForRotateRect();
@@ -1036,10 +1053,28 @@ namespace FezGame.MultiplayerMod
                     if (overflowTop)
                     {
                         //TODO indicate overflow on top edge of container? 
+                        float width = titleLineSize.X;
+                        float widthDiff = width / 20f;
+                        Color color = Color.White;
+                        for (int ii = 1; width > 0; ++ii)
+                        {
+                            drawer.DrawRect(new Vector2((MenuFrameRect.Width - width) / 2f, ii), width, 1, color);
+                            width -= widthDiff;
+                            color = Color.White * (float)Math.Pow(0.85f, ii);
+                        }
                     }
                     if (overflowBottom)
                     {
-                        //TODO indicate overflow on bottom edge of container? 
+                        // indicate overflow on bottom edge of container
+                        float width = titleLineSize.X;
+                        float widthDiff = width / 20f;
+                        Color color = Color.White;
+                        for (int ii = 1; width > 0; ++ii)
+                        {
+                            drawer.DrawRect(new Vector2((MenuFrameRect.Width - width) / 2f, MenuFrameRect.Height - ii), width, 1, color);
+                            width -= widthDiff;
+                            color = Color.White * (float)Math.Pow(0.85f, ii);
+                        }
                     }
                 }
                 MenuListOption menuitem = CurrentMenuItem;
