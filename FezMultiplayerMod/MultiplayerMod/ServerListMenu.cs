@@ -863,16 +863,6 @@ namespace FezGame.MultiplayerMod
             mouseWasDown = mouseDown;
             justGotFocus = false;
         }
-        private void DrawTextRichShadow(string text, Vector2 position, Vector2? scale = null, Color? color = null, Color? shadow = null)
-        {
-            if (scale == null)
-            {
-                scale = Vector2.One;
-            }
-
-            RichTextRenderer.DrawString(drawer, Fonts, text, position + Vector2.One, shadow ?? Color.Black, Color.Transparent, scale.Value);
-            RichTextRenderer.DrawString(drawer, Fonts, text, position, color ?? Color.White, Color.Transparent, scale.Value);
-        }
         private const int selectedItemBorderThickness = 1;
         private const int selectedItemPaddingBlock = 1 + selectedItemBorderThickness;
         private const int selectedItemOutlinePaddingInlineEmFrac = 3;
@@ -939,7 +929,7 @@ namespace FezGame.MultiplayerMod
                     titleLineSize = RichTextRenderer.MeasureString(Fonts, menuTitle) * titleScale;
                     position.Y = MenuFrameRect.Y;
                     position.X = (GraphicsDevice.Viewport.Width / 2) - (titleLineSize.X / 2);
-                    DrawTextRichShadow(menuTitle, position, titleScale);
+                    drawer.DrawTextRichShadow(Fonts, menuTitle, position, titleScale);
                     MenuFrameRect.Y += (int)titleLineSize.Y;
                     MenuFrameRect.Height -= (int)titleLineSize.Y;
                 }

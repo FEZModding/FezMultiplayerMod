@@ -58,6 +58,31 @@ namespace FezGame.MultiplayerMod
                 return field.FieldType.IsAssignableFrom(typeof(int)) && value == (int)field.GetValue(null);
             });
         }
+        public static void DrawTextRichShadow(this SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, float? scale, Color? color = null, Color? shadow = null)
+        {
+            Vector2 scaleV;
+            if (scale == null)
+            {
+                scaleV = Vector2.One;
+            }
+            else
+            {
+                scaleV = new Vector2(scale.Value);
+            }
+
+            RichTextRenderer.DrawString(batch, fontManager, text, position + Vector2.One, shadow ?? Color.Black, Color.Transparent, scaleV);
+            RichTextRenderer.DrawString(batch, fontManager, text, position, color ?? Color.White, Color.Transparent, scaleV);
+        }
+        public static void DrawTextRichShadow(this SpriteBatch batch, IFontManager fontManager, string text, Vector2 position, Vector2? scale = null, Color? color = null, Color? shadow = null)
+        {
+            if (scale == null)
+            {
+                scale = Vector2.One;
+            }
+
+            RichTextRenderer.DrawString(batch, fontManager, text, position + Vector2.One, shadow ?? Color.Black, Color.Transparent, scale.Value);
+            RichTextRenderer.DrawString(batch, fontManager, text, position, color ?? Color.White, Color.Transparent, scale.Value);
+        }
         private static readonly System.Text.RegularExpressions.Regex escapeCodeRegex = new System.Text.RegularExpressions.Regex(@"(\x1B\[|\x9B)([0-9\x3A;]*)(\x20?[\x40-\x7F])", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         public static string StripAnsiEscapeSequences(this string str)
         {

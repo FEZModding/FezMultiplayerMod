@@ -76,6 +76,7 @@
       <Link>Shared\Shared.cs</Link>
     </Compile>
     <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="MultiplayerMod\GuiPlayerList.cs" />
     <Compile Include="MultiplayerMod\TextInputLogicComponent.cs" />
     <Compile Include="MultiplayerMod\OpenTreasureListener.cs" />
     <Compile Include="MultiplayerMod\ServerDiscoverer.cs" />

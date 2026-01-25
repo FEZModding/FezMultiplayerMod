@@ -139,6 +139,8 @@ namespace FezGame.MultiplayerMod
                 GameState.SaveData.CanOpenMap = true;
             };
 
+            ServiceHelper.AddComponent(new GuiPlayerList(game, mp));
+
             ServerListMenu serverListMenu;
             ServiceHelper.AddComponent(serverListMenu = new ServerListMenu(game, mp));
             serverListMenu.LoadServerSettings(settings);
