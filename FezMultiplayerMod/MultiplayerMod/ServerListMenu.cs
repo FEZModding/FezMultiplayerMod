@@ -230,7 +230,7 @@ namespace FezGame.MultiplayerMod
         private static readonly Hook MenuInitHook = null;
         private static readonly Hook MenuUpdateHook = null;
         private static readonly Hook MenuUpOneLevelHook = null;
-        private static readonly List<Tuple<string, Action>> CustomMenuOptions = new List<Tuple<string, Action>>();
+        private static readonly Tuple<string, Action> MultiplayerMenu = new Tuple<string, Action>("@MULTIPLAYER", () => Instance.HasFocus = true);
         private static event Action OnMenuUpOneLevel = () => { };
         private static readonly FieldInfo MenuCursorSelectable;
         private static readonly FieldInfo MenuCursorClicking;
@@ -244,6 +244,7 @@ namespace FezGame.MultiplayerMod
             MenuCursorSelectable.SetValue(MenuBaseInstance, selectable);
             MenuCursorClicking.SetValue(MenuBaseInstance, selectable && clicking);
         }
+        private static Action<bool> SetMenuTrapInput = _ => { };
         static ServerListMenu()
         {
             const BindingFlags privBind = BindingFlags.NonPublic | BindingFlags.Instance;
@@ -276,23 +277,23 @@ namespace FezGame.MultiplayerMod
 
                 MenuLevelType.GetField("IsDynamic").SetValue(MenuRoot, true);
 
-                CustomMenuOptions.ForEach(tuple =>
                 {
-                    string optionText = tuple.Item1;
+                    string optionText = MultiplayerMenu.Item1;
                     object CustomLevel = Activator.CreateInstance(MenuLevelType);
                     MenuLevelType.GetField("IsDynamic").SetValue(CustomLevel, true);
                     MenuLevelType.GetProperty("Title").SetValue(CustomLevel, optionText, null);
                     MenuLevelType.GetField("Parent").SetValue(CustomLevel, MenuRoot);
                     MenuLevelType.GetField("Oversized").SetValue(CustomLevel, true);
+                    SetMenuTrapInput = (b) => { MenuLevelType.GetProperty("TrapInput").SetValue(CustomLevel, b, null); };
                     // add created menu level to the main menu
                     int modsIndex = ((IList)MenuLevelType.GetField("Items").GetValue(MenuRoot)).Count - 2;
                     MenuLevelType.GetMethod("AddItem", new Type[] { typeof(string), typeof(Action), typeof(int) })
                         .Invoke(MenuRoot, new object[] { optionText, (Action) delegate{
                                 MenuBaseType.GetMethod("ChangeMenuLevel").Invoke(MenuBase, new object[] { CustomLevel, false });
-                                tuple.Item2();
+                                MultiplayerMenu.Item2();
                         }, modsIndex});
                     ;
-                });
+                }
 
                 // needed to refresh the menu before the transition to it happens (pause menu)
                 MenuBaseType.GetMethod("RenderToTexture", privBind).Invoke(MenuBase, new object[] { });
@@ -334,10 +335,6 @@ namespace FezGame.MultiplayerMod
                 );
             }
         }
-        private static void AddFakeMenuLevel(string text, Action onSelect)
-        {
-            CustomMenuOptions.Add(Tuple.Create(text, onSelect));
-        }
         private static SoundEffect sCancel, sConfirm, sCursorUp, sCursorDown;
 
         public ServerListMenu(Game game, MultiplayerClient client) : base(game)
@@ -346,7 +343,6 @@ namespace FezGame.MultiplayerMod
             Instance = this;
             drawer = new SpriteBatch(GraphicsDevice);
 
-            AddFakeMenuLevel("@MULTIPLAYER", () => HasFocus = true);
             OnMenuUpOneLevel += () =>
             {
                 HasFocus = false;
@@ -533,9 +529,11 @@ namespace FezGame.MultiplayerMod
                 __currentMenu = value;
                 currentIndex = 0;
                 ForceRefreshOptionsList();
+                SetMenuTrapInput(CurrentMenuLevel != Menu_ServerList);
                 if (CurrentMenuLevel == Menu_None)
                 {
                     HasFocus = false;
+                    SetMenuTrapInput(false);
                 }
             }
         }
@@ -559,7 +557,12 @@ namespace FezGame.MultiplayerMod
         private void MenuBack()
         {
             CurrentMenuItem?.OnMoveToOtherOption?.Invoke();
+            if(CurrentMenuLevel != Menu_ServerList)
+            {
+                sCancel.Emit();
+            }
             CurrentMenuLevel = CurrentMenuLevel.ParentMenu;
+            SetMenuTrapInput(CurrentMenuLevel != Menu_ServerList && CurrentMenuLevel != Menu_None);
         }
 
         private void AddServerConfirmed()
