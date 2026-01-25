@@ -535,6 +535,8 @@ namespace FezGame.MultiplayerMod
                     HasFocus = false;
                     SetMenuTrapInput(false);
                 }
+                selectorOrigin = null;
+                selectorScale = null;
             }
         }
         private ServerInfo selectedInfo = null;
@@ -773,7 +775,11 @@ namespace FezGame.MultiplayerMod
                 bool hasHoveredOption = cursorInFrame && hoveredOption != null;
                 if (mouseMoved && hasHoveredOption && cursorInFrame)
                 {
-                    currentIndex = hoveredOption.Index;
+                    if (currentIndex != hoveredOption.Index)
+                    {
+                        currentIndex = hoveredOption.Index;
+                        sCursorUp.Emit();
+                    }
                 }
                 void AttempScrollButtonPress(bool containsPointer, ScrollButtonState scrollButtonState)
                 {
@@ -895,6 +901,7 @@ namespace FezGame.MultiplayerMod
         private static readonly Color scrollThumbHoverColor = scrollButtonHoverColor;
         private static readonly Color scrollThumbFocusColor = scrollButtonHeldColor;
 
+        private static Vector2? selectorOrigin = null, selectorScale = null;
         public override void Draw(GameTime gameTime)
         {
             if (PointerCursor == null && CMProvider?.Global != null)
@@ -1085,10 +1092,23 @@ namespace FezGame.MultiplayerMod
                 {
                     int paddingInline = menuitem.BoundingClientRect.Height / selectedItemOutlinePaddingInlineEmFrac;
                     int paddingBlock = 0;
-                    Vector2 origin = new Vector2(menuitem.BoundingClientRect.X - paddingInline - MenuFrameRect.X, menuitem.BoundingClientRect.Y - paddingBlock - MenuFrameRect.Y);
+                    Vector2 origin = new Vector2(menuitem.BoundingClientRect.X - paddingInline - MenuFrameRect.X, menuitem.BoundingClientRect.Y - paddingBlock - MenuFrameRect.Y + scrollY);
+                    Vector2 scale = new Vector2(menuitem.BoundingClientRect.Width + (2 * paddingInline), menuitem.BoundingClientRect.Height + (2 * paddingBlock));
+                    if(!selectorOrigin.HasValue)
+                    {
+                        selectorOrigin = origin;
+                    }
+                    if(!selectorScale.HasValue)
+                    {
+                        selectorScale = scale;
+                    }
+                    selectorOrigin = Vector2.Lerp(selectorOrigin.Value, origin, 0.3f);
+                    selectorScale = Vector2.Lerp(selectorScale.Value, scale, 0.3f);
+                    origin = selectorOrigin.Value;
+                    origin.Y -= scrollY;
                     drawer.DrawRectWireframe(origin,
-                        menuitem.BoundingClientRect.Width + (2 * paddingInline),
-                        menuitem.BoundingClientRect.Height + (2 * paddingBlock),
+                        selectorScale.Value.X,
+                        selectorScale.Value.Y,
                         selectedItemBorderThickness,
                         Color.White);
                 }
