@@ -528,6 +528,7 @@ namespace FezGame.MultiplayerMod
                 }
                 __currentMenu = value;
                 currentIndex = 0;
+                scrollY = scrollTop;
                 ForceRefreshOptionsList();
                 SetMenuTrapInput(CurrentMenuLevel != Menu_ServerList);
                 if (CurrentMenuLevel == Menu_None)
