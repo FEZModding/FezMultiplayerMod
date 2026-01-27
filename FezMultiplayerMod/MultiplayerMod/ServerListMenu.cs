@@ -778,6 +778,7 @@ namespace FezGame.MultiplayerMod
                 {
                     if (currentIndex != hoveredOption.Index)
                     {
+                        CurrentMenuItem?.OnMoveToOtherOption?.Invoke();
                         currentIndex = hoveredOption.Index;
                         sCursorUp.Emit();
                     }
