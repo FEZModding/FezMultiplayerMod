@@ -851,7 +851,6 @@ namespace FezGame.MultiplayerMod
                         menuitem.Action.Invoke();
                         if (menuitem.DisplayText.Equals(OptionBack.DisplayText))
                         {
-                            sCancel.Emit();
                         }
                         else
                         {
