@@ -369,7 +369,7 @@ namespace FezGame.MultiplayerMod
             mp = client;
 
             //declared on class scope so we can add it to every menu
-            OptionBack = new MenuListOption("Back", MenuBack);
+            OptionBack = new MenuListOption("Back", () => MenuBack());
             //declared on class scope so we can toggle Enabled
             OptionDisconnect = new MenuListOption("Disconnect from server", LeaveServer) { Enabled = false };
 
@@ -557,10 +557,10 @@ namespace FezGame.MultiplayerMod
             }
             return list;
         }
-        private void MenuBack()
+        private void MenuBack(bool emitSound = true)
         {
             CurrentMenuItem?.OnMoveToOtherOption?.Invoke();
-            if(CurrentMenuLevel != Menu_ServerList)
+            if(emitSound && CurrentMenuLevel != Menu_ServerList)
             {
                 sCancel.Emit();
             }
@@ -577,7 +577,7 @@ namespace FezGame.MultiplayerMod
                 _ = IniTools.TryParseIPEndPoint(address, out IPEndPoint endpoint);
                 ServerInfoList.Add(new ServerInfo(name, endpoint));
                 OnServerListChange(ServerInfoList.AsReadOnly());
-                MenuBack();
+                MenuBack(emitSound: false);
             }
             catch (ArgumentException) { }
         }
