@@ -1,4 +1,4 @@
-﻿#if FEZCLIENT
+#if FEZCLIENT
 using FezEngine.Components;
 using FezEngine.Services;
 using FezEngine.Structure;
@@ -92,7 +92,7 @@ namespace FezSharedTools
                 {
                     try
                     {
-                        return c.ContainerIdentifier + SAVE_DATA_DATA_SEPARATOR + ((int)c.ChangeType) + SAVE_DATA_DATA_SEPARATOR + ConvertToString(c.Value) + SAVE_DATA_DATA_SEPARATOR + c.Source.ToString();
+                        return c.ContainerIdentifier + SAVE_DATA_DATA_SEPARATOR + ((int)c.ChangeType) + SAVE_DATA_DATA_SEPARATOR + ConvertToString(c.Value);
                     }
                     catch (Exception e)
                     {
