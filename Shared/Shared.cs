@@ -7,6 +7,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Diagnostics;
+using System.IO.Compression;
 
 #if FEZCLIENT
 using ActionType = FezGame.Structure.ActionType;
@@ -900,7 +901,17 @@ namespace FezSharedTools
             SetTimeOfDay(reader.ReadInt64());
             if (reader.ReadBoolean())
             {
-                ProcessServerSharedSaveData(reader.ReadSharedSaveData());
+                bool compressed = reader.ReadBoolean();
+                SaveData saveData;
+                if (compressed)
+                {
+                    saveData = reader.ReadCompressed(reader.ReadSharedSaveData);
+                }
+                else
+                {
+                    saveData = reader.ReadSharedSaveData();
+                }
+                ProcessServerSharedSaveData(saveData);
             }
             byte test = reader.ReadByte();//0xfe
         }
@@ -961,7 +972,16 @@ namespace FezSharedTools
                     writer.Write(hasSaveData);
                     if (hasSaveData)
                     {
-                        writer.Write(sharedSaveData);
+                        bool doCompressed = true;
+                        writer.Write(doCompressed);
+                        if (doCompressed)
+                        {
+                            writer.WriteCompressed(writer.Write, sharedSaveData);
+                        }
+                        else
+                        {
+                            writer.Write(sharedSaveData);
+                        }
                     }
                     writer.Write((byte)0xfe);
                     writer.Flush();
@@ -1044,6 +1064,27 @@ namespace FezSharedTools
             }
             base.Write(bytes);
         }
+
+        internal void WriteCompressed<T>(Action<T> write, T dat)
+        {
+            using (MemoryStream m = new MemoryStream())
+            {
+                using (GZipStream g = new GZipStream(m,
+#if FEZCLIENT
+                CompressionMode.Compress
+#else
+                CompressionLevel.Fastest
+#endif
+                ))
+                using (BinaryNetworkWriter w = new BinaryNetworkWriter(g))
+                {
+                    write.Method.Invoke(w, new object[] { w, dat });
+                }
+                byte[] c = m.ToArray();
+                this.Write(c.Length);
+                this.Write(c);
+            }
+        }
     }
 
     public sealed class BinaryNetworkReader : BinaryReader
@@ -1100,6 +1141,20 @@ namespace FezSharedTools
                 Array.Reverse(bytes);
             }
             return BitConverter.ToDouble(bytes, 0);
+        }
+
+        internal T ReadCompressed<T>(Func<T> read)
+        {
+            // note: GZipStream reads to the end of the stream, so don't read directly from this.BaseStream
+            int len = ReadInt32();
+            using (var ms = new MemoryStream(ReadBytes(len)))
+            {
+                using (var g = new GZipStream(ms, CompressionMode.Decompress))
+                using (var r = new BinaryNetworkReader(g))
+                {
+                    return (T)read.Method.Invoke(r, new object[] { r });
+                }
+            }
         }
     }
     public static class BinaryIOExtensions
