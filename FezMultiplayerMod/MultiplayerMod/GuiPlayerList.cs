@@ -1,19 +1,12 @@
-﻿using FezEngine.Components;
-using FezEngine.Services;
-using FezEngine.Structure;
+using FezEngine.Components;
+using FezEngine.Structure.Input;
 using FezEngine.Tools;
-using FezGame.Components;
-using FezGame.Services;
-using FezGame.Structure;
+using FezSharedTools;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Xna.Framework.Graphics;
-using FezEngine.Structure.Input;
-using FezEngine;
-using FezEngine.Effects;
-using FezSharedTools;
 
 namespace FezGame.MultiplayerMod
 {
@@ -25,11 +18,10 @@ namespace FezGame.MultiplayerMod
         #region ServiceDependencies
         private IInputManager InputManager { get; set; }
         private IFontManager FontManager { get; set; }
-        private IKeyboardStateManager KeyboardState { get; set; }
 
         #endregion
 
-        private MultiplayerClient mp;
+        private readonly MultiplayerClient mp;
         public GuiPlayerList(Game game, MultiplayerClient mp)
             : base(game)
         {
@@ -71,7 +63,7 @@ namespace FezGame.MultiplayerMod
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
-            if(!ServiceHelper.FirstLoadDone)
+            if (!ServiceHelper.FirstLoadDone)
             {
                 return;
             }

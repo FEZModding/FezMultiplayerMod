@@ -1,8 +1,7 @@
-﻿using System.Net;
-using System.ComponentModel;
+﻿using System;
 using System.Collections.Generic;
-using static FezGame.MultiplayerMod.ServerListMenu;
-using System;
+using System.ComponentModel;
+using System.Net;
 
 namespace FezGame.MultiplayerMod
 {

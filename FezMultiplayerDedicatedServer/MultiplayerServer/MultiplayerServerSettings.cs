@@ -1,5 +1,5 @@
-﻿using System.ComponentModel;
-using FezSharedTools;
+﻿using FezSharedTools;
+using System.ComponentModel;
 
 namespace FezMultiplayerDedicatedServer
 {

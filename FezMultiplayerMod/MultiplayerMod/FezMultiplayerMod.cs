@@ -1,19 +1,19 @@
-﻿using FezEngine.Components;
+using FezEngine;
+using FezEngine.Components;
+using FezEngine.Effects;
 using FezEngine.Services;
 using FezEngine.Structure;
+using FezEngine.Structure.Input;
 using FezEngine.Tools;
 using FezGame.Components;
 using FezGame.Services;
 using FezGame.Structure;
+using FezSharedTools;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Xna.Framework.Graphics;
-using FezEngine.Structure.Input;
-using FezEngine;
-using FezEngine.Effects;
-using FezSharedTools;
 
 namespace FezGame.MultiplayerMod
 {

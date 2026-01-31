@@ -7,7 +7,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
 
 namespace FezGame.MultiplayerMod
 {
@@ -412,42 +411,42 @@ namespace FezGame.MultiplayerMod
             _ = Waiters.Wait(() => FezMultiplayerMod.Instance?.GraphicsDevice != null,
             () =>
             {
-                    const int size = 1000;
-                    const float cx = size / 2f;
-                    const float cy = size / 2f;
-                    const double circleThicknessHalved = size / 100.0;
-                    const double circleRadius = size / 2.0 - circleThicknessHalved;//ensure circle is entirely in the target area
-                    const double outerRadius = circleRadius + circleThicknessHalved;
-                    const double innerRadius = circleRadius - circleThicknessHalved;
+                const int size = 1000;
+                const float cx = size / 2f;
+                const float cy = size / 2f;
+                const double circleThicknessHalved = size / 100.0;
+                const double circleRadius = size / 2.0 - circleThicknessHalved;//ensure circle is entirely in the target area
+                const double outerRadius = circleRadius + circleThicknessHalved;
+                const double innerRadius = circleRadius - circleThicknessHalved;
 
-                    GraphicsDevice graphicsDevice = FezMultiplayerMod.Instance.GraphicsDevice;
-                    CircleTexture = new Texture2D(graphicsDevice, size, size, false, SurfaceFormat.Color);
+                GraphicsDevice graphicsDevice = FezMultiplayerMod.Instance.GraphicsDevice;
+                CircleTexture = new Texture2D(graphicsDevice, size, size, false, SurfaceFormat.Color);
 
-                    Color[] colors = new Color[size * size];
+                Color[] colors = new Color[size * size];
 
-                    for (int y = 0; y < size; y++)
+                for (int y = 0; y < size; y++)
+                {
+                    for (int x = 0; x < size; x++)
                     {
-                        for (int x = 0; x < size; x++)
+                        int index = x + y * size;
+                        // Calculate distance from the center
+                        float dx = x - cx;
+                        float dy = y - cy;
+                        double distance = Math.Sqrt(dx * dx + dy * dy);
+                        if (distance >= innerRadius && distance <= outerRadius)
                         {
-                            int index = x + y * size;
-                            // Calculate distance from the center
-                            float dx = x - cx;
-                            float dy = y - cy;
-                            double distance = Math.Sqrt(dx * dx + dy * dy);
-                            if (distance >= innerRadius && distance <= outerRadius)
-                            {
-                                // Inside the circle
-                                colors[index] = Color.White;
-                            }
-                            else
-                            {
-                                // Outside the circle - transparent background
-                                colors[index] = Color.Transparent;
-                            }
+                            // Inside the circle
+                            colors[index] = Color.White;
+                        }
+                        else
+                        {
+                            // Outside the circle - transparent background
+                            colors[index] = Color.Transparent;
                         }
                     }
+                }
 
-                    CircleTexture.SetData(colors);
+                CircleTexture.SetData(colors);
             });
         }
         private static Texture2D CircleTexture = null;
@@ -463,7 +462,7 @@ namespace FezGame.MultiplayerMod
                 int y = FezMath.Round(position.Y);
                 int w = (int)Math.Ceiling(width);
                 int h = (int)Math.Ceiling(height);
-                
+
                 batch.Draw(CircleTexture, new Rectangle(x, y, w, h), new Rectangle(0, 0, CircleTexture.Width, CircleTexture.Height), color);
             }
         }
@@ -764,7 +763,7 @@ namespace FezGame.MultiplayerMod
                     //bottom
                     batch.DrawRect(boxOrigin + new Vector2(0, boxHeight - lineThickness), boxWidth, lineThickness, decorationColor);
                     //right; check the next token isn't also framed
-                    if (tokenIndex+1 >= tokens.Count || !tokens[tokenIndex + 1].Style.Decoration.HasFlag(TextDecoration.Framed))
+                    if (tokenIndex + 1 >= tokens.Count || !tokens[tokenIndex + 1].Style.Decoration.HasFlag(TextDecoration.Framed))
                     {
                         //right
                         batch.DrawRect(boxOrigin + new Vector2(boxWidth - lineThickness, 0), lineThickness, boxHeight, decorationColor);
@@ -788,7 +787,7 @@ namespace FezGame.MultiplayerMod
                     //draw the outline of an ellipse around the characters
                     float height = boxHeight;
                     float width = boxWidth + tokens
-                            .Where((t, i)=>(circleStartTokenIndex < i && i < circleEndTokenIndex))
+                            .Where((t, i) => (circleStartTokenIndex < i && i < circleEndTokenIndex))
                             .Sum(t =>
                             {
                                 FontData f = t.Style.FontData;
@@ -848,7 +847,7 @@ namespace FezGame.MultiplayerMod
         /// </param>
         /// <inheritdoc cref="MeasureString(SpriteFont, float, string)"/>
         /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, float, float)"/>
-        private static Vector2 ProcessECMA48EscapeCodes(in SpriteFont defaultFont, in float defaultFontScale, 
+        private static Vector2 ProcessECMA48EscapeCodes(in SpriteFont defaultFont, in float defaultFontScale,
                 in string text, in Color defaultColor, in Color defaultBGColor, in Vector2 scale,
                 Action<TokenizedText, Vector2, List<TokenizedText>, int> onToken)
         {
@@ -981,11 +980,12 @@ namespace FezGame.MultiplayerMod
                     if (NullableC1_8bitCode.HasValue || i + 1 < text.Length)
                     {
                         ///See: <see cref="C1_EscapeSequences"/>
-                        char? nextChar = text.Length >= (i+1) ? (char?)text[i + 1] : null;
+                        char? nextChar = text.Length >= (i + 1) ? (char?)text[i + 1] : null;
                         char? escapeSequence = nextChar.HasValue && typeof(C1_EscapeSequences).HasValue(nextChar.Value)
                                 ? (char?)nextChar : null;
-                        if (NullableC1_8bitCode == C1_8BitCodes.ControlSequenceIntroducer 
-                                || escapeSequence == C1_EscapeSequences.ControlSequenceIntroducer) {
+                        if (NullableC1_8bitCode == C1_8BitCodes.ControlSequenceIntroducer
+                                || escapeSequence == C1_EscapeSequences.ControlSequenceIntroducer)
+                        {
                             // CSI (Control Sequence Identifier) codes
 
                             // Start collecting the escape sequence

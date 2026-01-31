@@ -26,7 +26,7 @@ namespace FezSharedTools
     }
     internal sealed class IniTools
     {
-        
+
         /// <summary>
         /// Attempts to parse the provided string into an IP endpoint, throwing an <see cref="ArgumentException"/> if it is not in a valid format. 
         /// </summary>
@@ -57,7 +57,7 @@ namespace FezSharedTools
             }
             else
             {
-                if(!int.TryParse(portMatch.Groups[1].Value, out port))
+                if (!int.TryParse(portMatch.Groups[1].Value, out port))
                 {
                     ipEndpoint = default;
                     return false;
@@ -187,10 +187,11 @@ namespace FezSharedTools
             {
                 System.Collections.IList list = ((System.Collections.IList)obj);
                 string s = "";
-                for(int i=0;i<list.Count; ++i)
+                for (int i = 0; i < list.Count; ++i)
                 {
                     s += list[i];
-                    if(i+1<list.Count){
+                    if (i + 1 < list.Count)
+                    {
                         s += RecordSeparator.ToString();
                     }
                 }
@@ -203,7 +204,7 @@ namespace FezSharedTools
                 bool notfirst = false;
                 foreach (object item in list)
                 {
-                    if(notfirst)
+                    if (notfirst)
                     {
                         s += RecordSeparator.ToString();
                     }
@@ -269,7 +270,7 @@ namespace FezSharedTools
                     {
                         return ServerInfo.Parse(str);
                     }
-                    catch(ArgumentException)
+                    catch (ArgumentException)
                     {
                         return null;
                     }

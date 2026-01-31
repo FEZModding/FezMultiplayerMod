@@ -1,14 +1,13 @@
+using FezSharedTools;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
-using System.Linq;
-using System.Net.Sockets;
-using System.Text;
-using System.Net;
 using System.IO;
-using System.Collections.Concurrent;
-using FezSharedTools;
+using System.Linq;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using static FezMultiplayerDedicatedServer.MultiplayerServerNetcode;
 
@@ -66,7 +65,7 @@ namespace FezMultiplayerDedicatedServer
 
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
-        public readonly ConcurrentDictionary<Guid, (Socket,DateTime)> WebsocketUsers = new ConcurrentDictionary<Guid, (Socket,DateTime)>();
+        public readonly ConcurrentDictionary<Guid, (Socket, DateTime)> WebsocketUsers = new ConcurrentDictionary<Guid, (Socket, DateTime)>();
         public readonly ConcurrentQueue<(DateTime, IPAddress)> ConnectionLog = new ConcurrentQueue<(DateTime, IPAddress)>();
         private IEnumerable<Socket> ConnectedClients => Players.Select(p => p.Value.client);
         public EndPoint LocalEndPoint => listenerSocket?.LocalEndPoint;
@@ -323,7 +322,7 @@ namespace FezMultiplayerDedicatedServer
                                 //if it's a web request but the web interface is disabled, close the connection without sending back any data
                                 if (isLoopback || AllowRemoteWebInterface)
                                 {
-                                    _ = WebsocketUsers.TryAdd(uuid, (client,DateTime.UtcNow));
+                                    _ = WebsocketUsers.TryAdd(uuid, (client, DateTime.UtcNow));
                                     string request = SharedConstants.UTF8.GetString(reader.ReadBytes(client.Available));
                                     string[] lines = request.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
                                     if (lines.Length > 0)
@@ -611,7 +610,7 @@ namespace FezMultiplayerDedicatedServer
             }
             else if (msgLen == 127)
             {
-                // To test the below code, we need to manually buffer larger messages — since the NIC's autobuffering
+                // To test the below code, we need to manually buffer larger messages - since the NIC's autobuffering
                 // may be too latency-friendly for this code to run (that is, we may have only some of the bytes in this
                 // websocket frame available through client.Available).
                 msgLen = BitConverter.ToUInt64(new byte[] { bytes[9], bytes[8], bytes[7], bytes[6], bytes[5], bytes[4], bytes[3], bytes[2] }, 0);
@@ -890,13 +889,13 @@ namespace FezMultiplayerDedicatedServer
                 const pingIndex = colNames.indexOf('ping') ;
                 document.addEventListener('DOMContentLoaded',()=>{{
                     var pdat=document.getElementById('playerData');
-	                var thr=pdat.createTHead().insertRow();
+                    var thr=pdat.createTHead().insertRow();
                     colNames.forEach(a=>{{
                         var th=document.createElement('th');
-	                    th.textContent=a.split(/(?=[A-Z])/).join(' ').toLowerCase().replace(/\b\w/g, s => s.toUpperCase());
+                        th.textContent=a.split(/(?=[A-Z])/).join(' ').toLowerCase().replace(/\b\w/g, s => s.toUpperCase());
                         th.dataset.colName = a;
                         th.scope='col';
-	                    thr.appendChild(th);
+                        thr.appendChild(th);
                     }});
                     connect();
                 }});
@@ -1021,7 +1020,7 @@ namespace FezMultiplayerDedicatedServer
                                     }}
                                     if(!tr){{
                                         tr = tbod.insertRow();
-	                                    tr.dataset.uuid=o.Uuid;
+                                        tr.dataset.uuid=o.Uuid;
                                         colNames.forEach(c=>{{
                                             const td=tr.insertCell();
                                             td.dataset.colName = c;
@@ -1126,7 +1125,7 @@ namespace FezMultiplayerDedicatedServer
                 (isLoopback ?
                 $"<div class=\"infoContainer\"><span class=\"label\">Websocket Users:</span><pre id=\"{Uri_websocketUsers}\"></pre></div>" +
                 $"<div class=\"infoContainer\"><span class=\"label\">Connection Log:</span><pre id=\"{Uri_connectionLog}\"></pre></div>"
-                : "")+
+                : "") +
                 $"<div class=\"infoContainer\"><span class=\"label\">Save data changes to propagate:</span><pre id=\"{Uri_savechangesdata}\"></pre></div>" +
                 $"<div class=\"infoContainer\" style=\"height: calc(100vh + 1lh);\"><span class=\"label\">Save Data:</span><br /><iframe id=\"savefileviewer\" src=\"https://jenna1337.github.io/FezTools/FezSaveFileEditor.html#noedit\"></iframe></div>" +
                 $"</body>" +

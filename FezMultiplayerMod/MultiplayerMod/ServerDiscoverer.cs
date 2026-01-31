@@ -1,10 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Text;
 using System.Net.Sockets;
 using System.Threading;
-using System.Collections.Generic;
 
 namespace FezGame.MultiplayerMod
 {
@@ -98,7 +97,7 @@ namespace FezGame.MultiplayerMod
         /// <summary>
         /// Receives simple INI-formatted data from the <see cref="IPAddress"/> associated with this <see cref="ServerDiscoverer"/>
         /// </summary>
-        public event Action<IPEndPoint, Dictionary<string,string>> OnReceiveData = (remoteEndPoint, data) => { };
+        public event Action<IPEndPoint, Dictionary<string, string>> OnReceiveData = (remoteEndPoint, data) => { };
 
         private void Dispose(bool disposing)
         {

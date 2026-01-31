@@ -1,18 +1,12 @@
-﻿using System;
+﻿using Common;
+using FezSharedTools;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
-using System.Linq;
-using System.Net.Sockets;
-using System.Text;
 using System.Net;
-using System.IO;
-using System.Collections.Concurrent;
-using Microsoft.Xna.Framework;
-using FezEngine;
-using FezGame.Structure;
-using FezSharedTools;
-using Common;
+using System.Net.Sockets;
+using System.Threading;
 
 namespace FezGame.MultiplayerMod
 {
@@ -35,7 +29,9 @@ namespace FezGame.MultiplayerMod
                 {
                     Instance.ExtraMessage = message;
                     Instance.LastExtraMessageUpdate.Restart();
-                }else{
+                }
+                else
+                {
                     Instance.ErrorMessage = message;
                 }
             }
@@ -56,7 +52,7 @@ namespace FezGame.MultiplayerMod
                 {
                     return ConnectionState.Connecting;
                 }
-                else 
+                else
                 {
                     return ConnectionState.Disconnected;
                 }
@@ -130,7 +126,7 @@ namespace FezGame.MultiplayerMod
             RemoteEndpoint = endpoint;
             listenerThread = new Thread(() =>
             {
-                        var GameState = FezEngine.Tools.ServiceHelper.Get<Services.IGameStateManager>();
+                var GameState = FezEngine.Tools.ServiceHelper.Get<Services.IGameStateManager>();
                 void ConnectToServerInternal(out bool ConnectionSuccessful)
                 {
                     LogStatus(LogSeverity.Information, $"Connecting to {endpoint} ...");

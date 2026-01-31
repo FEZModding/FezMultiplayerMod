@@ -33,7 +33,7 @@ namespace FezSharedTools
 {
     internal static class SharedTools
     {
-        public static event Action<string, int> OnLogWarning = (string message, int severity) => {};
+        public static event Action<string, int> OnLogWarning = (string message, int severity) => { };
         public static void LogWarning(string ComponentName, string message, int LogSeverity = 1)
         {
             string ThreadName = System.Threading.Thread.CurrentThread.Name;
@@ -46,7 +46,7 @@ namespace FezSharedTools
             Common.Logger.Log(ComponentName, (Common.LogSeverity)LogSeverity, message);
 #endif
             string msgType;
-            switch(LogSeverity)
+            switch (LogSeverity)
             {
             case 0:
                 msgType = "Information";
@@ -367,11 +367,11 @@ namespace FezSharedTools
             saveData.Finished32 = r.ReadBoolean();
             saveData.Finished64 = r.ReadBoolean();
 #if FEZCLIENT
-            saveData.HasFPView = 
+            saveData.HasFPView =
 #endif
             r.ReadBoolean();
 #if FEZCLIENT
-            saveData.HasStereo3D = 
+            saveData.HasStereo3D =
 #endif
             r.ReadBoolean();
             saveData.CanNewGamePlus = r.ReadBoolean();
@@ -430,7 +430,7 @@ namespace FezSharedTools
             saveData.GlobalWaterLevelModifier = r.ReadNullableSingle();
             saveData.HasHadMapHelp = r.ReadBoolean();
 #if FEZCLIENT
-            saveData.CanOpenMap = 
+            saveData.CanOpenMap =
 #endif
             r.ReadBoolean();
             saveData.AchievementCheatCodeDone = r.ReadBoolean();
@@ -681,7 +681,7 @@ namespace FezSharedTools
     }
     public abstract class SharedNetcode<P> where P : PlayerMetadata
     {
-#region network packet stuff
+        #region network packet stuff
         private const int MaxProtocolVersionLength = 32;
         public const string ProtocolSignature = "FezMultiplayer";// Do not change
         public static readonly string ProtocolVersion = "nineteen";//Update this ever time you change something that affect the packets
@@ -985,7 +985,7 @@ namespace FezSharedTools
         protected abstract void ProcessServerSharedSaveData(SaveData saveData);
 
 #endif
-#endregion
+        #endregion
     }
 
 
@@ -1102,7 +1102,7 @@ namespace FezSharedTools
             return BitConverter.ToDouble(bytes, 0);
         }
     }
-    public static class BinaryIOExtensions 
+    public static class BinaryIOExtensions
     {
 #if !FEZCLIENT
         public static void WriteObject(this BinaryWriter writer, string s)

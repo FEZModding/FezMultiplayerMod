@@ -1,10 +1,7 @@
-﻿using Common;
 using FezEngine.Components;
 using FezEngine.Services;
 using FezEngine.Structure.Input;
 using FezEngine.Tools;
-using FezGame.Services;
-using FezGame.Structure;
 using FezSharedTools;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Audio;
@@ -19,7 +16,6 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Net;
 using System.Reflection;
-using System.Text;
 using static FezEngine.Structure.SoundEffectExtensions;
 
 namespace FezGame.MultiplayerMod
@@ -560,7 +556,7 @@ namespace FezGame.MultiplayerMod
         private void MenuBack(bool emitSound = true)
         {
             CurrentMenuItem?.OnMoveToOtherOption?.Invoke();
-            if(emitSound && CurrentMenuLevel != Menu_ServerList)
+            if (emitSound && CurrentMenuLevel != Menu_ServerList)
             {
                 sCancel.Emit();
             }
@@ -1085,11 +1081,11 @@ namespace FezGame.MultiplayerMod
                     int paddingBlock = 0;
                     Vector2 origin = new Vector2(menuitem.BoundingClientRect.X - paddingInline - MenuFrameRect.X, menuitem.BoundingClientRect.Y - paddingBlock - MenuFrameRect.Y + scrollY);
                     Vector2 scale = new Vector2(menuitem.BoundingClientRect.Width + (2 * paddingInline), menuitem.BoundingClientRect.Height + (2 * paddingBlock));
-                    if(!selectorOrigin.HasValue)
+                    if (!selectorOrigin.HasValue)
                     {
                         selectorOrigin = origin;
                     }
-                    if(!selectorScale.HasValue)
+                    if (!selectorScale.HasValue)
                     {
                         selectorScale = scale;
                     }

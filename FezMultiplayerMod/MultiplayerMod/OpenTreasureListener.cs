@@ -1,16 +1,12 @@
 ﻿using FezEngine.Components;
 using FezEngine.Structure;
 using FezEngine.Tools;
-using FezGame.Components;
+using FezSharedTools;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
-using MonoMod.RuntimeDetour;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using FezSharedTools;
 
 namespace FezGame.MultiplayerMod
 {

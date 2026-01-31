@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 
 namespace FezMultiplayerDedicatedServer
@@ -18,7 +17,7 @@ namespace FezMultiplayerDedicatedServer
         public bool Finished32;
         public bool Finished64;
         public bool HasDoneHeartReboot;
-		public bool ScoreDirty;
+        public bool ScoreDirty;
         public List<string> EarnedAchievements = new List<string>();
         public List<string> EarnedGamerPictures = new List<string>();
         public bool AnyCodeDeciphered;

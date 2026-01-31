@@ -5,7 +5,6 @@ using FezEngine.Structure;
 using FezEngine.Tools;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using System;
 using System.Collections.Generic;
 
 using MeshData = System.Tuple<FezEngine.Structure.Mesh, Microsoft.Xna.Framework.Vector2>;

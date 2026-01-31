@@ -24,7 +24,7 @@ namespace FezMultiplayerDedicatedServer
 
         private readonly List<IPAddressRange> ranges = new List<IPAddressRange>();
 #if DEBUG
-        private readonly List<Tuple<string,IPAddressRange?>> rangesDEBUG = new List<Tuple<string, IPAddressRange?>>();
+        private readonly List<Tuple<string, IPAddressRange?>> rangesDEBUG = new List<Tuple<string, IPAddressRange?>>();
 #endif
         private void ReloadFilterString()
         {
@@ -62,7 +62,7 @@ namespace FezMultiplayerDedicatedServer
                 this.low = low.GetAddressBytes();
                 this.high = high.GetAddressBytes();
                 this.family = low.AddressFamily;
-                if(low.AddressFamily != high.AddressFamily)
+                if (low.AddressFamily != high.AddressFamily)
                 {
                     throw new ArgumentException("Address family mismatch!");
                 }
@@ -72,25 +72,25 @@ namespace FezMultiplayerDedicatedServer
                 this.low = low;
                 this.high = high;
                 this.family = family;
-                if(low.Length != high.Length)
+                if (low.Length != high.Length)
                 {
                     throw new ArgumentException("Array length mismatch!");
                 }
             }
             public bool Contains(IPAddress address)
             {
-                if(family == AddressFamily.InterNetwork && address.IsIPv4MappedToIPv6) 
+                if (family == AddressFamily.InterNetwork && address.IsIPv4MappedToIPv6)
                 {
                     address = address.MapToIPv4();
                 }
-                if(family != address.AddressFamily)
+                if (family != address.AddressFamily)
                 {
                     return false;
                 }
                 byte[] addr = address.GetAddressBytes();
-                for(int i = 0; i< addr.Length; ++i)
+                for (int i = 0; i < addr.Length; ++i)
                 {
-                    if(addr[i] < low[i] || addr[i] > high[i])
+                    if (addr[i] < low[i] || addr[i] > high[i])
                     {
                         return false;
                     }
@@ -152,7 +152,7 @@ namespace FezMultiplayerDedicatedServer
                             {
                                 byte maskBitNumber = (byte)(i % 8);
                                 byte mask = (byte)(1 << maskBitNumber);
-                                if(maskBitNumber == 0)
+                                if (maskBitNumber == 0)
                                 {
                                     byteIndex -= 1;
                                 }

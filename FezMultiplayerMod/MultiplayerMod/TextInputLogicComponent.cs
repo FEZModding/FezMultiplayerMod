@@ -1,16 +1,6 @@
-﻿using FezEngine.Components;
-using FezEngine.Structure;
-using FezEngine.Tools;
-using FezGame.Components;
-using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;//Note: TextInputEXT is only in FNA
-using MonoMod.RuntimeDetour;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Text.RegularExpressions;
 
 namespace FezGame.MultiplayerMod
 {
@@ -95,7 +85,7 @@ namespace FezGame.MultiplayerMod
 
         private void TextInputEXT_TextInput(char ch)
         {
-            if(!HasFocus)
+            if (!HasFocus)
             {
                 return;
             }
