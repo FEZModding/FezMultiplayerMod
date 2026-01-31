@@ -734,9 +734,11 @@ namespace FezMultiplayerDedicatedServer
                     {Uri_savedata, ("text/plain", (_)=>{
                         byte[] bytes = new byte[0];
                         using (MemoryStream ms = new MemoryStream())
-                        using (BinaryWriter writer = new BinaryWriter(ms))
                         {
-                            writer.Write(sharedSaveData);
+                            using (BinaryWriter writer = new BinaryWriter(ms))
+                            {
+                                writer.Write(sharedSaveData);
+                            }
                             bytes = ms.ToArray();
                         }
                         return Convert.ToBase64String(bytes);
