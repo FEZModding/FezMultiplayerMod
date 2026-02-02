@@ -283,11 +283,21 @@ namespace FezMultiplayerDedicatedServer
                             // so the exe file isn't in use so it can be updated
                             if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
                             {
-                                System.Diagnostics.Process.Start("cmd.exe", "/c \"timeout /t 2 >nul && cd \"" + AppDomain.CurrentDomain.BaseDirectory + "\" && \""+Environment.GetCommandLineArgs()[0] + "\"\"");
+                                System.Diagnostics.Process.Start("cmd.exe",
+                                    $"/c \"timeout /t 2 >nul && cd \"{AppDomain.CurrentDomain.BaseDirectory}\" && \"{Environment.GetCommandLineArgs()[0]}\"\""
+                                );
                             }
-                            else
+                            else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX))
                             {
-                                System.Diagnostics.Process.Start("bash", "-c \"sleep 2 && cd '" + AppDomain.CurrentDomain.BaseDirectory + "' && '" + Environment.GetCommandLineArgs()[0] + "'\"");
+                                System.Diagnostics.Process.Start("osascript",
+                                     $"-e \"tell app \\\"Terminal\\\" to do script \\\"sleep 2 && cd '{AppDomain.CurrentDomain.BaseDirectory}' && mono '{Environment.GetCommandLineArgs()[0]}'\\\"\""
+                                );
+                            }
+                            else// if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Linux))
+                            {
+                                System.Diagnostics.Process.Start("x-terminal-emulator",
+                                    $"-e \"sleep 2 && cd '{AppDomain.CurrentDomain.BaseDirectory}' && mono '{Environment.GetCommandLineArgs()[0]}'\""
+                                );
                             }
                             #else
                             System.Diagnostics.Process.Start(Environment.GetCommandLineArgs()[0]);
