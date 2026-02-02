@@ -44,11 +44,8 @@ namespace FezGame.MultiplayerMod
                 hasFocus = value;
                 if (value)
                 {
+                    //ensure text input is on
                     TextInputEXT.StartTextInput();
-                }
-                else
-                {
-                    TextInputEXT.StopTextInput();
                 }
                 showCaret = true;
                 OnUpdate(false);

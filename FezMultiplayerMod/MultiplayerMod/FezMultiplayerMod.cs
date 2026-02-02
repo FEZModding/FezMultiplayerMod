@@ -130,9 +130,31 @@ namespace FezGame.MultiplayerMod
             };
 
             const string SettingsFilePath = "FezMultiplayerMod.ini";//TODO: probably should use an actual path instead of just the file name
-            MultiplayerClientSettings settings = IniTools.ReadSettingsFile(SettingsFilePath, new MultiplayerClientSettings());
+            bool settingsFileReadFailed = false;
+            MultiplayerClientSettings settings = new MultiplayerClientSettings();
+            try
+            {
+                IniTools.ReadSettingsFile(SettingsFilePath, settings);
+            }
+            catch (Exception e)
+            {
+                settingsFileReadFailed = true;
+                mp.FatalException = e;
+                SharedTools.LogWarning("FezMultiplayerMod", $"Failed to read settings file (path: \"{System.IO.Path.GetFullPath(SettingsFilePath)}\"", (int)Common.LogSeverity.Error);
+            }
             mp = new MultiplayerClient(settings);
-            IniTools.WriteSettingsFile(SettingsFilePath, settings);
+            void TryWriteSettingsFile()
+            {
+                try
+                {
+                    IniTools.WriteSettingsFile(SettingsFilePath, settings);
+                }
+                catch (Exception e)
+                {
+                    mp.FatalException = e;
+                    SharedTools.LogWarning("FezMultiplayerMod", $"Failed to {(settingsFileReadFailed ? "read & " : "")}write to settings file (path: \"{System.IO.Path.GetFullPath(SettingsFilePath)}\"", (int)Common.LogSeverity.Error);
+                }
+            }
 
             mp.OnUpdate += () =>
             {
@@ -148,13 +170,13 @@ namespace FezGame.MultiplayerMod
             {
                 settings.ServerList.Clear();
                 settings.ServerList.AddRange(serverList);
-                IniTools.WriteSettingsFile(SettingsFilePath, settings);
+                TryWriteSettingsFile();
             });
 
             serverListMenu.OnPlayerNameChange += (newName =>
             {
                 settings.MyPlayerName = newName;
-                IniTools.WriteSettingsFile(SettingsFilePath, settings);
+                TryWriteSettingsFile();
             });
 
             drawer = new SpriteBatch(GraphicsDevice);
@@ -246,6 +268,7 @@ namespace FezGame.MultiplayerMod
                     catch (Exception e)
                     {
                         SharedTools.LogWarning(nameof(FezMultiplayerMod), "Failed to inject FEZUG commands. Reason: " + e.Message);
+                        SharedTools.LogWarning(nameof(FezMultiplayerMod), "Failed to inject FEZUG commands. Stack trace: " + e.StackTrace);
                     }
                 }
             });

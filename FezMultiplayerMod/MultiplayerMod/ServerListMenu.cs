@@ -891,6 +891,10 @@ namespace FezGame.MultiplayerMod
         private static Vector2? selectorOrigin = null, selectorScale = null;
         public override void Draw(GameTime gameTime)
         {
+            if (!ServiceHelper.FirstLoadDone)
+            {
+                return;
+            }
             if (PointerCursor == null && CMProvider?.Global != null)
             {
                 ContentManager contentManager = CMProvider.Global;
