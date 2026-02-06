@@ -1,4 +1,4 @@
-﻿using Common;
+using Common;
 using FezSharedTools;
 using System;
 using System.Collections.Concurrent;
@@ -70,6 +70,7 @@ namespace FezGame.MultiplayerMod
 
         public PlayerAppearance MyAppearance;
         private volatile bool MyAppearanceChanged = false;
+        private volatile bool RefetchSaveData = false;
 
         public volatile uint ConnectionLatencyUpDown = 0;
 
@@ -108,6 +109,11 @@ namespace FezGame.MultiplayerMod
             SyncWorldState = settings.SyncWorldState;
             SyncTimeOfDay = settings.SyncTimeOfDay;
             MyAppearance = new PlayerAppearance(settings.MyPlayerName, settings.Appearance);
+
+            SaveDataObserver.OnSaveSlotChanged += () =>
+            {
+                RefetchSaveData = true;
+            };
         }
 
         public void ConnectToServerAsync(IPEndPoint endpoint)
@@ -183,7 +189,12 @@ namespace FezGame.MultiplayerMod
                                         appearance = MyAppearance;
                                         MyAppearanceChanged = false;
                                     }
+                                    if (RefetchSaveData && SyncWorldState)
+                                    {
+                                        requestSavaData = RefetchSaveData;
+                                    }
                                     WriteClientGameTickPacket(writer, MyPlayerMetadata, saveDataUpdate, activeLevelState, appearance, UnknownPlayerAppearanceGuids.Keys, false, requestSavaData);
+                                    requestSavaData = RefetchSaveData = false;
                                     SaveDataObserver.newChanges.ClearChanges();
                                 }
                                 ConnectionLatencyUpDown = (uint)stopwatch.ElapsedTicks;

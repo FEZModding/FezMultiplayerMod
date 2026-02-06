@@ -339,7 +339,6 @@ namespace FezSharedTools
                     try
                     {
                         string[] r = entry.Split(SAVE_DATA_DATA_SEPARATOR);
-                        r[0] = r[0].Trim(SAVE_DATA_IDENTIFIER_SEPARATOR_STR);
                         if (ignoredKeys.Contains(r[0]) || ignoreWorldRegex.IsMatch(r[0]))
                         {
                             continue;
@@ -388,8 +387,13 @@ namespace FezSharedTools
                                 if (i == keys.Length - 1)
                                 {
                                     object g = val;
-                                    if (!gtype.Equals(typeof(string)) && gtype.IsValueType)
+                                    if (!gtype.Equals(typeof(string)))
                                     {
+                                        if (!gtype.IsValueType)
+                                        {
+                                            System.Diagnostics.Debugger.Launch();
+                                            System.Diagnostics.Debugger.Break();
+                                        }
                                         g = ParseToType(gtype, val);
                                     }
                                     object oldval = currObj;
@@ -399,7 +403,15 @@ namespace FezSharedTools
                                     }
                                     else
                                     {
-                                        v[k] = g;
+                                        try
+                                        {
+                                            v[k] = g;
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            System.Diagnostics.Debugger.Launch();
+                                            System.Diagnostics.Debugger.Break();
+                                        }
                                     }
 #if !FEZCLIENT
                                     ListChanges[r[0]] = new ChangeInfo(changeType, r[0], g, source);
@@ -417,7 +429,7 @@ namespace FezSharedTools
                                     System.Diagnostics.Debugger.Launch();
                                 }
                                 currObj = f.GetValue(currObj);
-                                if (currObj == null)
+                                if (currObj == null && Nullable.GetUnderlyingType(f.FieldType) == null)
                                 {
                                     System.Diagnostics.Debugger.Launch();
                                 }
@@ -611,10 +623,18 @@ namespace FezSharedTools
         }
 
 #if FEZCLIENT
+        public static event Action OnSaveSlotChanged = () => { };
+        private static bool WasSaveSlotChanged = false;
         public override void Update(GameTime gameTime)
         {
             lock (saveDataLock)
             {
+                bool slotChanged = SaveSlotChanged;
+                WasSaveSlotChanged |= slotChanged;
+                if (slotChanged)
+                {
+                    OnSaveSlotChanged();
+                }
                 //check a save file is actually loaded 
                 if (CurrentSaveData != null && CurrentSaveSlot >= 0
                     && !GameState.Loading
@@ -633,10 +653,11 @@ namespace FezSharedTools
                     && PM.CanControl && PM.Action != ActionType.None && !PM.Hidden
                     )
                 {
-                    if (SaveSlotChanged)
+                    if (WasSaveSlotChanged)
                     {
                         newChanges.ClearChanges();
                         CurrentSaveData.CloneInto(OldSaveData);
+                        WasSaveSlotChanged = false;
                     }
                     else
                     {

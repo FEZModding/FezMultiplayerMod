@@ -500,6 +500,7 @@ namespace FezMultiplayerDedicatedServer
                                     ReadClientGameTickPacket(reader, ref clientData, uuid);
                                     SpeedUpDown.Enqueue(stopwatch.ElapsedTicks);
                                     Disconnecting = clientData.Disconnecting;
+                                    ResendSaveData = clientData.ResendSaveData;
                                     playerMetadata = clientData.Metadata;
                                     Players.AddOrUpdate(uuid, addValueFactory, updateValueFactory);
                                     Thread.Sleep(10);
