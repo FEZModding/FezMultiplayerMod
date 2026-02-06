@@ -1,4 +1,4 @@
-﻿using FezEngine;
+using FezEngine;
 using FezEngine.Components;
 using FezEngine.Services;
 using FezEngine.Tools;
@@ -102,9 +102,13 @@ namespace FezGame.MultiplayerMod
         {
             if (SyncWorldState)
             {
-                //TODO not yet implemented
-                //System.Diagnostics.Debugger.Launch();
-                //System.Diagnostics.Debugger.Break();
+                if (GameState?.SaveData != null)
+                {
+                    //TODO not yet implemented
+                    System.Diagnostics.Debugger.Launch();
+                    System.Diagnostics.Debugger.Break();
+                    //saveData.CloneInto(GameState.SaveData);
+                }
             }
         }
     }
