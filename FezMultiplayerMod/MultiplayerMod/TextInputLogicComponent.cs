@@ -1,4 +1,6 @@
-﻿using Microsoft.Xna.Framework;
+using FezEngine.Components;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;//Note: TextInputEXT is only in FNA
 using System;
 
@@ -10,8 +12,6 @@ namespace FezGame.MultiplayerMod
         private string value = "";
         private bool showCaret = false;
         private const string caret = "|";
-        private static readonly string noCaret = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Obfuscate}{RichTextRenderer.CSICommands.SGR}"
-                + caret + $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.NotObfuscated}{RichTextRenderer.CSICommands.SGR}";
         private int caretPosition = 0;
         private readonly double caretBlinksPerSecond = 0.8d;
 
@@ -25,10 +25,9 @@ namespace FezGame.MultiplayerMod
                 OnUpdate(false);
             }
         }
-        public string DisplayValue => HasFocus ? Value.PadRightAnsi(TextboxPadRight - caret.Length).Insert(ConstrainCaretPosition(), showCaret ? caret : noCaret) : Value.PadRightAnsi(TextboxPadRight);
 
         public int MaxLength = 10000;
-        public event Action<bool> OnUpdate = (onlyCaretBlinking) => { };
+        public event Action<bool> OnUpdate = (onlyCaret) => { };
         /// <summary>
         /// If this textbox has focus
         /// </summary>
@@ -168,16 +167,43 @@ namespace FezGame.MultiplayerMod
                 return;
             }
             double totalSeconds = gameTime.TotalGameTime.TotalSeconds;
+            KeyboardState keyboard = Keyboard.GetState();
+            left.UpdateKeyState(keyboard, totalSeconds);
+            right.UpdateKeyState(keyboard, totalSeconds);
+            ConstrainCaretPosition();
+        }
+        private float scrollX = 0;
+        public void Draw(SpriteBatch drawer, IFontManager fonts, GameTime gameTime, Vector2 position, Color bgColor, Color textColor)
+        {
+            double totalSeconds = gameTime.TotalGameTime.TotalSeconds;
             bool newShowCaretValue = (((totalSeconds - blinkStartTime) * caretBlinksPerSecond) % 1.0d) < 0.5d;
             if (newShowCaretValue != showCaret)
             {
                 showCaret = newShowCaretValue;
                 OnUpdate(true);
             }
-            KeyboardState keyboard = Keyboard.GetState();
-            left.UpdateKeyState(keyboard, totalSeconds);
-            right.UpdateKeyState(keyboard, totalSeconds);
             ConstrainCaretPosition();
+            float caretX = RichTextRenderer.MeasureString(fonts, Value.StripAnsiEscapeSequences().Substring(0, caretPosition)).X;
+            float textWidth = RichTextRenderer.MeasureString(fonts, Value).X;
+            float caretWidth = RichTextRenderer.MeasureString(fonts, caret).X;
+            float viewWidth = drawer.GraphicsDevice.Viewport.Width;
+            if (caretX + caretWidth > scrollX + viewWidth)
+            {
+                scrollX = caretX - viewWidth + caretWidth;
+            }
+            else if (caretX < scrollX)
+            {
+                scrollX = caretX;
+            }
+            bool overflowLeft = scrollX > 0;
+            bool overflowRight = textWidth > viewWidth;
+            if (HasFocus)
+            {
+                RichTextRenderer.DrawString(drawer, fonts, caret, new Vector2(caretX - scrollX, 0), showCaret ? textColor : bgColor);
+            }
+            position.X -= scrollX;
+            RichTextRenderer.DrawString(drawer, fonts, Value, position + Vector2.One, bgColor);
+            RichTextRenderer.DrawString(drawer, fonts, Value, position, textColor);
         }
 
         protected override void Dispose(bool disposing)

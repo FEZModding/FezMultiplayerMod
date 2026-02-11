@@ -1,4 +1,4 @@
-﻿using FezEngine.Components;
+using FezEngine.Components;
 using FezEngine.Services;
 using FezEngine.Tools;
 using Microsoft.Xna.Framework;
@@ -30,6 +30,10 @@ namespace FezGame.MultiplayerMod
                 _texture.SetData(new[] { Color.White });
             }
             batch.Draw(_texture, start, null, color, 0f, Vector2.Zero, new Vector2(width, height), SpriteEffects.None, 0f);
+        }
+        public static void DrawRectWireframe(this SpriteBatch batch, Vector2 boxOrigin, Vector2 boxSize, float lineThickness, Color color)
+        {
+            batch.DrawRectWireframe(boxOrigin, boxSize.X, boxSize.Y, lineThickness, color);
         }
         public static void DrawRectWireframe(this SpriteBatch batch, Vector2 boxOrigin, float boxWidth, float boxHeight, float lineThickness, Color color)
         {

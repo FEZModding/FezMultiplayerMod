@@ -93,6 +93,7 @@ namespace FezGame.MultiplayerMod
             public string DisplayText;
             public readonly Action Action;
             public readonly Action OnMoveToOtherOption;
+            public readonly TextInputLogicComponent TextInput;
             public bool Enabled = true;
             internal Rectangle BoundingClientRect = new Rectangle(-100, -100, 0, 0);
             internal int Index = -1;
@@ -100,23 +101,25 @@ namespace FezGame.MultiplayerMod
             public MenuListOption()
             {
             }
-            public MenuListOption(string text, Action action, Action onMoveToOtherOption = null)
+            public MenuListOption(string text, Action action, Action onMoveToOtherOption = null, TextInputLogicComponent textInput = null)
             {
                 this.DisplayText = text;
                 this.Action = action;
                 this.OnMoveToOtherOption = onMoveToOtherOption;
+                this.TextInput = textInput;
+            }
+            public MenuListOption(string text, TextInputLogicComponent textInput = null)
+                : this(text, () => textInput.HasFocus = true, () => textInput.HasFocus = false, textInput)
+            {
             }
             public MenuListOption(string text, Func<MenuLevel> submenuSupplier, Action onMoveToOtherOption = null, Action onSelect = null)
+                : this(text, () => { Instance.CurrentMenuLevel = submenuSupplier.Invoke(); onSelect?.Invoke(); }, onMoveToOtherOption)
             {
-                this.DisplayText = text;
-                this.Action = () => { Instance.CurrentMenuLevel = submenuSupplier.Invoke(); onSelect?.Invoke(); };
-                this.OnMoveToOtherOption = onMoveToOtherOption;
             }
         }
         private class MenuListTextInput
         {
-            private static readonly string framedTextEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}";
-            private static readonly string textResetFormattingEscapeCode = $"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Reset}{RichTextRenderer.CSICommands.SGR}";
+            internal static string textboxInitialText => "".PadRight(TextboxPadRight);
             public static int TextboxPadRight
             {
                 get => TextInputLogicComponent.TextboxPadRight;
@@ -124,26 +127,24 @@ namespace FezGame.MultiplayerMod
             }
             public string Value
             {
-                get => hiddenInputElement.Value;
-                set => hiddenInputElement.Value = value;
+                get => inputElement.Value;
+                set => inputElement.Value = value;
             }
 
             public readonly MenuListOption MenuListOption;
-            private readonly TextInputLogicComponent hiddenInputElement;
+            private readonly TextInputLogicComponent inputElement;
 
             public MenuListTextInput(Game game, string label, Action<string> OnUpdate = null)
             {
-                string textboxInitialText = framedTextEscapeCode.PadRight(TextboxPadRight) + textResetFormattingEscapeCode;
-                string baseName = label + framedTextEscapeCode;
-                hiddenInputElement = new TextInputLogicComponent(game);
-                ServiceHelper.AddComponent(hiddenInputElement);
-                MenuListOption = new MenuListOption(label + textboxInitialText, () => hiddenInputElement.HasFocus = true, () => hiddenInputElement.HasFocus = false);
-                hiddenInputElement.OnUpdate += (onlyCaretBlinking) =>
+                string baseName = label;
+                inputElement = new TextInputLogicComponent(game);
+                ServiceHelper.AddComponent(inputElement);
+                MenuListOption = new MenuListOption(label + textboxInitialText, inputElement);
+                inputElement.OnUpdate += (onlyCaret) =>
                 {
-                    MenuListOption.DisplayText = baseName + hiddenInputElement.DisplayValue + textResetFormattingEscapeCode;
-                    if (!onlyCaretBlinking)
+                    if (!onlyCaret)
                     {
-                        OnUpdate?.Invoke(hiddenInputElement.Value);
+                        OnUpdate?.Invoke(inputElement.Value);
                     }
                 };
             }
@@ -889,6 +890,7 @@ namespace FezGame.MultiplayerMod
         private static readonly Color scrollThumbFocusColor = scrollButtonHeldColor;
 
         private static Vector2? selectorOrigin = null, selectorScale = null;
+        Stack<Action> deferDraw = new Stack<Action>();
         public override void Draw(GameTime gameTime)
         {
             if (!ServiceHelper.FirstLoadDone)
@@ -936,7 +938,13 @@ namespace FezGame.MultiplayerMod
                 }
                 drawer.End();
 
-                const float lineHeightModifier = 8;
+                float emSize = RichTextRenderer.MeasureString(Fonts, "M").X;
+                float lineHeight = RichTextRenderer.MeasureString(Fonts, "M").Y;
+                float textBoxLineThickness = Math.Max(1f, lineHeight * 0.03f);
+                float textBoxPaddingBlock = emSize * 0.125f;//0.125em
+                float textBoxPaddingInline = emSize * 0.25f;//0.25em
+                float lineHeightModifier = 2 * textBoxLineThickness + textBoxPaddingBlock * 2;
+                float lineSpacing = lineHeight * 0.1f;
 
                 Viewport viewport = GraphicsDevice.Viewport;
                 //restrict drawing to inside menu frame
@@ -957,11 +965,11 @@ namespace FezGame.MultiplayerMod
                         textColor = Color.Gray;
                         bgColor = Color.Black;
                     }
-                    string text = $"{(selected ? ">" : " ")} {optionName} {(selected ? "<" : " ")}";
+                    string rightText = $" {(selected ? "<" : " ")}";
+                    string text = $"{(selected ? ">" : " ")} {optionName}{rightText}";
                     Vector2 lineSize = RichTextRenderer.MeasureString(Fonts, text);
                     position.X = (GraphicsDevice.Viewport.Width / 2) - (lineSize.X / 2);
-                    if (text.Contains($"{RichTextRenderer.C1_8BitCodes.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}")
-                    || text.Contains($"{RichTextRenderer.ESC}{RichTextRenderer.C1_EscapeSequences.CSI}{RichTextRenderer.SGRParameters.Framed}{RichTextRenderer.CSICommands.SGR}"))
+                    if (option.TextInput != null)
                     {
                         position.Y += lineHeightModifier;
                     }
@@ -971,9 +979,33 @@ namespace FezGame.MultiplayerMod
                     }
                     option.BoundingClientRect = new Rectangle((int)position.X + MenuFrameRect.X, (int)position.Y + MenuFrameRect.Y, (int)lineSize.X, (int)lineSize.Y);
                     option.Index = i;
+                    if (option.TextInput != null)
+                    {
+                        var boxSize = RichTextRenderer.MeasureString(Fonts, MenuListTextInput.textboxInitialText);
+                        var rtextSize = RichTextRenderer.MeasureString(Fonts, rightText);
+                        var labelSize = new Vector2(lineSize.X - boxSize.X, lineSize.Y);
+                        var boxPos = position;
+                        boxPos.X += labelSize.X - rtextSize.X;
+                        boxPos.Y -= textBoxPaddingBlock;
+                        boxSize.Y += textBoxPaddingBlock * 2;
+                        drawer.DrawRectWireframe(boxPos, boxSize, textBoxLineThickness, Color.White);
+                        boxPos.X += textBoxPaddingInline;
+                        boxPos.Y += textBoxPaddingBlock;
+                        boxSize.X -= textBoxPaddingInline * 2;
+                        boxSize.Y -= textBoxPaddingBlock * 2;
+                        var boxRect = new Rectangle((int)boxPos.X + MenuFrameRect.X, (int)boxPos.Y + MenuFrameRect.Y, (int)boxSize.X, (int)boxSize.Y);
+                        deferDraw.Push(() =>
+                        {
+                            GraphicsDevice.Viewport = new Viewport(boxRect);
+                            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                            option.TextInput.Draw(drawer, Fonts, gameTime, Vector2.Zero, bgColor, textColor);
+                            drawer.End();
+                            GraphicsDevice.Viewport = viewport;
+                        });
+                    }
                     RichTextRenderer.DrawString(drawer, Fonts, text, position + Vector2.One, bgColor);
                     RichTextRenderer.DrawString(drawer, Fonts, text, position, textColor);
-                    position.Y += lineSize.Y;
+                    position.Y += lineSize.Y + lineSpacing;
                     ++i;
                 }
                 contentHeight = position.Y + scrollY;
@@ -1053,7 +1085,7 @@ namespace FezGame.MultiplayerMod
                     drawer.Draw(arrowTexture2, ScrollBarArrowDownRect, null, downArrowColor, (float)(Math.PI / 2), new Vector2(arrowTexture2.Width / 2, arrowTexture2.Height / 2), SpriteEffects.None, 0);
                     if (overflowTop)
                     {
-                        //TODO indicate overflow on top edge of container? 
+                        // indicate overflow on top edge of container
                         float width = titleLineSize.X;
                         float widthDiff = width / 20f;
                         Color color = Color.White;
@@ -1104,6 +1136,11 @@ namespace FezGame.MultiplayerMod
                         Color.White);
                 }
                 drawer.End();
+                GraphicsDevice.Viewport = viewport;
+                while (deferDraw.Count > 0)
+                {
+                    deferDraw.Pop().Invoke();
+                }
                 GraphicsDevice.Viewport = viewport;
 
                 //fix to get the cursor to appear on top of the menu
