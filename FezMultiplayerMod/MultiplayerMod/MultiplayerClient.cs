@@ -105,9 +105,10 @@ namespace FezGame.MultiplayerMod
                 if (GameState?.SaveData != null)
                 {
                     //TODO not yet implemented
-                    System.Diagnostics.Debugger.Launch();
-                    System.Diagnostics.Debugger.Break();
-                    //saveData.CloneInto(GameState.SaveData);
+                    lock (SaveDataObserver.saveDataLock)
+                    {
+                        saveData.CloneInto(GameState.SaveData);
+                    }
                 }
             }
         }

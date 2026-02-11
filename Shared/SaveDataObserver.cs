@@ -92,11 +92,11 @@ namespace FezSharedTools
                 {
                     try
                     {
-                        return c.ContainerIdentifier + SAVE_DATA_DATA_SEPARATOR + ((int)c.ChangeType) + SAVE_DATA_DATA_SEPARATOR + ConvertToString(c.Value);
+                        return c.UniqueIdentifier + SAVE_DATA_DATA_SEPARATOR + ((int)c.ChangeType) + SAVE_DATA_DATA_SEPARATOR + ConvertToString(c.Value);
                     }
                     catch (Exception e)
                     {
-                        SharedTools.LogWarning(nameof(SaveDataObserver), $"Failed to serialize save data change for \"{c.ContainerIdentifier}\". Reason: " + e.Message);
+                        SharedTools.LogWarning(nameof(SaveDataObserver), $"Failed to serialize save data change for \"{c.UniqueIdentifier}\". Reason: " + e.Message);
                         return null;
                     }
                 }).Where(s => s != null)));
@@ -136,8 +136,11 @@ namespace FezSharedTools
             {
                 return "" + (int)obj;
             }
-            System.Diagnostics.Debugger.Launch();
-            System.Diagnostics.Debugger.Break();
+            if (t != typeof(LevelSaveData))
+            {
+                System.Diagnostics.Debugger.Launch();
+                System.Diagnostics.Debugger.Break();
+            }
             throw new ArgumentException($"Type {t.Name} is not handled by this method.", nameof(obj));
         }
         private static object ParseToType(Type t, string val)
@@ -348,14 +351,19 @@ namespace FezSharedTools
                             System.Diagnostics.Debugger.Break();
                             continue;
                         }
-                        validEntries += 1;
                         string[] keys = r[0].Split(SAVE_DATA_IDENTIFIER_SEPARATOR_STR);
                         ChangeType changeType = int.TryParse(r[1], out int t) ? (ChangeType)t : ChangeType.None;
                         string val = r[2];
-                        if (changeType == ChangeType.List_Add || changeType == ChangeType.List_Remove || changeType == ChangeType.Keyed)
+                        //remove last key because it's only for identifying unique changes
+                        keys = keys.Take(keys.Length - 1).ToArray();
+#if !FEZCLIENT
+                        //server ignores removing entries
+                        if (changeType == ChangeType.Dict_Remove || changeType == ChangeType.List_Remove)
                         {
-                            keys = keys.Take(keys.Length - 1).ToArray();
+                            continue;
                         }
+#endif
+                        validEntries += 1;
 
                         Type currType = typeof(SaveData);
                         object currObj = saveData;
@@ -544,21 +552,21 @@ namespace FezSharedTools
         public class ChangeInfo
         {
             public readonly ChangeType ChangeType;
-            public readonly string ContainerIdentifier;
+            public readonly string UniqueIdentifier;
             public readonly object Value;
             public readonly Guid Source;
             public readonly ConcurrentBag<Guid> SentTo = new ConcurrentBag<Guid>();
 
-            public ChangeInfo(ChangeType changeType, string containerIdentifier, object value, Guid source)
+            public ChangeInfo(ChangeType changeType, string uniqueIdentifier, object value, Guid source)
             {
                 ChangeType = changeType;
-                ContainerIdentifier = containerIdentifier;
+                UniqueIdentifier = uniqueIdentifier;
                 Value = value;
                 Source = source;
             }
             public override string ToString()
             {
-                return $"(Container: {ContainerIdentifier}, CurrentVal: {Value}, ChangeType: {ChangeType}, Source: {Source})";
+                return $"(Key: {UniqueIdentifier}, CurrentVal: {Value}, ChangeType: {ChangeType}, Source: {Source})";
             }
         }
     }

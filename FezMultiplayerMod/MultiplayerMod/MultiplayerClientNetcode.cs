@@ -1,5 +1,7 @@
 using Common;
+using FezGame.Services;
 using FezSharedTools;
+using MonoMod.RuntimeDetour;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -114,6 +116,16 @@ namespace FezGame.MultiplayerMod
             {
                 RefetchSaveData = true;
             };
+            Action<Action<GameStateManager>, GameStateManager> OnClearSaveFile = (original, self) =>
+            {
+                original(self);
+                RefetchSaveData = true;
+            };
+            var h = new Hook(
+                typeof(GameStateManager).GetMethod("ClearSaveFile"),
+                OnClearSaveFile
+            );
+
         }
 
         public void ConnectToServerAsync(IPEndPoint endpoint)
@@ -132,7 +144,7 @@ namespace FezGame.MultiplayerMod
             RemoteEndpoint = endpoint;
             listenerThread = new Thread(() =>
             {
-                var GameState = FezEngine.Tools.ServiceHelper.Get<Services.IGameStateManager>();
+                var GameState = FezEngine.Tools.ServiceHelper.Get<IGameStateManager>();
                 void ConnectToServerInternal(out bool ConnectionSuccessful)
                 {
                     LogStatus(LogSeverity.Information, $"Connecting to {endpoint} ...");
