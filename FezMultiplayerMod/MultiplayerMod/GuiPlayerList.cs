@@ -24,6 +24,7 @@ namespace FezGame.MultiplayerMod
         public Color BackgroundColor = new Color(Color.Black, 0.5f);
         private readonly Dictionary<string, Func<PlayerMetadata, string>> Columns;
         private readonly Dictionary<string, Func<float>> MaxWidths;
+        private readonly Dictionary<string, Func<float>> FixedWidths;
         private readonly Dictionary<string, Func<int>> MaxCharWidths;
         private readonly MultiplayerClient mp;
         public GuiPlayerList(Game game, MultiplayerClient mp)
@@ -60,6 +61,9 @@ namespace FezGame.MultiplayerMod
             {
                 {"Action", () => RichTextRenderer.MeasureString(FontManager, "Action").X},
                 {"Viewpoint", () => float.MaxValue },
+            };
+            FixedWidths = new Dictionary<string, Func<float>>()
+            {
                 {"Position", () => RichTextRenderer.MeasureString(FontManager, new Vector3(1/3f).Round(3).ToString()).X },
                 {"Ping", () => RichTextRenderer.MeasureString(FontManager, "0000").X },
             };
@@ -204,6 +208,7 @@ namespace FezGame.MultiplayerMod
                         {
                             string h = headers[i];
                             float colMaxWidth = float.MaxValue;
+                            float colMinWidth = 0f;
                             if (MaxWidths.TryGetValue(h, out var f))
                             {
                                 colMaxWidth = f();
@@ -212,11 +217,16 @@ namespace FezGame.MultiplayerMod
                             {
                                 colMaxWidth = cf() * emSize;
                             }
-                            return Math.Min(
-                                colMaxWidth,
-                                rows.Select(r => RichTextRenderer.MeasureString(FontManager, r.ElementAt(i)).X)
-                                    .Max()
-                            );
+                            else if (FixedWidths.TryGetValue(h, out var ff))
+                            {
+                                return ff();
+                            }
+                            // Measure the widths of all elements in column i
+                            var columnWidths = rows.Select(r => RichTextRenderer.MeasureString(FontManager, r.ElementAt(i)).X);
+                            var maxContentWidth = columnWidths.Max();
+                            // Clamp the width between colMinWidth and colMaxWidth
+                            var columnWidth = MathHelper.Clamp(maxContentWidth, colMinWidth, colMaxWidth);
+                            return columnWidth;
                         }
                         ).ToArray();
                     ;
