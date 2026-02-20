@@ -79,6 +79,22 @@ namespace FezGame.MultiplayerMod
             });
         }
 
+        private void RemoveFromValue(int startIndex, int count)
+        {
+            string removedText = Value.Substring(startIndex, count);
+            Value = Value.Remove(startIndex, count);
+            if (fonts != null)
+            {
+                scrollX -= RichTextRenderer.MeasureString(fonts, removedText).X;
+                scrollX = Math.Max(0f, scrollX);
+            }
+        }
+        private void InsertIntoValueAtCaret(string text)
+        {
+            Value = Value.Insert(caretPosition, text);
+            caretPosition += text.Length;
+        }
+
         private void TextInputEXT_TextInput(char ch)
         {
             if (!HasFocus)
@@ -103,7 +119,7 @@ namespace FezGame.MultiplayerMod
                 if (caretPosition > 0)
                 {
                     int lastCaretPosition = caretPosition;
-                    Value = Value.Remove(caretPosition - 1, 1);
+                    RemoveFromValue(caretPosition - 1, 1);
                     if (caretPosition > 0 && lastCaretPosition <= Value.Length)
                     {
                         caretPosition -= 1;
@@ -127,8 +143,7 @@ namespace FezGame.MultiplayerMod
                 break;
             case '\x16'://Synchronous Idle (Ctrl + V)
                 string paste = SDL2.SDL.SDL_GetClipboardText();
-                Value = Value.Insert(caretPosition, paste);
-                caretPosition += paste.Length;
+                InsertIntoValueAtCaret(paste);
                 break;
             case '\x17'://End of Transmission Block
             case '\x18'://Cancel
@@ -143,14 +158,13 @@ namespace FezGame.MultiplayerMod
             case '\x7F'://Delete
                 if (caretPosition < Value.Length)
                 {
-                    Value = Value.Remove(caretPosition, 1);
+                    RemoveFromValue(caretPosition, 1);
                 }
                 break;
             default:
                 if (Value.Length < MaxLength)
                 {
-                    Value = Value.Insert(caretPosition, ch.ToString());
-                    caretPosition += 1;
+                    InsertIntoValueAtCaret(ch.ToString());
                 }
                 break;
             }
@@ -173,8 +187,10 @@ namespace FezGame.MultiplayerMod
             ConstrainCaretPosition();
         }
         private float scrollX = 0;
-        public void Draw(SpriteBatch drawer, IFontManager fonts, GameTime gameTime, Vector2 position, Color bgColor, Color textColor)
+        private IFontManager fonts = null;
+        public void Draw(SpriteBatch drawer, IFontManager fonts, GameTime gameTime, Rectangle drawRect, Color bgColor, Color textColor, out bool hasOverflowLeft, out bool hasOverflowRight)
         {
+            this.fonts = fonts;
             double totalSeconds = gameTime.TotalGameTime.TotalSeconds;
             bool newShowCaretValue = (((totalSeconds - blinkStartTime) * caretBlinksPerSecond) % 1.0d) < 0.5d;
             if (newShowCaretValue != showCaret)
@@ -186,7 +202,7 @@ namespace FezGame.MultiplayerMod
             float caretX = RichTextRenderer.MeasureString(fonts, Value.StripAnsiEscapeSequences().Substring(0, caretPosition)).X;
             float textWidth = RichTextRenderer.MeasureString(fonts, Value).X;
             float caretWidth = RichTextRenderer.MeasureString(fonts, caret).X;
-            float viewWidth = drawer.GraphicsDevice.Viewport.Width;
+            float viewWidth = drawRect.Width;
             if (caretX + caretWidth > scrollX + viewWidth)
             {
                 scrollX = caretX - viewWidth + caretWidth;
@@ -195,11 +211,12 @@ namespace FezGame.MultiplayerMod
             {
                 scrollX = caretX;
             }
-            bool overflowLeft = scrollX > 0;
-            bool overflowRight = textWidth > viewWidth;
+            hasOverflowLeft = scrollX > 0;
+            hasOverflowRight = (scrollX + viewWidth) < textWidth;
+            Vector2 position = new Vector2(drawRect.X, drawRect.Y);
             if (HasFocus)
             {
-                RichTextRenderer.DrawString(drawer, fonts, caret, new Vector2(caretX - scrollX, 0), showCaret ? textColor : bgColor);
+                RichTextRenderer.DrawString(drawer, fonts, caret, new Vector2(caretX - scrollX + position.X, position.Y), showCaret ? textColor : bgColor);
             }
             position.X -= scrollX;
             RichTextRenderer.DrawString(drawer, fonts, Value, position + Vector2.One, bgColor);

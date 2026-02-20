@@ -989,18 +989,47 @@ namespace FezGame.MultiplayerMod
                         boxPos.Y -= textBoxPaddingBlock;
                         boxSize.Y += textBoxPaddingBlock * 2;
                         drawer.DrawRectWireframe(boxPos, boxSize, textBoxLineThickness, Color.White);
+                        boxPos.X += MenuFrameRect.X;
+                        boxPos.Y += MenuFrameRect.Y;
+                        Vector2 borderBoxOrigin = boxPos;
+                        Vector2 borderBoxSize = boxSize;
                         boxPos.X += textBoxPaddingInline;
                         boxPos.Y += textBoxPaddingBlock;
                         boxSize.X -= textBoxPaddingInline * 2;
                         boxSize.Y -= textBoxPaddingBlock * 2;
-                        var boxRect = new Rectangle((int)boxPos.X + MenuFrameRect.X, (int)boxPos.Y + MenuFrameRect.Y, (int)boxSize.X, (int)boxSize.Y);
+                        var boxTextClipRect = new Rectangle((int)boxPos.X, (int)boxPos.Y, (int)Math.Ceiling(boxSize.X), (int)Math.Ceiling(boxSize.Y));
                         deferDraw.Push(() =>
                         {
-                            GraphicsDevice.Viewport = new Viewport(boxRect);
-                            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
-                            option.TextInput.Draw(drawer, Fonts, gameTime, Vector2.Zero, bgColor, textColor);
+                            GraphicsDevice.ScissorRectangle = boxTextClipRect;
+                            RasterizerState scissorState = new RasterizerState
+                            {
+                                ScissorTestEnable = true
+                            };
+                            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.Default, scissorState);
+                            option.TextInput.Draw(drawer, Fonts, gameTime, boxTextClipRect, bgColor, textColor, out bool hasOverflowLeft, out bool hasOverflowRight);
                             drawer.End();
-                            GraphicsDevice.Viewport = viewport;
+
+                            //do draw overflow indicator decorations
+                            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.Default, RasterizerState.CullNone);
+                            var height = borderBoxSize.Y - textBoxLineThickness * 2;
+                            var t = (float)gameTime.TotalGameTime.TotalSeconds % 3f;
+                            var overflowLineWidth = textBoxLineThickness * 1.7f;
+                            var overFlowLineTop = borderBoxOrigin.Y + textBoxLineThickness;
+                            Color overflowColor = new Color(
+                                (0f <= t && t < 1f) ? 1f - (t - 0f) : 0.33f,
+                                (1f <= t && t < 2f) ? 1f - (t - 1f) : 0.33f,
+                                (2f <= t && t < 3f) ? 1f - (t - 2f) : 0.33f);
+                            if (hasOverflowLeft)
+                            {
+                                // indicate overflow on left edge of container
+                                drawer.DrawRect(new Vector2(borderBoxOrigin.X + textBoxLineThickness, overFlowLineTop), overflowLineWidth, height, overflowColor);
+                            }
+                            if (hasOverflowRight)
+                            {
+                                // indicate overflow on right edge of container
+                                drawer.DrawRect(new Vector2(borderBoxOrigin.X + borderBoxSize.X - textBoxLineThickness - overflowLineWidth, overFlowLineTop), overflowLineWidth, height, overflowColor);
+                            }
+                            drawer.End();
                         });
                     }
                     RichTextRenderer.DrawString(drawer, Fonts, text, position + Vector2.One, bgColor);

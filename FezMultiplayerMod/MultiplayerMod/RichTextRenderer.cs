@@ -15,21 +15,20 @@ namespace FezGame.MultiplayerMod
         private static Texture2D _texture;
         public static void DrawRect(this SpriteBatch batch, Rectangle rect, Color color)
         {
-            if (_texture == null)
-            {
-                _texture = new Texture2D(batch.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
-                _texture.SetData(new[] { Color.White });
-            }
-            batch.Draw(_texture, new Vector2(rect.X, rect.Y), null, color, 0f, Vector2.Zero, new Vector2(rect.Width, rect.Height), SpriteEffects.None, 0f);
+            batch.DrawRect(new Vector2(rect.X, rect.Y), new Vector2(rect.Width, rect.Height), color);
         }
         public static void DrawRect(this SpriteBatch batch, Vector2 start, float width, float height, Color color)
+        {
+            batch.DrawRect(start, new Vector2(width, height), color);
+        }
+        public static void DrawRect(this SpriteBatch batch, Vector2 origin, Vector2 size, Color color)
         {
             if (_texture == null)
             {
                 _texture = new Texture2D(batch.GraphicsDevice, 1, 1, false, SurfaceFormat.Color);
                 _texture.SetData(new[] { Color.White });
             }
-            batch.Draw(_texture, start, null, color, 0f, Vector2.Zero, new Vector2(width, height), SpriteEffects.None, 0f);
+            batch.Draw(_texture, origin, null, color, 0f, Vector2.Zero, size, SpriteEffects.None, 0f);
         }
         public static void DrawRectWireframe(this SpriteBatch batch, Vector2 boxOrigin, Vector2 boxSize, float lineThickness, Color color)
         {
