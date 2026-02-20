@@ -21,6 +21,10 @@ namespace FezGame.MultiplayerMod
 
         #endregion
 
+        public Color BackgroundColor = new Color(Color.Black, 0.5f);
+        private readonly Dictionary<string, Func<PlayerMetadata, string>> Columns;
+        private readonly Dictionary<string, Func<float>> MaxWidths;
+        private readonly Dictionary<string, Func<int>> MaxCharWidths;
         private readonly MultiplayerClient mp;
         public GuiPlayerList(Game game, MultiplayerClient mp)
             : base(game)
@@ -37,6 +41,28 @@ namespace FezGame.MultiplayerMod
                 InputManager = ServiceHelper.Get<IInputManager>();
                 FontManager = ServiceHelper.Get<IFontManager>();
             });
+
+            Columns = new Dictionary<string, Func<PlayerMetadata, string>>()
+            {
+                {"Name", p => mp.GetPlayerName(p.Uuid)},
+                {"Level", p => (p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName },
+                {"Action", p => p.Action.ToString() },
+                {"Viewpoint", p => p.CameraViewpoint.ToString() },
+                {"Position", p => p.Position.Round(3).ToString() },
+                {"Ping", p => ((DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / TimeSpan.TicksPerMillisecond).ToString() },
+            };
+            MaxCharWidths = new Dictionary<string, Func<int>>()
+            {
+                {"Name", () => FezMultiplayerBinaryIOExtensions.MaxPlayerNameLength},
+                {"Level", () => FezMultiplayerBinaryIOExtensions.MaxLevelNameLength},
+            };
+            MaxWidths = new Dictionary<string, Func<float>>()
+            {
+                {"Action", () => RichTextRenderer.MeasureString(FontManager, "Action").X},
+                {"Viewpoint", () => float.MaxValue },
+                {"Position", () => RichTextRenderer.MeasureString(FontManager, new Vector3(1/3f).Round(3).ToString()).X },
+                {"Ping", () => RichTextRenderer.MeasureString(FontManager, "0000").X },
+            };
         }
 
         private bool disposing = false;
@@ -53,7 +79,7 @@ namespace FezGame.MultiplayerMod
         private readonly SpriteBatch drawer;
         public override void Initialize()
         {
-            DrawOrder = 9;
+            DrawOrder = 102000000;
 
             SharedTools.OnLogWarning += (text, severity) =>
             {
@@ -98,32 +124,11 @@ namespace FezGame.MultiplayerMod
             }
             lines.Add(connectionStatusText);
 
-            //TODO draw player data as a table 
+            bool doDrawPlayerTable = false;
             switch (mp.ActiveConnectionState)
             {
             case ConnectionState.Connected:
-                try
-                {
-                    //sort players
-                    IOrderedEnumerable<PlayerMetadata> players = mp.Players.Values.OrderByDescending(p => p.Uuid);
-                    foreach (PlayerMetadata p in players)
-                    {
-                        string playerName = mp.GetPlayerName(p.Uuid);
-                        string s = "";
-                        if (p.Uuid == mp.MyUuid)
-                        {
-                            s += "(you): ";
-                        }
-                        s += $"{playerName}, "
-                            + $"{((p.CurrentLevelName == null || p.CurrentLevelName.Length == 0) ? "???" : p.CurrentLevelName)}, "
-                            + $"{p.Action}, {p.CameraViewpoint}, "
-                            + $"{p.Position.Round(3)}, {(DateTime.UtcNow.Ticks - p.LastUpdateTimestamp) / TimeSpan.TicksPerMillisecond}\n";
-                        lines.Add(s);
-                    }
-                }
-                catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
-                {
-                }
+                doDrawPlayerTable = true;
                 break;
             case ConnectionState.Connecting:
                 lines.Add("Connecting to " + mp.RemoteEndpoint);
@@ -165,6 +170,119 @@ namespace FezGame.MultiplayerMod
                 origin.Y += lineSize.Y;
             }
             drawer.End();
+            if (doDrawPlayerTable)
+            {
+                // draw player data as a table 
+                try
+                {
+                    //sort players
+                    var players = mp.Players.Values.OrderByDescending(p => p.Uuid);
+
+                    const int borderWidth = 1;
+
+                    string[] headers = Columns.Keys.ToArray();
+                    int myRow = -1;
+                    List<string[]> rows = players.Select((p, i) =>
+                    {
+                        if (myRow == -1 && p.Uuid == mp.MyUuid)
+                        {
+                            myRow = i + 1;
+                        }
+                        return Columns.Select(c => c.Value(p)).ToArray();
+                    }).ToList();
+                    rows.Insert(0, headers);
+                    float emSize = RichTextRenderer.MeasureString(FontManager, "M").X;
+                    float lineHeight = RichTextRenderer.MeasureString(FontManager, "M").Y;
+
+                    float paddingBlock = Math.Max(1f, lineHeight * 0.1f);
+                    float paddingInline = Math.Max(1f, emSize * 0.2f);
+
+                    //calculate cell sizes
+                    float cellHeight = lineHeight;
+                    float[] cellWidths = Enumerable.Range(0, Columns.Count)
+                        .Select(i =>
+                        {
+                            string h = headers[i];
+                            float colMaxWidth = float.MaxValue;
+                            if (MaxWidths.TryGetValue(h, out var f))
+                            {
+                                colMaxWidth = f();
+                            }
+                            else if (MaxCharWidths.TryGetValue(h, out var cf))
+                            {
+                                colMaxWidth = cf() * emSize;
+                            }
+                            return Math.Min(
+                                colMaxWidth,
+                                rows.Select(r => RichTextRenderer.MeasureString(FontManager, r.ElementAt(i)).X)
+                                    .Max()
+                            );
+                        }
+                        ).ToArray();
+                    ;
+                    float totalWidth = cellWidths.Sum() + Columns.Count * (borderWidth + 2 * paddingInline);
+                    float totalHeight = rows.Count * (cellHeight + borderWidth + 2 * paddingBlock);
+
+                    float leftEdge = (GraphicsDevice.Viewport.Width - totalWidth) / 2f;
+                    float topEdge = cellHeight * 3;
+                    origin = new Vector2(leftEdge, topEdge);
+                    drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                    drawer.DrawRect(origin, totalWidth, totalHeight, BackgroundColor);
+                    drawer.End();
+
+                    //foreach (var v in cellVals)
+                    //{
+                    //    if (p.Uuid == mp.MyUuid)
+                    //    {
+                    //        s += "(you): ";
+                    //    }
+                    //}
+                    //draw cells
+                    int ri = 0;
+                    rows.ForEach(r =>
+                    {
+                        origin.X = leftEdge;
+                        origin.Y += paddingBlock;
+                        if (ri == myRow)
+                        {
+                            const string youIdentifierText = "(you): ";
+                            float offX = RichTextRenderer.MeasureString(FontManager, youIdentifierText).X;
+                            origin.X = leftEdge - offX;
+                            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                            RichTextRenderer.DrawString(drawer, FontManager, youIdentifierText, origin, Color.White);
+                            drawer.End();
+                            origin.X = leftEdge;
+                        }
+                        for (int i = 0; i < r.Length; ++i)
+                        {
+                            string text = r[i];
+                            var boxTextClipRect = new Rectangle(
+                                (int)origin.X,
+                                (int)(origin.Y - paddingBlock),
+                                (int)Math.Ceiling(cellWidths[i] + 2 * paddingInline),
+                                (int)Math.Ceiling(cellHeight + 2 * paddingBlock)
+                            );
+                            origin.X += paddingInline;
+                            GraphicsDevice.ScissorRectangle = boxTextClipRect;
+                            RasterizerState scissorState = new RasterizerState
+                            {
+                                ScissorTestEnable = true
+                            };
+                            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.Default, scissorState);
+                            RichTextRenderer.DrawString(drawer, FontManager, text, origin, Color.White);
+                            drawer.End();
+                            origin.X += cellWidths[i];
+                            origin.X += paddingInline;
+                        }
+                        origin.Y += cellHeight;
+                        origin.Y += paddingBlock;
+                        ++ri;
+                    });
+                }
+                catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
+                {
+                }
+            }
         }
         private bool ShowingFatalException = false;
         private TimeSpan ShowingFatalExceptionStartTimestamp = TimeSpan.Zero;
