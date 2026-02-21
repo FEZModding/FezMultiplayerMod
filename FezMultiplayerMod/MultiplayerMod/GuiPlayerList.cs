@@ -120,6 +120,7 @@ namespace FezGame.MultiplayerMod
             }
         }
 
+        public int borderWidth = 1;
         public override void Draw(GameTime gameTime)
         {
             if (this.disposing || !Visible || !ServiceHelper.FirstLoadDone)
@@ -201,8 +202,6 @@ namespace FezGame.MultiplayerMod
                 {
                     //sort players
                     var players = mp.Players.Values.OrderByDescending(p => p.Uuid);
-
-                    const int borderWidth = 5;
 
                     string[] headers = Columns.Keys.ToArray();
                     int myRow = -1;
