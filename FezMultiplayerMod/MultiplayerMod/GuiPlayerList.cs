@@ -22,6 +22,7 @@ namespace FezGame.MultiplayerMod
         #endregion
 
         public Color BackgroundColor = new Color(Color.Black, 0.5f);
+        public Color BorderColor = new Color(Color.White, 0.9f);
         private readonly Dictionary<string, Func<PlayerMetadata, string>> Columns;
         private readonly Dictionary<string, Func<float>> MaxWidths;
         private readonly Dictionary<string, Func<float>> FixedWidths;
@@ -136,7 +137,6 @@ namespace FezGame.MultiplayerMod
                     + $"{me.Position.Round(3)}, "
                     + $"ping: {(mp.ConnectionLatencyUpDown) / TimeSpan.TicksPerMillisecond}ms");
             }
-            lines.Add(scrollY.ToString());
             string connectionStatusText = "";
             if (mp.ExtraMessage != null)
             {
@@ -202,7 +202,7 @@ namespace FezGame.MultiplayerMod
                     //sort players
                     var players = mp.Players.Values.OrderByDescending(p => p.Uuid);
 
-                    const int borderWidth = 1;
+                    const int borderWidth = 5;
 
                     string[] headers = Columns.Keys.ToArray();
                     int myRow = -1;
@@ -251,7 +251,8 @@ namespace FezGame.MultiplayerMod
                         ).ToArray();
                     ;
                     float totalWidth = cellWidths.Sum() + Columns.Count * (borderWidth + 2 * paddingInline);
-                    float totalHeight = rows.Count * (cellHeight + borderWidth + 2 * paddingBlock);
+                    float fullCellHeight = cellHeight + borderWidth + 2 * paddingBlock;
+                    float totalHeight = rows.Count * fullCellHeight;
 
                     float viewportHeight = GraphicsDevice.Viewport.Height;
                     float viewportWidth = GraphicsDevice.Viewport.Width;
@@ -259,11 +260,12 @@ namespace FezGame.MultiplayerMod
                     float topEdgeOffset = cellHeight * 3;
                     float topEdge = topEdgeOffset + scrollY;
                     origin = new Vector2(leftEdge, topEdge);
+                    //background
                     drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                     drawer.DrawRect(origin, totalWidth, totalHeight, BackgroundColor);
                     drawer.End();
-                    minScrollY = cellHeight - (topEdgeOffset + totalHeight);
-                    maxScrollY = viewportHeight - cellHeight - topEdgeOffset;
+                    minScrollY = fullCellHeight - (topEdgeOffset + totalHeight);
+                    maxScrollY = viewportHeight - fullCellHeight - topEdgeOffset - borderWidth;
 
                     //foreach (var v in cellVals)
                     //{
@@ -274,12 +276,20 @@ namespace FezGame.MultiplayerMod
                     //}
                     //draw cells
                     int ri = 0;
+                    Vector2 borderOrigin = origin;
                     rows.ForEach(r =>
                     {
                         origin.X = leftEdge;
+                        borderOrigin = origin;
+                        //row border top
+                        drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                        drawer.DrawRect(borderOrigin, totalWidth, borderWidth, BorderColor);
+                        drawer.End();
+                        origin.Y += borderWidth;
                         origin.Y += paddingBlock;
                         if (ri == myRow)
                         {
+                            //draw the "you" indicator
                             const string youIdentifierText = "(you): ";
                             float offX = RichTextRenderer.MeasureString(FontManager, youIdentifierText).X;
                             origin.X = leftEdge - offX;
@@ -288,14 +298,32 @@ namespace FezGame.MultiplayerMod
                             drawer.End();
                             origin.X = leftEdge;
                         }
+                        //draw the rows
                         for (int i = 0; i < r.Length; ++i)
                         {
+                            borderOrigin.X = origin.X;
+                            if (ri == 0)
+                            {
+                                drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                                if (i == 0)
+                                {
+                                    //rightmost column border
+                                    var rightOrigin = borderOrigin;
+                                    rightOrigin.X += totalWidth - borderWidth;
+                                    drawer.DrawRect(rightOrigin, borderWidth, totalHeight, BorderColor);
+                                }
+                                //column borders
+                                drawer.DrawRect(borderOrigin, borderWidth, totalHeight, BorderColor);
+                                drawer.End();
+                            }
+                            origin.X += borderWidth;
+                            //draw cell contents
                             string text = r[i];
                             var boxTextClipRect = new Rectangle(
                                 (int)origin.X,
                                 (int)(origin.Y - paddingBlock),
                                 (int)Math.Ceiling(cellWidths[i] + 2 * paddingInline),
-                                (int)Math.Ceiling(cellHeight + 2 * paddingBlock)
+                                (int)Math.Ceiling(fullCellHeight - borderWidth)
                             );
                             origin.X += paddingInline;
                             GraphicsDevice.ScissorRectangle = boxTextClipRect;
@@ -311,8 +339,15 @@ namespace FezGame.MultiplayerMod
                         }
                         origin.Y += cellHeight;
                         origin.Y += paddingBlock;
+                        borderOrigin = origin;
                         ++ri;
                     });
+                    borderOrigin.X = leftEdge;
+                    //bottom border
+                    drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                    drawer.DrawRect(borderOrigin, totalWidth, borderWidth, BorderColor);
+                    drawer.End();
+
                 }
                 catch (KeyNotFoundException)//this can happen if an item is removed by another thread while this thread is iterating over the items
                 {
