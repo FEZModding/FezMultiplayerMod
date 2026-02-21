@@ -90,6 +90,10 @@ namespace FezGame.MultiplayerMod
                 //TODO
             };
         }
+        private float scrollY = 0;
+        private float minScrollY = 0;
+        private float maxScrollY = float.PositiveInfinity;
+        private const float ScrollSpeedModifierY = 18;
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
@@ -98,6 +102,21 @@ namespace FezGame.MultiplayerMod
                 return;
             }
             Visible = InputManager.ClampLook.IsDown();
+            if (Visible && mp.ActiveConnectionState == ConnectionState.Connected)
+            {
+                float scrollChange = //MathHelper.Clamp(
+                    ScrollSpeedModifierY * (InputManager.Movement.Y
+                    + InputManager.FreeLook.Y
+                    + (InputManager.MapZoomIn.IsDown() ? 1 : 0)
+                    + (InputManager.MapZoomOut.IsDown() ? -1 : 0))
+                    * (InputManager.CancelTalk.IsDown() ? 3 : 1)
+                //, -1, 1)
+                ;
+                if (scrollChange != 0)
+                {
+                    scrollY = MathHelper.Clamp(scrollY + scrollChange, minScrollY, maxScrollY);
+                }
+            }
         }
 
         public override void Draw(GameTime gameTime)
@@ -117,6 +136,7 @@ namespace FezGame.MultiplayerMod
                     + $"{me.Position.Round(3)}, "
                     + $"ping: {(mp.ConnectionLatencyUpDown) / TimeSpan.TicksPerMillisecond}ms");
             }
+            lines.Add(scrollY.ToString());
             string connectionStatusText = "";
             if (mp.ExtraMessage != null)
             {
@@ -233,12 +253,17 @@ namespace FezGame.MultiplayerMod
                     float totalWidth = cellWidths.Sum() + Columns.Count * (borderWidth + 2 * paddingInline);
                     float totalHeight = rows.Count * (cellHeight + borderWidth + 2 * paddingBlock);
 
-                    float leftEdge = (GraphicsDevice.Viewport.Width - totalWidth) / 2f;
-                    float topEdge = cellHeight * 3;
+                    float viewportHeight = GraphicsDevice.Viewport.Height;
+                    float viewportWidth = GraphicsDevice.Viewport.Width;
+                    float leftEdge = (viewportWidth - totalWidth) / 2f;
+                    float topEdgeOffset = cellHeight * 3;
+                    float topEdge = topEdgeOffset + scrollY;
                     origin = new Vector2(leftEdge, topEdge);
                     drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                     drawer.DrawRect(origin, totalWidth, totalHeight, BackgroundColor);
                     drawer.End();
+                    minScrollY = cellHeight - (topEdgeOffset + totalHeight);
+                    maxScrollY = viewportHeight - cellHeight - topEdgeOffset;
 
                     //foreach (var v in cellVals)
                     //{
