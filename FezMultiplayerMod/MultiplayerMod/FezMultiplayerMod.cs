@@ -568,6 +568,41 @@ namespace FezGame.MultiplayerMod
 
         #region internal drawing stuff
 
+        private static readonly ActionType[] actionTypeRotationMap = new ActionType[]
+        {
+#pragma warning disable format
+// @formatter:off
+//                     Front,                                Right,                           Back,                          Left,
+      ActionType.BackClimbingLadder,        ActionType.SideClimbingLadder, ActionType.FrontClimbingLadder, ActionType.SideClimbingLadder,
+        ActionType.BackClimbingVine,          ActionType.SideClimbingVine,   ActionType.FrontClimbingVine,   ActionType.SideClimbingVine,
+ActionType.BackClimbingVineSideways, ActionType.FrontClimbingVineSideways,                              0,                             0,
+             ActionType.IdleToClimb,           ActionType.IdleToSideClimb,    ActionType.IdleToFrontClimb,    ActionType.IdleToSideClimb,
+             ActionType.JumpToClimb,           ActionType.JumpToSideClimb,                              0,    ActionType.JumpToSideClimb,
+              ActionType.ShimmyBack,                                    0,         ActionType.ShimmyFront,                             0,
+              ActionType.PullUpBack,         ActionType.PullUpCornerLedge,         ActionType.PullUpFront,  ActionType.PullUpCornerLedge,
+           ActionType.GrabLedgeBack,           ActionType.GrabCornerLedge,      ActionType.GrabLedgeFront,    ActionType.GrabCornerLedge,
+            ActionType.LowerToLedge,        ActionType.LowerToCornerLedge,                              0, ActionType.LowerToCornerLedge,
+                                  0,           ActionType.ClimbOverLadder,                              0,    ActionType.ClimbOverLadder,
+                                  0,            ActionType.FromCornerBack,       ActionType.ToCornerFront,       ActionType.ToCornerBack,
+// @formatter:on
+#pragma warning restore format
+        };
+        private ActionType GetActionTypeForRotationDifference(ActionType action, Viewpoint myViewpoint, Viewpoint otherViewpoint)
+        {
+            //verify viewpoints 
+            if (!myViewpoint.IsOrthographic())
+            {
+                return action;
+            }
+            if (!otherViewpoint.IsOrthographic())
+            {
+                return action;
+            }
+            //get the angle offset
+            Viewpoint viewpointDifference = (Viewpoint)((1 + myViewpoint - otherViewpoint + 4) % 4);
+            //TODO use action in conjunction with actionTypeRotationMap and viewpointDifference to determine the correct ActionType
+            return action;
+        }
         /// <summary>
         /// used for areas with colored filters (e.g., lava, sewer, cmy, etc.)
         /// </summary>
