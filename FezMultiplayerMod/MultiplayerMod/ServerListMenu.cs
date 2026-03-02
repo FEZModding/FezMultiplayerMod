@@ -487,12 +487,16 @@ namespace FezGame.MultiplayerMod
                 new KeyValuePair<string, bool>(@"True", true),
                 new KeyValuePair<string, bool>(@"False", false),
             };
-            GlobalInputSyncTimeOfDay = new MenuListSelectorInput<bool>(@"Sync time of day: ", flagChoices, flagChoices.FindIndex(a => a.Value == client.SyncTimeOfDay), val =>
-              {
-                  client.SyncTimeOfDay = val;
-                  OnSyncTimeOfDayChange(val);
-              });
-            GlobalInputSyncWorldState = new MenuListSelectorInput<bool>(@"Sync world state: ", flagChoices, flagChoices.FindIndex(a => a.Value == client.SyncWorldState), val =>
+            GlobalInputSyncTimeOfDay = new MenuListSelectorInput<bool>(@"Sync time of day: ", flagChoices,
+                flagChoices.FindIndex(a => a.Value == MultiplayerClientNetcode.Instance.Settings.SyncWorldState),
+                val =>
+            {
+                client.SyncTimeOfDay = val;
+                OnSyncTimeOfDayChange(val);
+            });
+            GlobalInputSyncWorldState = new MenuListSelectorInput<bool>(@"Sync world state: ", flagChoices,
+                flagChoices.FindIndex(a => a.Value == MultiplayerClientNetcode.Instance.Settings.SyncWorldState),
+                val =>
             {
                 client.SyncWorldState = val;
                 OnSyncWorldStateChange(val);

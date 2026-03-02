@@ -97,7 +97,8 @@ namespace FezGame.MultiplayerMod
         public event Action OnConnect = () => { };
         public event Action OnDisconnect = () => { };
 
-        private static MultiplayerClientNetcode Instance;
+        internal static MultiplayerClientNetcode Instance;
+        public readonly MultiplayerClientSettings Settings;
 
         /// <summary>
         /// Creates a new instance of this class with the provided parameters.
@@ -107,6 +108,7 @@ namespace FezGame.MultiplayerMod
         internal MultiplayerClientNetcode(MultiplayerClientSettings settings)
         {
             Instance = this;
+            Settings = settings;
             listening = false;
             SyncWorldState = settings.SyncWorldState;
             SyncTimeOfDay = settings.SyncTimeOfDay;
@@ -140,6 +142,22 @@ namespace FezGame.MultiplayerMod
                 LogStatus(LogSeverity.Information, "Already connected to " + RemoteEndpoint, extra: true);
                 return;
                 //throw new InvalidOperationException("Already connected to " + RemoteEndpoint);
+            }
+            if (syncTime.HasValue)
+            {
+                SyncTimeOfDay = syncTime.Value;
+            }
+            else
+            {
+                SyncTimeOfDay = Settings.SyncTimeOfDay;
+            }
+            if (syncWorld.HasValue)
+            {
+                SyncWorldState = syncWorld.Value;
+            }
+            else
+            {
+                SyncWorldState = Settings.SyncWorldState;
             }
             RemoteEndpoint = endpoint;
             listenerThread = new Thread(() =>

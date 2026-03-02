@@ -96,5 +96,6 @@ changed behaviour of `blocklist` and `allowlist` commands
 added server-side `UseAllowList` and `AllowRemoteWebInterface` commands
 Greatly improved user interface
 Added proper player list (it's bound to the same button as "Reset Look" in the controls menu [for reference, the default keybind for this is right shift, named "R Shift"])
-
+Added option for server-specific settings
+Added in-game in-game sync world and time options
 
