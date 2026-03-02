@@ -128,7 +128,7 @@ namespace FezGame.MultiplayerMod
 
         }
 
-        public void ConnectToServerAsync(IPEndPoint endpoint)
+        public void ConnectToServerAsync(IPEndPoint endpoint, bool? syncTime = null, bool? syncWorld = null)
         {
             if (disposed)
             {

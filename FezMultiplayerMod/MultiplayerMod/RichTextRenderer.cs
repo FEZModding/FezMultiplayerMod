@@ -34,6 +34,10 @@ namespace FezGame.MultiplayerMod
         {
             batch.DrawRectWireframe(boxOrigin, boxSize.X, boxSize.Y, lineThickness, color);
         }
+        public static void DrawRectWireframe(this SpriteBatch batch, Rectangle rect, float lineThickness, Color color)
+        {
+            batch.DrawRectWireframe(rect.Origin(), rect.Width, rect.Height, lineThickness, color);
+        }
         public static void DrawRectWireframe(this SpriteBatch batch, Vector2 boxOrigin, float boxWidth, float boxHeight, float lineThickness, Color color)
         {
             //top

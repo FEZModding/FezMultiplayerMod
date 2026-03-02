@@ -54,30 +54,67 @@ namespace FezGame.MultiplayerMod
                 rect.Width,
                 rect.Height);
         }
+        public static Vector2 Origin(this Rectangle rect)
+        {
+            return new Vector2(rect.X, rect.Y);
+        }
     }
     public class ServerInfo
     {
         private const char GroupSeparator = '\x1D';
         public string Name;
         public readonly IPEndPoint Endpoint;
-        public ServerInfo(string text, IPEndPoint endpoint)
+        public bool? SyncTime;
+        public bool? SyncWorld;
+        public ServerInfo(string text, IPEndPoint endpoint, bool? syncTime = null, bool? syncWorld = null)
         {
-            this.Name = text;
-            this.Endpoint = endpoint;
+            Name = text;
+            Endpoint = endpoint;
+            SyncTime = syncTime;
+            SyncWorld = syncWorld;
         }
         public override string ToString()
         {
-            return Name + GroupSeparator + Endpoint;
+            return Name + GroupSeparator + Endpoint + GroupSeparator + SyncTime + GroupSeparator + SyncWorld;
         }
         public static ServerInfo Parse(string str)
         {
             string[] parts = str.Split(GroupSeparator);
-            if (parts.Length != 2 || !IniTools.TryParseIPEndPoint(parts[1], out IPEndPoint endpoint))
+            if (parts.Length < 2 || !IniTools.TryParseIPEndPoint(parts[1], out IPEndPoint endpoint))
             {
                 throw new ArgumentException("Invalid ServerInfo Format");
             }
-            return new ServerInfo(parts[0], endpoint);
+            bool? SyncTime = null;
+            bool? SyncWorld = null;
+            bool? ParseNullableBool(string value)
+            {
+                if (Boolean.TryParse(value, out bool result))
+                {
+                    return result;
+                }
+                // Handle cases where the string is null, empty, or not a valid boolean representation
+                // Boolean.TryParse returns false if the value is null, empty, or invalid
+                return null;
+            }
+            if (parts.Length > 2)
+            {
+                string SyncTimeString = parts[2];
+                if (Boolean.TryParse(SyncTimeString, out bool result))
+                {
+                    SyncTime = result;
+                }
+            }
+            if (parts.Length > 3)
+            {
+                string SyncWorldString = parts[2];
+                if (Boolean.TryParse(SyncWorldString, out bool result))
+                {
+                    SyncWorld = result;
+                }
+            }
+            return new ServerInfo(parts[0], endpoint, SyncTime, SyncWorld);
         }
+
     }
     internal sealed class ServerListMenu : DrawableGameComponent
     {
@@ -93,6 +130,9 @@ namespace FezGame.MultiplayerMod
             public string DisplayText;
             public readonly Action Action;
             public readonly Action OnMoveToOtherOption;
+            public Action OnLeftPressed { get; protected set; } = null;
+            public Action OnRightPressed { get; protected set; } = null;
+            public bool IsSelectorInput { get; protected set; } = false;
             public readonly TextInputLogicComponent TextInput;
             public bool Enabled = true;
             internal Rectangle BoundingClientRect = new Rectangle(-100, -100, 0, 0);
@@ -103,10 +143,10 @@ namespace FezGame.MultiplayerMod
             }
             public MenuListOption(string text, Action action, Action onMoveToOtherOption = null, TextInputLogicComponent textInput = null)
             {
-                this.DisplayText = text;
-                this.Action = action;
-                this.OnMoveToOtherOption = onMoveToOtherOption;
-                this.TextInput = textInput;
+                DisplayText = text;
+                Action = action;
+                OnMoveToOtherOption = onMoveToOtherOption;
+                TextInput = textInput;
             }
             public MenuListOption(string text, TextInputLogicComponent textInput = null)
                 : this(text, () => textInput.HasFocus = true, () => textInput.HasFocus = false, textInput)
@@ -147,6 +187,44 @@ namespace FezGame.MultiplayerMod
                         OnUpdate?.Invoke(inputElement.Value);
                     }
                 };
+            }
+        }
+        private class MenuListSelectorInput<T> : MenuListOption
+        {
+            public KeyValuePair<string, T> Selected => Options.ElementAtOrDefault(OptionIndex);
+            public T Value => Selected.Value;
+
+            private int OptionIndex = 0;
+            private readonly List<KeyValuePair<string, T>> Options;
+            private readonly Action<T> OnUpdate;
+            private readonly string Label;
+
+            private void SetIndex(int dif)
+            {
+                if (dif > 0)
+                {
+                    sSliderValueIncrease?.Emit();
+                }
+                if (dif < 0)
+                {
+                    sSliderValueDecrease?.Emit();
+                }
+                var i = OptionIndex + dif;
+                OptionIndex = (i + Options.Count) % Options.Count;
+                var SelectedOption = Selected;
+                DisplayText = Label + SelectedOption.Key;
+                OnUpdate?.Invoke(SelectedOption.Value);
+            }
+            public MenuListSelectorInput(string label, List<KeyValuePair<string, T>> Options, int InitialValue = 0, Action<T> OnUpdate = null)
+                : base(label, () => { })
+            {
+                Label = label;
+                OnLeftPressed = () => SetIndex(-1);
+                OnRightPressed = () => SetIndex(1);
+                this.OnUpdate = OnUpdate;
+                this.Options = Options;
+                IsSelectorInput = true;
+                SetIndex(InitialValue);
             }
         }
         private class MenuLevel
@@ -207,13 +285,25 @@ namespace FezGame.MultiplayerMod
         private readonly MenuListTextInput NameTextbox;
         private readonly MenuListTextInput AddressTextbox;
 
+        private readonly MenuListSelectorInput<bool> GlobalInputSyncTimeOfDay;
+        private readonly MenuListSelectorInput<bool> GlobalInputSyncWorldState;
+        private readonly MenuListSelectorInput<bool?> ServerInputSyncTimeOfDay;
+        private readonly MenuListSelectorInput<bool?> ServerInputSyncWorldState;
+
         /// <summary>
         /// Called when the user adds or removes a server from the server list. <br />
         /// Supplies the new server list, and does not include LAN servers.
         /// </summary>
         public event Action<ReadOnlyCollection<ServerInfo>> OnServerListChange = (serverList) => { };
+        private void FireServerListChange()
+        {
+            OnServerListChange(ServerInfoList.AsReadOnly());
+        }
+
 
         public event Action<string> OnPlayerNameChange = (newName) => { };
+        public event Action<bool> OnSyncTimeOfDayChange = (newval) => { };
+        public event Action<bool> OnSyncWorldStateChange = (newval) => { };
 
         /// <summary>
         /// Loads the server list from the supplied <paramref name="settings"/> into <see cref="ServerInfoList"/>
@@ -332,7 +422,7 @@ namespace FezGame.MultiplayerMod
                 );
             }
         }
-        private static SoundEffect sCancel, sConfirm, sCursorUp, sCursorDown;
+        private static SoundEffect sCancel, sConfirm, sCursorUp, sCursorDown, sSliderValueDecrease, sSliderValueIncrease;
 
         public ServerListMenu(Game game, MultiplayerClient client) : base(game)
         {
@@ -362,6 +452,8 @@ namespace FezGame.MultiplayerMod
                 sConfirm = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/Confirm");
                 sCursorUp = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/CursorUp");
                 sCursorDown = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/CursorDown");
+                sSliderValueDecrease = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/SliderValueDecrease");
+                sSliderValueIncrease = contentManager.Load<SoundEffect>("Sounds/Ui/Menu/SliderValueIncrease");
             });
             mp = client;
 
@@ -390,12 +482,54 @@ namespace FezGame.MultiplayerMod
             });
             OptionAddServer.Enabled = false;
 
+
+            List<KeyValuePair<string, bool>> flagChoices = new List<KeyValuePair<string, bool>>(){
+                new KeyValuePair<string, bool>(@"True", true),
+                new KeyValuePair<string, bool>(@"False", false),
+            };
+            GlobalInputSyncTimeOfDay = new MenuListSelectorInput<bool>(@"Sync time of day: ", flagChoices, flagChoices.FindIndex(a => a.Value == client.SyncTimeOfDay), val =>
+              {
+                  client.SyncTimeOfDay = val;
+                  OnSyncTimeOfDayChange(val);
+              });
+            GlobalInputSyncWorldState = new MenuListSelectorInput<bool>(@"Sync world state: ", flagChoices, flagChoices.FindIndex(a => a.Value == client.SyncWorldState), val =>
+            {
+                client.SyncWorldState = val;
+                OnSyncWorldStateChange(val);
+            });
+
+
+            List<KeyValuePair<string, bool?>> flagChoicesEX = new List<KeyValuePair<string, bool?>>(){
+                new KeyValuePair<string, bool?>(@"Inherit", null),
+                new KeyValuePair<string, bool?>(@"True", true),
+                new KeyValuePair<string, bool?>(@"False", false),
+            };
+            ServerInputSyncTimeOfDay = new MenuListSelectorInput<bool?>(@"Sync time of day: ", flagChoicesEX, OnUpdate: (val) =>
+            {
+                if (CurrentMenuLevel != null && CurrentMenuLevel.Equals(Menu_ServerSelected))
+                {
+                    selectedInfo.SyncTime = val;
+                    FireServerListChange();
+                }
+            });
+            ServerInputSyncWorldState = new MenuListSelectorInput<bool?>(@"Sync world state: ", flagChoicesEX, OnUpdate: (val) =>
+            {
+                if (CurrentMenuLevel != null && CurrentMenuLevel.Equals(Menu_ServerSelected))
+                {
+                    selectedInfo.SyncWorld = val;
+                    FireServerListChange();
+                }
+            });
+
+
             Menu_ServerList = new MenuLevel("Server List", parent: Menu_None, list =>
             {
                 list.Add(OptionDisconnect);
                 list.Add(OptionAdd);
                 list.Add(OptionRefreshLAN);
                 list.Add(OptionChangeName);
+                list.Add(GlobalInputSyncTimeOfDay);
+                list.Add(GlobalInputSyncWorldState);
                 list.AddRange(ServerList);
             });
             Menu_ServerSelected = new MenuLevel("Selected Server", parent: Menu_ServerList, list =>
@@ -403,6 +537,8 @@ namespace FezGame.MultiplayerMod
                 list.Add(OptionJoin);
                 if (selectedInfo.GetType().Name != typeof(LANServerInfo).Name)
                 {
+                    list.Add(ServerInputSyncTimeOfDay);
+                    list.Add(ServerInputSyncWorldState);
                     list.Add(OptionRemove);
                 }
             });
@@ -410,6 +546,8 @@ namespace FezGame.MultiplayerMod
             {
                 list.Add(NameTextbox.MenuListOption);
                 list.Add(AddressTextbox.MenuListOption);
+                list.Add(ServerInputSyncTimeOfDay);
+                list.Add(ServerInputSyncWorldState);
                 list.Add(OptionAddServer);
             });
             Menu_ServerRemove = new MenuLevel("Remove Server?", parent: Menu_ServerSelected, list =>
@@ -572,8 +710,8 @@ namespace FezGame.MultiplayerMod
             try
             {
                 _ = IniTools.TryParseIPEndPoint(address, out IPEndPoint endpoint);
-                ServerInfoList.Add(new ServerInfo(name, endpoint));
-                OnServerListChange(ServerInfoList.AsReadOnly());
+                ServerInfoList.Add(new ServerInfo(name, endpoint, ServerInputSyncTimeOfDay.Value, ServerInputSyncWorldState.Value));
+                FireServerListChange();
                 MenuBack(emitSound: false);
             }
             catch (ArgumentException) { }
@@ -581,7 +719,7 @@ namespace FezGame.MultiplayerMod
         private void RemoveServerConfirmed()
         {
             ServerInfoList.Remove(selectedInfo);
-            OnServerListChange(ServerInfoList.AsReadOnly());
+            FireServerListChange();
             CurrentMenuLevel = Menu_ServerList;
         }
 
@@ -599,7 +737,7 @@ namespace FezGame.MultiplayerMod
         }
         private void JoinServer()
         {
-            mp.ConnectToServerAsync(selectedInfo.Endpoint);
+            mp.ConnectToServerAsync(selectedInfo.Endpoint, selectedInfo.SyncTime, selectedInfo.SyncWorld);
         }
         private void LeaveServer()
         {
@@ -660,6 +798,8 @@ namespace FezGame.MultiplayerMod
         private Rectangle ScrollBarThumbHitbox = new Rectangle();
         private Rectangle ScrollBarArrowUpHitbox = new Rectangle();
         private Rectangle ScrollBarArrowDownHitbox = new Rectangle();
+        private Rectangle LeftArrowButton = new Rectangle();
+        private Rectangle RightArrowButton = new Rectangle();
         public static float ScrollDirection = -1;//TODO make customizable?
         private static readonly double scrollButtonRepeatInterval = 0.1d;
         private static readonly double scrollButtonRepeatDelay = 0.3d;
@@ -760,7 +900,14 @@ namespace FezGame.MultiplayerMod
                 const float WheelDelta = 120f;
                 float scrollDistanceBase = RichTextRenderer.MeasureString(Fonts, "A").Y;
                 scrollY += ScrollDirection * MouseState.WheelTurns / WheelDelta * scrollDistanceBase;
-
+                if (InputManager.Left == FezButtonState.Pressed)
+                {
+                    CurrentMenuItem?.OnLeftPressed?.Invoke();
+                }
+                if (InputManager.Right == FezButtonState.Pressed)
+                {
+                    CurrentMenuItem?.OnRightPressed?.Invoke();
+                }
                 if ((InputManager.CancelTalk == FezButtonState.Pressed) || InputManager.Back == FezButtonState.Pressed)
                 {
                     MenuBack();
@@ -840,9 +987,29 @@ namespace FezGame.MultiplayerMod
                 }
                 scrollY = MathHelper.Clamp(scrollY, -selectedItemPaddingBlock, Math.Max(scrollTop, contentHeight - MenuFrameRect.Height + selectedItemPaddingBlock));
 
-                SetMenuCursorState(hasHoveredOption, mouseDown);
+                bool inLeftArrowBox = LeftArrowButton.Contains(positionPt);
+                bool inRightArrowBox = RightArrowButton.Contains(positionPt);
+                bool lrArrowHovered = inLeftArrowBox || inRightArrowBox;
+                bool mouseClicked = mouseDown && !mouseWasDown;
+                if (lrArrowHovered && mouseClicked)
+                {
+                    MenuListOption menuitem = CurrentMenuItem;
+                    if (menuitem != null && menuitem.Enabled && menuitem.IsSelectorInput)
+                    {
+                        if (inLeftArrowBox)
+                        {
+                            menuitem.OnLeftPressed?.Invoke();
+                        }
+                        if (inRightArrowBox)
+                        {
+                            menuitem.OnRightPressed?.Invoke();
+                        }
+                    }
+                }
+
+                SetMenuCursorState(hasHoveredOption || lrArrowHovered, mouseDown);
                 if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed
-                    || (mouseDown && !mouseWasDown && hasHoveredOption))
+                    || (mouseClicked && hasHoveredOption))
                 {
                     MenuListOption menuitem = CurrentMenuItem;
                     if (!justGotFocus && menuitem.Enabled && SinceLastUpdateList > menuChangeDelay)
@@ -890,7 +1057,7 @@ namespace FezGame.MultiplayerMod
         private static readonly Color scrollThumbFocusColor = scrollButtonHeldColor;
 
         private static Vector2? selectorOrigin = null, selectorScale = null;
-        Stack<Action> deferDraw = new Stack<Action>();
+        readonly Stack<Action> deferDraw = new Stack<Action>();
         public override void Draw(GameTime gameTime)
         {
             if (!ServiceHelper.FirstLoadDone)
@@ -915,7 +1082,7 @@ namespace FezGame.MultiplayerMod
             }
             if (HasFocus && cachedMenuListOptions != null && drawer != null)
             {
-                drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                drawer.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 Vector2 position = Vector2.Zero;
                 Vector2 titleLineSize;
                 //draw title
@@ -949,7 +1116,7 @@ namespace FezGame.MultiplayerMod
                 Viewport viewport = GraphicsDevice.Viewport;
                 //restrict drawing to inside menu frame
                 GraphicsDevice.Viewport = new Viewport(MenuFrameRect);
-                drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+                drawer.Begin(SpriteSortMode.Deferred, BlendState.NonPremultiplied, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
                 position = Vector2.Zero;
                 position.Y = 0;
                 int i = 0;
@@ -1145,17 +1312,17 @@ namespace FezGame.MultiplayerMod
                     int paddingInline = menuitem.BoundingClientRect.Height / selectedItemOutlinePaddingInlineEmFrac;
                     int paddingBlock = 0;
                     Vector2 origin = new Vector2(menuitem.BoundingClientRect.X - paddingInline - MenuFrameRect.X, menuitem.BoundingClientRect.Y - paddingBlock - MenuFrameRect.Y + scrollY);
-                    Vector2 scale = new Vector2(menuitem.BoundingClientRect.Width + (2 * paddingInline), menuitem.BoundingClientRect.Height + (2 * paddingBlock));
+                    Vector2 boxSize = new Vector2(menuitem.BoundingClientRect.Width + (2 * paddingInline), menuitem.BoundingClientRect.Height + (2 * paddingBlock));
                     if (!selectorOrigin.HasValue)
                     {
                         selectorOrigin = origin;
                     }
                     if (!selectorScale.HasValue)
                     {
-                        selectorScale = scale;
+                        selectorScale = boxSize;
                     }
                     selectorOrigin = Vector2.Lerp(selectorOrigin.Value, origin, 0.3f);
-                    selectorScale = Vector2.Lerp(selectorScale.Value, scale, 0.3f);
+                    selectorScale = Vector2.Lerp(selectorScale.Value, boxSize, 0.3f);
                     origin = selectorOrigin.Value;
                     origin.Y -= scrollY;
                     drawer.DrawRectWireframe(origin,
@@ -1163,6 +1330,32 @@ namespace FezGame.MultiplayerMod
                         selectorScale.Value.Y,
                         selectedItemBorderThickness,
                         Color.White);
+
+                    const float arrowSizeScale = 0.2f;
+                    if (menuitem.OnLeftPressed != null)
+                    {
+                        float arrowScale = menuitem.BoundingClientRect.Height / (float)arrowTexture.Height;
+                        var leftArrowPos = origin;
+                        leftArrowPos.X -= arrowTexture.Width * arrowScale;
+                        Rectangle target = new Rectangle((int)leftArrowPos.X, (int)leftArrowPos.Y, (int)(arrowTexture.Width * arrowScale), (int)(arrowTexture.Height * arrowScale));
+                        LeftArrowButton = target;
+                        LeftArrowButton.X += MenuFrameRect.X;
+                        LeftArrowButton.Y += MenuFrameRect.Y;
+                        target = target.Inset(arrowSizeScale * menuitem.BoundingClientRect.Height);
+                        drawer.Draw(arrowTexture2, target, null, Color.White, 0, Vector2.Zero, SpriteEffects.None, 0);
+                    }
+                    if (menuitem.OnRightPressed != null)
+                    {
+                        float arrowScale = menuitem.BoundingClientRect.Height / (float)arrowTexture.Height;
+                        var rightArrowPos = origin;
+                        rightArrowPos.X += selectorScale.Value.X;
+                        Rectangle target = new Rectangle((int)rightArrowPos.X, (int)rightArrowPos.Y, (int)(arrowTexture.Width * arrowScale), (int)(arrowTexture.Height * arrowScale));
+                        RightArrowButton = target;
+                        RightArrowButton.X += MenuFrameRect.X;
+                        RightArrowButton.Y += MenuFrameRect.Y;
+                        target = target.Inset(arrowSizeScale * menuitem.BoundingClientRect.Height);
+                        drawer.Draw(arrowTexture, target, null, Color.White, 0, Vector2.Zero, SpriteEffects.None, 0);
+                    }
                 }
                 drawer.End();
                 GraphicsDevice.Viewport = viewport;
