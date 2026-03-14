@@ -10,6 +10,7 @@ namespace FezGame.MultiplayerMod
     {
         public static int TextboxPadRight = 30;
         private string value = "";
+        private string ValueNoAnsi = "";
         private bool showCaret = false;
         private const string caret = "|";
         private int caretPosition = 0;
@@ -21,6 +22,7 @@ namespace FezGame.MultiplayerMod
             set
             {
                 this.value = value;
+                ValueNoAnsi = Value.StripAnsiEscapeSequences();
                 _ = ConstrainCaretPosition();
                 OnUpdate(false);
             }
@@ -199,7 +201,12 @@ namespace FezGame.MultiplayerMod
                 OnUpdate(true);
             }
             ConstrainCaretPosition();
-            float caretX = RichTextRenderer.MeasureString(fonts, Value.StripAnsiEscapeSequences().Substring(0, caretPosition)).X;
+
+            //TODO: preserve the styles between two different RichTextRenderer.DrawString calls
+
+            string leftText = Value.Substring(0, caretPosition);
+            string rightText = Value.Substring(caretPosition);
+            float caretX = RichTextRenderer.MeasureString(fonts, leftText).X;
             float textWidth = RichTextRenderer.MeasureString(fonts, Value).X;
             float caretWidth = RichTextRenderer.MeasureString(fonts, caret).X;
             float viewWidth = drawRect.Width;
@@ -219,8 +226,11 @@ namespace FezGame.MultiplayerMod
                 RichTextRenderer.DrawString(drawer, fonts, caret, new Vector2(caretX - scrollX + position.X, position.Y), showCaret ? textColor : bgColor);
             }
             position.X -= scrollX;
-            RichTextRenderer.DrawString(drawer, fonts, Value, position + Vector2.One, bgColor);
-            RichTextRenderer.DrawString(drawer, fonts, Value, position, textColor);
+            Vector2 rightTextOffset = caretX * Vector2.UnitX;
+            RichTextRenderer.DrawString(drawer, fonts, leftText, position + Vector2.One, bgColor);
+            RichTextRenderer.DrawString(drawer, fonts, rightText, position + rightTextOffset + Vector2.One, bgColor);
+            RichTextRenderer.DrawString(drawer, fonts, leftText, position, textColor);
+            RichTextRenderer.DrawString(drawer, fonts, rightText, position + rightTextOffset, textColor);
         }
 
         protected override void Dispose(bool disposing)
