@@ -587,7 +587,7 @@ namespace FezGame.MultiplayerMod
         /// <returns>A <see cref="Vector2"/> representing the size of the text.</returns>
         public static Vector2 MeasureString(SpriteFont defaultFont, float defaultFontScale, string text)
         {
-            return ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, Vector2.One, (token, positionOffset, tokens, tokenIndex) => { });
+            return ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, Color.White, Color.Transparent, Vector2.One, (token, positionOffset, tokens, tokenIndex, tokenSize) => { });
         }
         #endregion
         #region DrawStringOverloads
@@ -682,7 +682,7 @@ namespace FezGame.MultiplayerMod
             float lineThickness = Math.Max(scaledMinLineSize, lineheight * lineThickness_LineheightPercentage);
             float doublelineOffsetOffset = Math.Max(lineThickness + scaledMinLineSize, lineheight * doublelineOffsetOffset_LineheightPercentage);
 
-            _ = ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, scale, (token, positionOffset, tokens, tokenIndex) =>
+            _ = ProcessECMA48EscapeCodes(defaultFont, defaultFontScale, text, defaultColor, defaultBGColor, scale, (token, positionOffset, tokens, tokenIndex, tokenSize) =>
             {
                 TextDecoration decoration = token.Style.Decoration;
 
@@ -702,7 +702,6 @@ namespace FezGame.MultiplayerMod
                 /// TODO draw blinking text somehow
                 float blink = token.Style.BlinkDuration;
 
-                Vector2 tokenSize = fontData.Font.MeasureString(token.Text) * fontData.Scale * scale;
                 float tokenWidth = tokenSize.X + letterSpacing;
 
                 batch.DrawRect(offsetPosition, tokenSize.X, tokenSize.Y, backgroundColor);
@@ -850,13 +849,14 @@ namespace FezGame.MultiplayerMod
         ///         accepting a <see cref="TokenizedText"/> representing the calculated presentation settings and text for the token, <br />
         ///         a <see cref="Vector2"/> representing the calculated top-left corner of the token,<br />
         ///         a <see cref="List&lt;TokenizedText&gt;"/> containing all the <see cref="TokenizedText"/> for the current line of text, <br />
-        ///         and an <see cref="int"/> indicating the index of the current <see cref="TokenizedText"/> in the aforementioned list. 
+        ///         an <see cref="int"/> indicating the index of the current <see cref="TokenizedText"/> in the aforementioned list, <br />
+        ///         and a <see cref="Vector2"/> representing the size of the token
         /// </param>
         /// <inheritdoc cref="MeasureString(SpriteFont, float, string)"/>
         /// <inheritdoc cref="DrawString(SpriteBatch, IFontManager, string, Vector2, Color, Color, float, float)"/>
         private static Vector2 ProcessECMA48EscapeCodes(in SpriteFont defaultFont, in float defaultFontScale,
                 in string text, in Color defaultColor, in Color defaultBGColor, in Vector2 scale,
-                Action<TokenizedText, Vector2, List<TokenizedText>, int> onToken)
+                Action<TokenizedText, Vector2, List<TokenizedText>, int, Vector2> onToken)
         {
             /*
              * Note: currently, I think tokens are drawn with vertical-align: top
@@ -897,7 +897,7 @@ namespace FezGame.MultiplayerMod
                         FezSharedTools.SharedTools.LogWarning(typeof(RichTextRenderer).Name, e.ToString());
                         System.Diagnostics.Debugger.Launch();
                     }
-                    onToken(token, currentPositionOffset, tokens, currentTokenIndex);
+                    onToken(token, currentPositionOffset, tokens, currentTokenIndex, tokensize);
                     linesize.Y = Math.Max(linesize.Y, tokensize.Y);
                     float tokenSizeXWithSpacing = tokensize.X + fontData.Font.Spacing;
                     linesize.X += tokenSizeXWithSpacing;
