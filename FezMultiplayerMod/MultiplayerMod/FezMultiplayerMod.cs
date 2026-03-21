@@ -597,7 +597,7 @@ ActionType.BackClimbingVineSideways, ActionType.FrontClimbingVineSideways,      
 // @formatter:on
 #pragma warning restore format
         };
-        private ActionType GetActionTypeForRotationDifference(ActionType action, Viewpoint myViewpoint, Viewpoint otherViewpoint)
+        private ActionType GetActionTypeForRotationDifference(ActionType action, Viewpoint myViewpoint, Viewpoint otherViewpoint, HorizontalDirection otherLookingDir)
         {
             //verify viewpoints 
             if (!myViewpoint.IsOrthographic())
@@ -610,7 +610,32 @@ ActionType.BackClimbingVineSideways, ActionType.FrontClimbingVineSideways,      
             }
             //get the angle offset
             Viewpoint viewpointDifference = (Viewpoint)((1 + myViewpoint - otherViewpoint + 4) % 4);
-            //TODO use action in conjunction with actionTypeRotationMap and viewpointDifference to determine the correct ActionType
+            int actionIndex;
+            if (otherLookingDir == HorizontalDirection.Left)
+            {
+                actionIndex = Array.LastIndexOf(actionTypeRotationMap, action);
+            }
+            else
+            {
+                actionIndex = Array.IndexOf(actionTypeRotationMap, action);
+            }
+            if (actionIndex >= 0)
+            {
+                //TODO fix this 
+                int baseActionIndex = actionIndex / 4 * 4;
+                int newIndex = baseActionIndex + (int)viewpointDifference;
+                if (newIndex >= actionTypeRotationMap.Length || newIndex < 0)
+                {
+                    System.Diagnostics.Debugger.Launch();
+                    return action;
+                }
+                ActionType newAction = actionTypeRotationMap[newIndex];
+                //TODO use action in conjunction with actionTypeRotationMap and viewpointDifference to determine the correct ActionType
+                if (newAction > 0)
+                {
+                    return newAction;
+                }
+            }
             return action;
         }
         /// <summary>
@@ -645,6 +670,7 @@ ActionType.BackClimbingVineSideways, ActionType.FrontClimbingVineSideways,      
             {
                 LookingDir = LookingDir.GetOpposite();
             }
+            pAction = GetActionTypeForRotationDifference(pAction, cameraViewpoint, p.CameraViewpoint, p.LookingDirection);
             AnimatedTexture animation = PlayerManager.GetAnimation(pAction);
             if (animation.Offsets.Length < 0)
             {
