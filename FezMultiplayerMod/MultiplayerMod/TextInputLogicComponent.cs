@@ -48,6 +48,10 @@ namespace FezGame.MultiplayerMod
                     //ensure text input is on
                     TextInputEXT.StartTextInput();
                 }
+                else
+                {
+                    TextInputEXT.StopTextInput();
+                }
                 showCaret = true;
                 OnUpdate(false);
             }
