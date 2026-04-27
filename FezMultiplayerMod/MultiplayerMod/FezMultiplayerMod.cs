@@ -23,15 +23,6 @@ namespace FezGame.MultiplayerMod
     public class FezMultiplayerMod : DrawableGameComponent
     {
         /// <summary>
-        /// A string representing the current version of this class.
-        /// </summary>
-        public static readonly string Version = "0.8.0"
-#if DEBUG
-        + $" (debug build {System.Reflection.Assembly.GetExecutingAssembly().GetName().Version})"
-#endif
-        ;//TODO add a version checker to check for new versions? (accessing the internet might trigger antivirus); see System.Net.WebClient.DownloadStringAsync
-
-        /// <summary>
         /// This class is mainly so we can get text to display over everything else but still have the other players render on the correct layer. 
         /// </summary>
         private sealed class OverlaidTextDrawer : DrawableGameComponent
