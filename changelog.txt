@@ -86,7 +86,7 @@ misc. bug fixes
 Implemented `SyncWorldState` option to sync save data across players
 added server `SaveFileFullPath` setting to decide where the shared save data should be saved
 
-0.7.1
+0.7.1 - 2026-04-27T01:18:20Z
 Added mouse support to client multiplayer menu
 Added scrolling to server list menu
 performance improvements
