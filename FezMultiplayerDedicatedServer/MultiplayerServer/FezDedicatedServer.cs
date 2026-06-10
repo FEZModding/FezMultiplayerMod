@@ -162,8 +162,17 @@ namespace FezMultiplayerDedicatedServer
             }
         }
 
+        private static readonly System.Diagnostics.Stopwatch AppTimer = System.Diagnostics.Stopwatch.StartNew();
+        public static TimeSpan Uptime => AppTimer.Elapsed;
         public static readonly Dictionary<string, CommandLineCommand> cliActions = new Dictionary<string, CommandLineCommand>
                 {
+                    {
+                        "uptime".ToLowerInvariant(),
+                        ("Displays this server's uptime", (_) =>
+                        {
+                            Console.WriteLine(Uptime);
+                        })
+                    },
                     {
                         "exit".ToLowerInvariant(),
                         ("Stops the server and closes the program", (_) =>

@@ -99,3 +99,5 @@ Added proper player list (it's bound to the same button as "Reset Look" in the c
 Added option for server-specific settings
 Added in-game in-game sync world and time options
 
+0.7.2
+added server Uptime command

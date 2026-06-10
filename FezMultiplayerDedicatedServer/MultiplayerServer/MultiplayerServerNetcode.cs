@@ -720,7 +720,8 @@ namespace FezMultiplayerDedicatedServer
                     {Uri_players, ("text/plain", (loopback)=>
                     {
                         return DateTime.UtcNow.Ticks + "\n"
-                            + sharedSaveData.TimeOfDay + "\n"
+                            + new TimeSpan(sharedSaveData.TimeOfDay.Ticks % TimeSpan.TicksPerDay) + "\n"
+                            + FezDedicatedServer.Uptime + "\n"
                             + string.Join("\n", Players.Select(kv => {
                                 string str = string.Join("\t", IniTools.GenerateIni(kv.Value, false, false));
                                 if (loopback)
@@ -912,6 +913,7 @@ namespace FezMultiplayerDedicatedServer
                     const connStatusDesc=document.getElementById('connStatusDesc');
                     const reconnectButton=document.getElementById('reconnectButton');
                     const serverToD=document.getElementById('serverToD');
+                    const serverUptime=document.getElementById('serverUptime');
                     const savefileviewer=document.getElementById('savefileviewer');
                     const tbod = pdat.tBodies[0] ?? pdat.createTBody();
                     const wsUri = 'ws://'+location.host+'/';
@@ -999,6 +1001,10 @@ namespace FezMultiplayerDedicatedServer
                                     }}
                                     if(mi==1){{
                                         serverToD.textContent=m;
+                                        return;
+                                    }}
+                                    if(mi==2){{
+                                        serverUptime.textContent=m;
                                         return;
                                     }}
                                     var o=Object.fromEntries(m.split(""\t"").map(aa=>aa.split('=')));
@@ -1122,6 +1128,7 @@ namespace FezMultiplayerDedicatedServer
                 $"  <span class=\"label\">Connection status:</span><span id=\"connStatus\" data-status=\"\">Unknown</span> <span id=\"connStatusDesc\"></span> " +
                     $"<button style=\"display: none\" id=\"reconnectButton\" type=\"button\" onclick=\"connect()\">Reconnect</button>" +
                 $"</div>" +
+                $"<div class=\"infoContainer\"><span class=\"label\">Server Uptime:</span><span id=\"serverUptime\">Unknown</span></div>" +
                 $"<div class=\"infoContainer\"><span class=\"label\">Server time of day:</span><span id=\"serverToD\">Unknown</span></div>" +
                 $"<div class=\"infoContainer\"><span class=\"label\">Player Count:</span><span id=\"playerCount\">Unknown</span></div>" +
                 $"<div class=\"infoContainer\"><span class=\"label\">Player Data:</span><div id=\"wrapper\"><table id=\"playerData\"></table></div></div>" +
