@@ -99,8 +99,10 @@ Added proper player list (it's bound to the same button as "Reset Look" in the c
 Added option for server-specific settings
 Added in-game in-game sync world and time options
 
-0.7.2
+0.7.2 - 2026-06-20T01:04:34Z
 added server Uptime command
 fixed potential crash in GuiPlayerList
 improved error handling 
 
+0.7.3
+tbd
