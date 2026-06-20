@@ -1,6 +1,7 @@
 using FezEngine.Components;
 using FezEngine.Services;
 using FezEngine.Tools;
+using FezSharedTools;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
@@ -894,8 +895,7 @@ namespace FezGame.MultiplayerMod
                     catch (Exception e)
                     {
                         tokensize = fontData.Font.MeasureString("" + (fontData.Font.DefaultCharacter ?? ' ')) * fontData.Scale * scale;
-                        FezSharedTools.SharedTools.LogWarning(typeof(RichTextRenderer).Name, e.ToString());
-                        System.Diagnostics.Debugger.Launch();
+                        SharedTools.HandleUnexpectedException(e, LogSeverity.Warning);
                     }
                     onToken(token, currentPositionOffset, tokens, currentTokenIndex, tokensize);
                     linesize.Y = Math.Max(linesize.Y, tokensize.Y);

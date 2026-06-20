@@ -661,8 +661,7 @@ namespace FezGame.MultiplayerMod
             {
                 if (value == null)
                 {
-                    System.Diagnostics.Debugger.Launch();
-                    System.Diagnostics.Debugger.Break();
+                    SharedTools.HandleUnexpectedException(new ArgumentNullException());
                     return;
                 }
                 __currentMenu = value;

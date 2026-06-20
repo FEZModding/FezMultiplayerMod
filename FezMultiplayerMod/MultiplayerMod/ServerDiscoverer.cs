@@ -1,4 +1,5 @@
-﻿using System;
+using FezSharedTools;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -55,13 +56,13 @@ namespace FezGame.MultiplayerMod
                                     return;
                                 }
                                 byte[] receivedBytes = client.EndReceive(result, ref remoteEndPoint);
-                                string receivedMessage = FezSharedTools.SharedConstants.UTF8.GetString(receivedBytes);
+                                string receivedMessage = SharedConstants.UTF8.GetString(receivedBytes);
 
                                 try
                                 {
                                     OnReceiveData(remoteEndPoint, receivedMessage
                                                 .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.RemoveEmptyEntries)
-                                                .Select(a => a.Split(new[] { FezSharedTools.SharedConstants.ServerDiscoveryEntrySeparator }, 2, StringSplitOptions.None))
+                                                .Select(a => a.Split(new[] { SharedConstants.ServerDiscoveryEntrySeparator }, 2, StringSplitOptions.None))
                                                 .GroupBy(p => p[0])
                                                 .ToDictionary(g => g.Key, g =>
                                                 {
@@ -72,8 +73,7 @@ namespace FezGame.MultiplayerMod
                                 }
                                 catch (Exception e)
                                 {
-                                    FezSharedTools.SharedTools.LogWarning(typeof(ServerDiscoverer).Name, e.ToString());
-                                    System.Diagnostics.Debugger.Launch();
+                                    SharedTools.HandleUnexpectedException(e, LogSeverity.Warning);
                                 }
                             }, null);
                         }
@@ -85,7 +85,7 @@ namespace FezGame.MultiplayerMod
                 }
                 catch (Exception e)
                 {
-                    System.Diagnostics.Debugger.Break();
+                    SharedTools.HandleUnexpectedException(e);
                     throw e;
                 }
             })

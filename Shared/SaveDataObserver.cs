@@ -97,6 +97,7 @@ namespace FezSharedTools
                     catch (Exception e)
                     {
                         SharedTools.LogWarning(nameof(SaveDataObserver), $"Failed to serialize save data change for \"{c.UniqueIdentifier}\". Reason: " + e.Message);
+                        SharedTools.HandleUnexpectedException(e);
                         return null;
                     }
                 }).Where(s => s != null)));
@@ -138,8 +139,7 @@ namespace FezSharedTools
             }
             if (t != typeof(LevelSaveData))
             {
-                System.Diagnostics.Debugger.Launch();
-                System.Diagnostics.Debugger.Break();
+                SharedTools.HandleUnexpectedException(new ArgumentException());
             }
             throw new ArgumentException($"Type {t.Name} is not handled by this method.", nameof(obj));
         }
@@ -181,8 +181,7 @@ namespace FezSharedTools
             {
                 return Enum.ToObject(t, int.Parse(val));
             }
-            System.Diagnostics.Debugger.Launch();
-            System.Diagnostics.Debugger.Break();
+            SharedTools.HandleUnexpectedException(new ArgumentException());
             throw new ArgumentException($"Type {t.Name} is not handled by this method.", nameof(t));
         }
         private static readonly Type dictType = typeof(IDictionary);
@@ -308,8 +307,7 @@ namespace FezSharedTools
                                             //ignore
                                             break;
                                         default:
-                                            System.Diagnostics.Debugger.Launch();
-                                            System.Diagnostics.Debugger.Break();
+                                            SharedTools.HandleUnexpectedException(new ArgumentException($"Level save data entry \"{keys[2]}\" not found"));
                                             break;
                                         }
                                     }
@@ -348,7 +346,7 @@ namespace FezSharedTools
                         }
                         if (r.Length < 3)
                         {
-                            System.Diagnostics.Debugger.Break();
+                            SharedTools.HandleUnexpectedException(new ArgumentOutOfRangeException());
                             continue;
                         }
                         string[] keys = r[0].Split(SAVE_DATA_IDENTIFIER_SEPARATOR_STR);
@@ -389,7 +387,7 @@ namespace FezSharedTools
                                 currObj = v[k];
                                 if (currObj == null)
                                 {
-                                    System.Diagnostics.Debugger.Launch();
+                                    SharedTools.HandleUnexpectedException(new NullReferenceException());
                                 }
                                 currType = gtype;
                                 if (i == keys.Length - 1)
@@ -399,8 +397,7 @@ namespace FezSharedTools
                                     {
                                         if (!gtype.IsValueType)
                                         {
-                                            System.Diagnostics.Debugger.Launch();
-                                            System.Diagnostics.Debugger.Break();
+                                            SharedTools.HandleUnexpectedException(new ArgumentException());
                                         }
                                         g = ParseToType(gtype, val);
                                     }
@@ -417,8 +414,7 @@ namespace FezSharedTools
                                         }
                                         catch (Exception e)
                                         {
-                                            System.Diagnostics.Debugger.Launch();
-                                            System.Diagnostics.Debugger.Break();
+                                            SharedTools.HandleUnexpectedException(e);
                                         }
                                     }
 #if !FEZCLIENT
@@ -434,12 +430,12 @@ namespace FezSharedTools
                                 object parent = currObj;
                                 if (f == null)
                                 {
-                                    System.Diagnostics.Debugger.Launch();
+                                    SharedTools.HandleUnexpectedException(new NullReferenceException());
                                 }
                                 currObj = f.GetValue(currObj);
                                 if (currObj == null && Nullable.GetUnderlyingType(f.FieldType) == null)
                                 {
-                                    System.Diagnostics.Debugger.Launch();
+                                    SharedTools.HandleUnexpectedException(new NullReferenceException());
                                 }
                                 currType = f.FieldType;
                                 if (i == keys.Length - 1)
@@ -453,8 +449,7 @@ namespace FezSharedTools
                                         valChanged = true;
                                         if (changeType != ChangeType.Keyed)
                                         {
-                                            System.Diagnostics.Debugger.Launch();
-                                            System.Diagnostics.Debugger.Break();
+                                            SharedTools.HandleUnexpectedException(new NotSupportedException());
                                         }
 #if !FEZCLIENT
                                         ListChanges[r[0]] = new ChangeInfo(changeType, r[0], g, source);
@@ -496,8 +491,7 @@ namespace FezSharedTools
                                         case ChangeType.Dict_Remove:
                                         default:
                                             //these shouldn't happen here
-                                            System.Diagnostics.Debugger.Launch();
-                                            System.Diagnostics.Debugger.Break();
+                                            SharedTools.HandleUnexpectedException(new NotSupportedException());
                                             break;
                                         }
                                     }
@@ -506,7 +500,7 @@ namespace FezSharedTools
                                         g = ParseToType(currType, val);
                                         if (f == null)
                                         {
-                                            System.Diagnostics.Debugger.Launch();
+                                            SharedTools.HandleUnexpectedException(new ArgumentNullException());
                                         }
                                         object oldval = f.GetValue(parent);
                                         f.SetValue(parent, g);
@@ -519,7 +513,9 @@ namespace FezSharedTools
                                     }
                                     if (!valChanged)
                                     {
+#if DEBUG
                                         System.Diagnostics.Debugger.Break();
+#endif
                                     }
                                 }
                             }
@@ -528,15 +524,13 @@ namespace FezSharedTools
                     catch (Exception e)
                     {
                         //TODO ignore exceptions? 
-                        System.Diagnostics.Debug.WriteLine(e);
-                        System.Diagnostics.Debugger.Launch();
-                        System.Diagnostics.Debugger.Break();
+                        SharedTools.LogWarning(nameof(SaveDataObserver), e.Message);
+                        SharedTools.HandleUnexpectedException(e);
                     }
                 }
                 if (validEntries != ChangeLog.Count)
                 {
-                    System.Diagnostics.Debugger.Launch();
-                    System.Diagnostics.Debugger.Break();
+                    SharedTools.HandleUnexpectedException(new ArgumentException());
                 }
             }
         }
@@ -820,8 +814,7 @@ namespace FezSharedTools
             else if (typeof(IEnumerable).IsAssignableFrom(fieldType))
             {
                 Console.WriteLine(fieldType);
-                System.Diagnostics.Debugger.Launch();
-                System.Diagnostics.Debugger.Break();
+                SharedTools.HandleUnexpectedException(new NotSupportedException());
                 //TODO if this happens, handle the unhandled enumerable type
             }
             else

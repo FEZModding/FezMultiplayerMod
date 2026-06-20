@@ -398,8 +398,6 @@ namespace FezMultiplayerDedicatedServer
                                                     }
                                                     else if (ping)
                                                     {
-                                                        System.Diagnostics.Debugger.Launch();
-                                                        System.Diagnostics.Debugger.Break();
                                                         SendWebSocketMessage(writer, message, opcode: 0xA);
                                                     }
                                                     else if (message.Length > 0)
@@ -1204,8 +1202,7 @@ namespace FezMultiplayerDedicatedServer
             //TODO not yet implemented
             if (SharedConstants.TODO_Debug_EnableLevelStateSync)
             {
-                System.Diagnostics.Debugger.Launch();
-                System.Diagnostics.Debugger.Break();
+                SharedTools.HandleUnexpectedException(new NotImplementedException());
             }
         }
         /// <summary>

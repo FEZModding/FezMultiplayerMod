@@ -131,7 +131,7 @@ namespace FezGame.MultiplayerMod
             {
                 settingsFileReadFailed = true;
                 mp.FatalException = e;
-                SharedTools.LogWarning("FezMultiplayerMod", $"Failed to read settings file (path: \"{System.IO.Path.GetFullPath(SettingsFilePath)}\"", (int)Common.LogSeverity.Error);
+                SharedTools.LogWarning("FezMultiplayerMod", $"Failed to read settings file (path: \"{System.IO.Path.GetFullPath(SettingsFilePath)}\"", LogSeverity.Error);
             }
             mp = new MultiplayerClient(settings);
             void TryWriteSettingsFile()
@@ -143,7 +143,7 @@ namespace FezGame.MultiplayerMod
                 catch (Exception e)
                 {
                     mp.FatalException = e;
-                    SharedTools.LogWarning("FezMultiplayerMod", $"Failed to {(settingsFileReadFailed ? "read & " : "")}write to settings file (path: \"{System.IO.Path.GetFullPath(SettingsFilePath)}\"", (int)Common.LogSeverity.Error);
+                    SharedTools.LogWarning("FezMultiplayerMod", $"Failed to {(settingsFileReadFailed ? "read & " : "")}write to settings file (path: \"{System.IO.Path.GetFullPath(SettingsFilePath)}\"", LogSeverity.Error);
                 }
             }
 
@@ -234,7 +234,7 @@ namespace FezGame.MultiplayerMod
                                     FezugConsolePrint($"Disconnected from {mp.RemoteEndpoint}", Color.Yellow);
                                 }
                             };
-                            SharedTools.OnLogWarning += (message, severity) => FezugConsolePrintWithSeverity(message, severity);
+                            SharedTools.OnLogWarning += (message, severity) => FezugConsolePrintWithSeverity(message, (int)severity);
                             var default_ips = new List<string>() { "127.0.0.1", "[::1]" }.Select(a => a + ":" + SharedConstants.DefaultPort);
                             AddCommand("mp_connect",
                                     $"mp_connect <ip> - [{nameof(FezMultiplayerMod)}] connect to the given IP address",
@@ -321,12 +321,19 @@ namespace FezGame.MultiplayerMod
         }
         private int ShownFontTest = 0;
         private float ShownFontTestScale = 0.95f;
+        private const long ExtraMessageShowTimeMilliseconds = 3000;
+        private const long MainMessageShowTimeMilliseconds = 7000;
+
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
-            if (mp.LastExtraMessageUpdate.ElapsedMilliseconds > 3000)
+            if (mp.LastExtraMessageUpdate.ElapsedMilliseconds > ExtraMessageShowTimeMilliseconds)
             {
                 mp.ExtraMessage = null;
+            }
+            if (mp.LastMainMessageUpdate.ElapsedMilliseconds > MainMessageShowTimeMilliseconds)
+            {
+                mp.ErrorMessage = null;
             }
 
 #if DEBUG
@@ -389,24 +396,12 @@ namespace FezGame.MultiplayerMod
             {
                 //Connection refused
                 //TODO
-#if DEBUG
-                if (!System.Diagnostics.Debugger.IsAttached)
-                {
-                    System.Diagnostics.Debugger.Launch();
-                }
-                System.Diagnostics.Debugger.Break();
-#endif
+                SharedTools.HandleUnexpectedException(e);
                 throw e;
             }
             catch (Exception e)
             {
-#if DEBUG
-                if (!System.Diagnostics.Debugger.IsAttached)
-                {
-                    System.Diagnostics.Debugger.Launch();
-                }
-                System.Diagnostics.Debugger.Break();
-#endif
+                SharedTools.HandleUnexpectedException(e);
                 throw e;//This should never happen
             }
         }
@@ -520,10 +515,7 @@ namespace FezGame.MultiplayerMod
                             }
                             catch (Exception e)
                             {
-                                FezSharedTools.SharedTools.LogWarning(typeof(FezMultiplayerMod).Name, e.ToString());
-#if DEBUG
-                                System.Diagnostics.Debugger.Launch();
-#endif
+                                SharedTools.HandleUnexpectedException(e, LogSeverity.Warning);
                             }
                         }
                     }
@@ -544,20 +536,20 @@ namespace FezGame.MultiplayerMod
             }
             if (mp.FatalException != null)
             {
+                // Note: this code is duplicated in GuiPlayerList.Draw
                 if (!ShowingFatalException)
                 {
                     ShowingFatalException = true;
                     ShowingFatalExceptionStartTimestamp = gameTime.TotalGameTime;
-#if DEBUG
-                    System.Diagnostics.Debugger.Launch();
+                    SharedTools.HandleUnexpectedException(mp.FatalException);
                     //TODO relay connection problems to the user more effectively
-#endif
                 }
                 s += "\nWarning: " + mp.FatalException.Message;
 
 
                 if ((gameTime.TotalGameTime - ShowingFatalExceptionStartTimestamp).TotalSeconds > 5.0f)
                 {
+                    // clear the error
                     mp.FatalException = null;
                     ShowingFatalException = false;
                 }
@@ -617,7 +609,7 @@ ActionType.BackClimbingVineSideways, ActionType.FrontClimbingVineSideways,      
                 int newIndex = baseActionIndex + (int)viewpointDifference;
                 if (newIndex >= actionTypeRotationMap.Length || newIndex < 0)
                 {
-                    System.Diagnostics.Debugger.Launch();
+                    SharedTools.HandleUnexpectedException(new IndexOutOfRangeException($"Index {newIndex} is outside the range {0} and {actionTypeRotationMap.Length}"));
                     return action;
                 }
                 ActionType newAction = actionTypeRotationMap[newIndex];

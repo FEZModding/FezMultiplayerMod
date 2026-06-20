@@ -71,8 +71,7 @@ namespace FezGame.MultiplayerMod
             //TODO not yet implemented
             if (SharedConstants.TODO_Debug_EnableLevelStateSync)
             {
-                System.Diagnostics.Debugger.Launch();
-                System.Diagnostics.Debugger.Break();
+                SharedTools.HandleUnexpectedException(new NotImplementedException());
             }
             return new ActiveLevelState();
         }
@@ -84,8 +83,7 @@ namespace FezGame.MultiplayerMod
                 //TODO not yet implemented
                 if (SharedConstants.TODO_Debug_EnableLevelStateSync)
                 {
-                    System.Diagnostics.Debugger.Launch();
-                    System.Diagnostics.Debugger.Break();
+                    SharedTools.HandleUnexpectedException(new NotImplementedException());
                 }
             }
         }

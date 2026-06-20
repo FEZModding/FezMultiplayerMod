@@ -1,4 +1,3 @@
-using Common;
 using FezGame.Services;
 using FezSharedTools;
 using MonoMod.RuntimeDetour;
@@ -21,10 +20,11 @@ namespace FezGame.MultiplayerMod
     public abstract class MultiplayerClientNetcode : SharedNetcode<PlayerMetadata>, IDisposable
     {
         internal volatile Stopwatch LastExtraMessageUpdate = Stopwatch.StartNew();
+        internal volatile Stopwatch LastMainMessageUpdate = Stopwatch.StartNew();
         internal volatile string ExtraMessage;
         protected static void LogStatus(LogSeverity severity, string message, bool extra = false)
         {
-            FezSharedTools.SharedTools.LogWarning(typeof(MultiplayerClientNetcode).Name, message, (int)severity);
+            FezSharedTools.SharedTools.LogWarning(typeof(MultiplayerClientNetcode).Name, message, severity);
             if (Instance != null)
             {
                 if (extra)
@@ -35,6 +35,7 @@ namespace FezGame.MultiplayerMod
                 else
                 {
                     Instance.ErrorMessage = message;
+                    Instance.LastMainMessageUpdate.Restart();
                 }
             }
         }

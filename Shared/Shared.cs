@@ -32,34 +32,31 @@ using WinConditions = FezMultiplayerDedicatedServer.WinConditions;
 #endif
 namespace FezSharedTools
 {
+    /// <summary>
+    /// A copy of <seealso cref="Common.LogSeverity"/> that both the server and client can use
+    /// </summary>
+    public enum LogSeverity
+    {
+        Information = 0,
+        Warning = 1,
+        Error = 2,
+    }
     internal static class SharedTools
     {
-        public static event Action<string, int> OnLogWarning = (string message, int severity) => { };
-        public static void LogWarning(string ComponentName, string message, int LogSeverity = 1)
+        public static event Action<string, LogSeverity> OnLogWarning = (string message, LogSeverity severity) => { };
+
+        public static void LogWarning(string ComponentName, string message, LogSeverity LogSeverity = LogSeverity.Warning)
         {
             string ThreadName = System.Threading.Thread.CurrentThread.Name;
             if (!string.IsNullOrEmpty(ThreadName))
             {
                 message = $"({ThreadName}) " + message;
             }
-            LogSeverity = Math.Max(0, Math.Min(LogSeverity, 2));
+            LogSeverity = (LogSeverity)Math.Max(0, Math.Min((int)LogSeverity, 2));
 #if FEZCLIENT
             Common.Logger.Log(ComponentName, (Common.LogSeverity)LogSeverity, message);
 #endif
-            string msgType;
-            switch (LogSeverity)
-            {
-            case 0:
-                msgType = "Information";
-                break;
-            case 1:
-                msgType = "Warning";
-                break;
-            case 2:
-            default:
-                msgType = "Error";
-                break;
-            }
+            string msgType = Enum.GetName(typeof(LogSeverity), LogSeverity);
 #if FEZCLIENT
             message = $"{msgType}: {message}";
 #else
@@ -74,6 +71,21 @@ namespace FezSharedTools
         {
             socket.Shutdown(System.Net.Sockets.SocketShutdown.Both);
             socket.Close();
+        }
+        public static void HandleUnexpectedException(Exception e, LogSeverity? severity = null, string ComponentName = null)
+        {
+            if (severity.HasValue)
+            {
+                string callingClassName = ComponentName ?? new StackTrace().GetFrame(1).GetMethod().DeclaringType.Name;
+                LogWarning(callingClassName, e.Message, severity.Value);
+            }
+#if DEBUG
+            if (!System.Diagnostics.Debugger.IsAttached)
+            {
+                System.Diagnostics.Debugger.Launch();
+            }
+            System.Diagnostics.Debugger.Break();
+#endif
         }
     }
     internal static class SharedConstants
@@ -340,8 +352,7 @@ namespace FezSharedTools
             //TODO not yet implemented
             if (SharedConstants.TODO_Debug_EnableLevelStateSync)
             {
-                System.Diagnostics.Debugger.Launch();
-                System.Diagnostics.Debugger.Break();
+                SharedTools.HandleUnexpectedException(new NotImplementedException());
             }
             return new ActiveLevelState();
         }
@@ -350,8 +361,7 @@ namespace FezSharedTools
             //TODO not yet implemented
             if (SharedConstants.TODO_Debug_EnableLevelStateSync)
             {
-                System.Diagnostics.Debugger.Launch();
-                System.Diagnostics.Debugger.Break();
+                SharedTools.HandleUnexpectedException(new NotImplementedException());
             }
         }
         public static SaveData ReadSharedSaveData(this BinaryReader r)

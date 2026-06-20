@@ -567,7 +567,7 @@ namespace FezMultiplayerDedicatedServer
             catch (Exception e)
             {
                 Console.Error.WriteLine(e);
-                System.Diagnostics.Debugger.Launch();
+                SharedTools.HandleUnexpectedException(e);
             }
             server.Dispose();
         }

@@ -98,7 +98,7 @@ namespace FezGame.MultiplayerMod
         public override void Update(GameTime gameTime)
         {
             base.Update(gameTime);
-            if (!ServiceHelper.FirstLoadDone)
+            if (!ServiceHelper.FirstLoadDone || InputManager == null)
             {
                 return;
             }
@@ -123,14 +123,14 @@ namespace FezGame.MultiplayerMod
         public int borderWidth = 1;
         public override void Draw(GameTime gameTime)
         {
-            if (this.disposing || !Visible || !ServiceHelper.FirstLoadDone)
+            if (this.disposing || !Visible || !ServiceHelper.FirstLoadDone || FontManager == null)
             {
                 return;
             }
 
             List<string> lines = new List<string>();
             var me = mp.MyPlayerMetadata;
-            if (me != null)
+            if (me != null && mp.ActiveConnectionState != ConnectionState.Connected)
             {
                 lines.Add($"(you): {mp.MyAppearance.PlayerName}, "//{mp.MyUuid}, "
                     + $"{((me.CurrentLevelName == null || me.CurrentLevelName.Length == 0) ? "???" : me.CurrentLevelName)}, "
@@ -138,16 +138,14 @@ namespace FezGame.MultiplayerMod
                     + $"{me.Position.Round(3)}, "
                     + $"ping: {(mp.ConnectionLatencyUpDown) / TimeSpan.TicksPerMillisecond}ms");
             }
-            string connectionStatusText = "";
             if (mp.ExtraMessage != null)
             {
-                connectionStatusText += $"{mp.ExtraMessage}\n";
+                lines.Add(mp.ExtraMessage);
             }
             if (mp.ErrorMessage != null)
             {
-                connectionStatusText += $"{mp.ErrorMessage}\n";
+                lines.Add(mp.ErrorMessage);
             }
-            lines.Add(connectionStatusText);
 
             bool doDrawPlayerTable = false;
             switch (mp.ActiveConnectionState)
@@ -166,23 +164,9 @@ namespace FezGame.MultiplayerMod
             }
             if (mp.FatalException != null)
             {
-                if (!ShowingFatalException)
-                {
-                    ShowingFatalException = true;
-                    ShowingFatalExceptionStartTimestamp = gameTime.TotalGameTime;
-#if DEBUG
-                    System.Diagnostics.Debugger.Launch();
-                    //TODO relay connection problems to the user more effectively
-#endif
-                }
+                // fatal exception handling is in FezMultiplayerMod.Draw
+                //TODO relay connection problems to the user more effectively
                 lines.Add("Warning: " + mp.FatalException.Message);
-
-
-                if ((gameTime.TotalGameTime - ShowingFatalExceptionStartTimestamp).TotalSeconds > 5.0f)
-                {
-                    mp.FatalException = null;
-                    ShowingFatalException = false;
-                }
             }
             float scale = 1f;
             drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
@@ -191,6 +175,7 @@ namespace FezGame.MultiplayerMod
             {
                 Vector2 lineSize = RichTextRenderer.MeasureString(FontManager, line) * scale;
                 origin.X = (GraphicsDevice.Viewport.Width - lineSize.X) / 2f;
+                drawer.DrawRect(new Rectangle((int)origin.X, (int)origin.Y, (int)lineSize.X, (int)lineSize.Y).Inset(lineSize.Y * -0.5f, 0), BackgroundColor);
                 drawer.DrawTextRichShadow(FontManager, line, origin, scale);
                 origin.Y += lineSize.Y;
             }
@@ -353,7 +338,5 @@ namespace FezGame.MultiplayerMod
                 }
             }
         }
-        private bool ShowingFatalException = false;
-        private TimeSpan ShowingFatalExceptionStartTimestamp = TimeSpan.Zero;
     }
 }

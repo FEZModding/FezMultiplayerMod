@@ -101,3 +101,6 @@ Added in-game in-game sync world and time options
 
 0.7.2
 added server Uptime command
+fixed potential crash in GuiPlayerList
+improved error handling 
+
