@@ -549,6 +549,7 @@ namespace FezMultiplayerDedicatedServer
                 while (running)
                 {
                     line = ReadLineInvariant();
+                    if (string.IsNullOrWhiteSpace(line)) continue;
                     MatchCollection matches = Regex.Matches(line, @"([^""'\s]+|""(?:\\.|[^""])*""|'(?:\\.|[^'])*')");
                     string[] cmd_args = matches.Cast<Match>().Select(m => m.Value).ToArray();
                     string cmd_name = cmd_args.Length > 0 ? cmd_args[0] : "";
