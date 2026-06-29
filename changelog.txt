@@ -105,5 +105,5 @@ fixed potential crash in GuiPlayerList
 improved error handling 
 
 0.7.3
-misc bug fixes
+misc bug fixes and improvements
 tbd
