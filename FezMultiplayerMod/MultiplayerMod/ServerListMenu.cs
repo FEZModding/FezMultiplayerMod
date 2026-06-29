@@ -159,7 +159,7 @@ namespace FezGame.MultiplayerMod
         }
         private class MenuListTextInput
         {
-            internal static string textboxInitialText => "".PadRight(TextboxPadRight);
+            internal static string TextboxInitialText => "".PadRight(TextboxPadRight);
             public static int TextboxPadRight
             {
                 get => TextInputLogicComponent.TextboxPadRight;
@@ -179,7 +179,7 @@ namespace FezGame.MultiplayerMod
                 string baseName = label;
                 inputElement = new TextInputLogicComponent(game);
                 ServiceHelper.AddComponent(inputElement);
-                MenuListOption = new MenuListOption(label + textboxInitialText, inputElement);
+                MenuListOption = new MenuListOption(label + TextboxInitialText, inputElement);
                 inputElement.OnUpdate += (onlyCaret) =>
                 {
                     if (!onlyCaret)
@@ -1151,7 +1151,7 @@ namespace FezGame.MultiplayerMod
                     option.Index = i;
                     if (option.TextInput != null)
                     {
-                        var boxSize = RichTextRenderer.MeasureString(Fonts, MenuListTextInput.textboxInitialText);
+                        var boxSize = RichTextRenderer.MeasureString(Fonts, MenuListTextInput.TextboxInitialText);
                         var rtextSize = RichTextRenderer.MeasureString(Fonts, rightText);
                         var labelSize = new Vector2(lineSize.X - boxSize.X, lineSize.Y);
                         var boxPos = position;
