@@ -26,13 +26,11 @@ namespace FezMultiplayerDedicatedServer
                 HelpText = helptext;
                 Action = action;
             }
-            public static implicit operator CommandLineCommand((string description, Action<string[]> action) tuple)
+            public CommandLineCommand(string description, Action<string[]> action)
             {
-                return new CommandLineCommand(tuple.description, tuple.description, tuple.action);
-            }
-            public static implicit operator CommandLineCommand((string description, string helptext, Action<string[]> action) tuple)
-            {
-                return new CommandLineCommand(tuple.description, tuple.helptext, tuple.action);
+                Description = description;
+                HelpText = description;
+                Action = action;
             }
         }
 
@@ -168,21 +166,21 @@ namespace FezMultiplayerDedicatedServer
                 {
                     {
                         "uptime".ToLowerInvariant(),
-                        ("Displays this server's uptime", (_) =>
+                        new CommandLineCommand("Displays this server's uptime", (_) =>
                         {
                             Console.WriteLine(Uptime);
                         })
                     },
                     {
                         "exit".ToLowerInvariant(),
-                        ("Stops the server and closes the program", (_) =>
+                        new CommandLineCommand("Stops the server and closes the program", (_) =>
                         {
                             running = false;
                         })
                     },
                     {
                         "players".ToLowerInvariant(),
-                        ("Lists currently connected players", (_) =>
+                        new CommandLineCommand("Lists currently connected players", (_) =>
                         {
                             string s = "Connected players:\n";
                             string[] columns = { };
@@ -193,7 +191,7 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "dis".ToLowerInvariant(),
-                        ("Lists disconnected players", (_) =>
+                        new CommandLineCommand("Lists disconnected players", (_) =>
                         {
                             string s = "Disconnected players:\n";
                             int count = 0;
@@ -211,7 +209,7 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "appear".ToLowerInvariant(),
-                        ("Lists players appearances", (_) =>
+                        new CommandLineCommand("Lists players appearances", (_) =>
                         {
                             string s = "Player appearances:\n";
                             int count = 0;
@@ -229,21 +227,21 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "blocklist".ToLowerInvariant(),
-                        ("Prints or modifies the blocklist", "blocklist" + filterListCommandUsage, (args) =>
+                        new CommandLineCommand("Prints or modifies the blocklist", "blocklist" + filterListCommandUsage, (args) =>
                         {
                             PrintOrModifyIPFilterListCommand(args, server.BlockList, "blocklist", onAdd: ForciblyDisconnect);
                         })
                     },
                     {
                         "allowlist".ToLowerInvariant(),
-                        ("Prints or modifies the allowlist", "allowlist" + filterListCommandUsage, (args) =>
+                        new CommandLineCommand("Prints or modifies the allowlist", "allowlist" + filterListCommandUsage, (args) =>
                         {
                             PrintOrModifyIPFilterListCommand(args, server.AllowList, "allowlist", onRemove: ForciblyDisconnect);
                         })
                     },
                     {
                         "kick".ToLowerInvariant(),
-                        ("kick a player", (args) =>
+                        new CommandLineCommand("kick a player", (args) =>
                         {
                             string arg = GetArgOrPrompt(args, 1, "Which player? (supply the Guid)");
                             if(Guid.TryParse(arg, out Guid puid) && server.Players.TryGetValue(puid, out var pdat))
@@ -259,7 +257,7 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "ban".ToLowerInvariant(),
-                        ("IP ban", "IP ban. Shorthand for 'blocklist add'", (args) =>
+                        new CommandLineCommand("IP ban", "IP ban. Shorthand for 'blocklist add'", (args) =>
                         {
                             string arg = GetArgOrPrompt(args, 1, "Which IP?");
 
@@ -285,7 +283,7 @@ namespace FezMultiplayerDedicatedServer
                     #if DEBUG
                     {
                         "restart".ToLowerInvariant(),
-                        ("(debug) restarts the server", (args) =>
+                        new CommandLineCommand("(debug) restarts the server", (args) =>
                         {
                             #if DEBUG
                             // deferred launch so the compiler can finish compiling the application before it restarts
@@ -317,18 +315,18 @@ namespace FezMultiplayerDedicatedServer
                     #endif
                     {
                         "netstatus".ToLowerInvariant(),
-                        ("Displays the network status", NetworkStatus)
+                        new CommandLineCommand("Displays the network status", NetworkStatus)
                     },
                     {
                         "cls".ToLowerInvariant(),
-                        ("Clears console output screen", (args) =>
+                        new CommandLineCommand("Clears console output screen", (args) =>
                         {
                             Console.Clear();
                         })
                     },
                     {
                         "timescale".ToLowerInvariant(),
-                        ("Sets the scale for time of day speed", (args) =>
+                        new CommandLineCommand("Sets the scale for time of day speed", (args) =>
                         {
                             string arg = GetArgOrPrompt(args, 1, "How fast would you like time of day to progress? (note: 1 is normal speed, 2 is twice speed, etc.)");
 
@@ -354,7 +352,7 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "UseAllowList".ToLowerInvariant(),
-                        ("Gets or sets the useallowlist setting", (args) =>
+                        new CommandLineCommand("Gets or sets the useallowlist setting", (args) =>
                         {
                             if (TryGetArg(args, 1, out string response))
                             {
@@ -375,7 +373,7 @@ namespace FezMultiplayerDedicatedServer
                     },
                     {
                         "AllowRemoteWebInterface".ToLowerInvariant(),
-                        ("Gets or sets the AllowRemoteWebInterface setting", (args) =>
+                        new CommandLineCommand("Gets or sets the AllowRemoteWebInterface setting", (args) =>
                         {
                             if (TryGetArg(args, 1, out string response))
                             {
@@ -404,7 +402,7 @@ namespace FezMultiplayerDedicatedServer
         {
             int maxCommandLength = cliActions.Max(kv => kv.Key.Length);
             cliActions.Add(helpCmdName,
-                HelpCommand = ("Lists available commands", (args) =>
+                HelpCommand = new CommandLineCommand("Lists available commands", (args) =>
                 {
                     if (TryGetArg(args, 1, out string commandName))
                     {

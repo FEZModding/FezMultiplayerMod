@@ -73,8 +73,8 @@ namespace FezMultiplayerDedicatedServer
                 group => group.OrderBy(p => p.LevelChangeTime).First().Uuid
         );
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
-        public readonly ConcurrentDictionary<Guid, (Socket, DateTime)> WebsocketUsers = new ConcurrentDictionary<Guid, (Socket, DateTime)>();
-        public readonly ConcurrentQueue<(DateTime, IPAddress)> ConnectionLog = new ConcurrentQueue<(DateTime, IPAddress)>();
+        public readonly ConcurrentDictionary<Guid, Tuple<Socket, DateTime>> WebsocketUsers = new ConcurrentDictionary<Guid, Tuple<Socket, DateTime>>();
+        public readonly ConcurrentQueue<Tuple<DateTime, IPAddress>> ConnectionLog = new ConcurrentQueue<Tuple<DateTime, IPAddress>>();
         private IEnumerable<Socket> ConnectedClients => Players.Select(p => p.Value.client);
         public EndPoint LocalEndPoint => listenerSocket?.LocalEndPoint;
 
@@ -340,7 +340,7 @@ namespace FezMultiplayerDedicatedServer
                                 //if it's a web request but the web interface is disabled, close the connection without sending back any data
                                 if (isLoopback || AllowRemoteWebInterface)
                                 {
-                                    _ = WebsocketUsers.TryAdd(uuid, (client, DateTime.UtcNow));
+                                    _ = WebsocketUsers.TryAdd(uuid, Tuple.Create(client, DateTime.UtcNow));
                                     string request = SharedConstants.UTF8.GetString(reader.ReadBytes(client.Available));
                                     string[] lines = request.Split(new string[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
                                     if (lines.Length > 0)
@@ -713,7 +713,17 @@ namespace FezMultiplayerDedicatedServer
             writer.Write(frame);
             writer.Flush();
         }
-        private Dictionary<string, (string ContentType, Func<bool, string> Generator)> uriProviders;
+        private struct UriResource
+        {
+            public readonly string ContentType;
+            public readonly Func<bool, string> Generator;
+            public UriResource(string contentType, Func<bool, string> generator)
+            {
+                ContentType = contentType;
+                Generator = generator;
+            }
+        }
+        private Dictionary<string, UriResource> uriProviders;
         private string GenerateWebResponse(string method, string uri, bool isLoopback, bool closing = false, bool includeHttpHeaders = true)
         {
             // see https://datatracker.ietf.org/doc/html/rfc2616
@@ -735,9 +745,9 @@ namespace FezMultiplayerDedicatedServer
             const string Uri_savechangesdata = "savechanges.dat";
             if (uriProviders == null)
             {
-                uriProviders = new Dictionary<string, (string, Func<bool, string>)>(){
-                    {"favicon.ico", ("image/png", (_)=>"") },
-                    {Uri_players, ("text/plain", (loopback)=>
+                uriProviders = new Dictionary<string, UriResource>(){
+                    {"favicon.ico", new UriResource("image/png", (_)=>"") },
+                    {Uri_players, new UriResource("text/plain", (loopback)=>
                     {
                         return DateTime.UtcNow.Ticks + "\n"
                             + new TimeSpan(sharedSaveData.TimeOfDay.Ticks % TimeSpan.TicksPerDay) + "\n"
@@ -751,9 +761,9 @@ namespace FezMultiplayerDedicatedServer
                                 return str;
                             }));
                     }) },
-                    {Uri_appearances, ("text/plain", (_)=>string.Join("\n", PlayerAppearances.Select(kv => kv.Key+"\t"+kv.Value.PlayerName))) },
-                    {Uri_disconnects, ("text/plain", (_)=>string.Join("\n", DisconnectedPlayers.Keys)) },
-                    {Uri_savedata, ("text/plain", (_)=>{
+                    {Uri_appearances, new UriResource("text/plain", (_)=>string.Join("\n", PlayerAppearances.Select(kv => kv.Key+"\t"+kv.Value.PlayerName))) },
+                    {Uri_disconnects, new UriResource("text/plain", (_)=>string.Join("\n", DisconnectedPlayers.Keys)) },
+                    {Uri_savedata, new UriResource("text/plain", (_)=>{
                         byte[] bytes = new byte[0];
                         using (MemoryStream ms = new MemoryStream())
                         {
@@ -765,10 +775,10 @@ namespace FezMultiplayerDedicatedServer
                         }
                         return Convert.ToBase64String(bytes);
                     }) },
-                    {Uri_savechangesdata, ("text/plain", (_)=>{
+                    {Uri_savechangesdata, new UriResource("text/plain", (_)=>{
                         return SharedConstants.UTF8.GetString(SaveDataChanges.Serialize(SaveDataChanges.Changes));
                     }) },
-                    {Uri_websocketUsers, ("text/plain", (loopback)=>{
+                    {Uri_websocketUsers, new UriResource("text/plain", (loopback)=>{
                         if (loopback){
                             return string.Join("\n", WebsocketUsers.Select(kp => kp.Key + "\t"
                                     + ((IPEndPoint)kp.Value.Item1.RemoteEndPoint).ToCommonString()
@@ -778,7 +788,7 @@ namespace FezMultiplayerDedicatedServer
                         }
                         return "";
                     }) },
-                    {Uri_connectionLog, ("text/plain", (loopback)=>{
+                    {Uri_connectionLog, new UriResource("text/plain", (loopback)=>{
                         if (loopback){
                             return string.Join("\n", ConnectionLog.Select(val=>{
                                 var ip = val.Item2;
