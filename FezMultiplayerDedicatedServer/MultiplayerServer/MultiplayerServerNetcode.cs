@@ -47,6 +47,7 @@ namespace FezMultiplayerDedicatedServer
             public readonly DateTime joinTime = DateTime.UtcNow;
             public TimeSpan TimeSinceJoin => DateTime.UtcNow - joinTime;
             public double NetworkSpeedUpDown = 0;
+            public DateTime LevelChangeTime = DateTime.Now;
 
             public ServerPlayerMetadata(Socket client, Guid Uuid, string CurrentLevelName, Vector3 Position, Viewpoint CameraViewpoint, ActionType Action, int AnimFrame, HorizontalDirection LookingDirection, long LastUpdateTimestamp)
             : base(Uuid, CurrentLevelName, Position, CameraViewpoint, Action, AnimFrame, LookingDirection, LastUpdateTimestamp)
@@ -64,6 +65,13 @@ namespace FezMultiplayerDedicatedServer
         public bool AllowRemoteWebInterface;
 
         public override ConcurrentDictionary<Guid, ServerPlayerMetadata> Players { get; } = new ConcurrentDictionary<Guid, ServerPlayerMetadata>();
+        private Dictionary<string, Guid> ActiveLevelPlayerHosts => Players.Values
+            .Where(p => p.CurrentLevelName != null) // filter out invalid levels
+            .GroupBy(p => p.CurrentLevelName)
+            .ToDictionary(
+                group => group.Key,
+                group => group.OrderBy(p => p.LevelChangeTime).First().Uuid
+        );
         public readonly ConcurrentDictionary<Guid, long> DisconnectedPlayers = new ConcurrentDictionary<Guid, long>();
         public readonly ConcurrentDictionary<Guid, (Socket, DateTime)> WebsocketUsers = new ConcurrentDictionary<Guid, (Socket, DateTime)>();
         public readonly ConcurrentQueue<(DateTime, IPAddress)> ConnectionLog = new ConcurrentQueue<(DateTime, IPAddress)>();
@@ -73,7 +81,7 @@ namespace FezMultiplayerDedicatedServer
         public event Action OnUpdate = () => { };
         public event Action OnDispose = () => { };
 
-        private readonly List<ActiveLevelState> activeLevelStates = new List<ActiveLevelState>();
+        private readonly ConcurrentDictionary<string, ActiveLevelState> activeLevelStateDict = new ConcurrentDictionary<string, ActiveLevelState>();
 
         private readonly ServerAdvertiser serverAdvertiser;
 
@@ -292,6 +300,16 @@ namespace FezMultiplayerDedicatedServer
             sharedSaveData.PlayTime += timeDiff;
             sharedSaveData.SinceLastSaved += timeDiff;
             lastTimeUpdate = curTime;
+
+            var activeLevelNames = activeLevelStateDict.Keys.ToList();
+            var currentLevelStates = ActiveLevelPlayerHosts.Keys.ToList();
+            foreach (string activeLevelName in activeLevelNames)
+            {
+                if (!currentLevelStates.Contains(activeLevelName))
+                {
+                    activeLevelStateDict.TryRemove(activeLevelName, out _);
+                }
+            }
             OnUpdate();
         }
 
@@ -456,6 +474,10 @@ namespace FezMultiplayerDedicatedServer
                                     currentval.Uuid = guid;
                                     if (currentval.LastUpdateTimestamp < playerMetadata.LastUpdateTimestamp)
                                     {
+                                        if (currentval.CurrentLevelName != playerMetadata.CurrentLevelName)
+                                        {
+                                            currentval.LevelChangeTime = DateTime.Now;
+                                        }
                                         currentval.CopyValuesFrom(playerMetadata);
                                     }
                                     return currentval;
@@ -1188,21 +1210,23 @@ namespace FezMultiplayerDedicatedServer
         private static readonly List<ActiveLevelState> empty = new List<ActiveLevelState>();
         private List<ActiveLevelState> GetActiveLevelStates()
         {
-            return SyncWorldState ? activeLevelStates : empty;
+            return SyncWorldState ? activeLevelStateDict.Values.ToList() : empty;
         }
 
         internal readonly SaveData sharedSaveData = new SaveData();
 
-        protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
+        protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState, Guid source)
         {
             if (!SyncWorldState)
             {
                 return;
             }
-            //TODO not yet implemented
-            if (SharedConstants.TODO_Debug_EnableLevelStateSync)
+            if (ActiveLevelPlayerHosts.TryGetValue(activeLevelState.LevelName, out Guid hostPlayer))
             {
-                SharedTools.HandleUnexpectedException(new NotImplementedException());
+                if (hostPlayer == source)
+                {
+                    activeLevelStateDict[activeLevelState.LevelName] = activeLevelState;
+                }
             }
         }
         /// <summary>

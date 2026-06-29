@@ -76,7 +76,7 @@ namespace FezGame.MultiplayerMod
             return new ActiveLevelState();
         }
 
-        protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState)
+        protected override void ProcessActiveLevelState(ActiveLevelState activeLevelState, Guid _)
         {
             if (SyncWorldState)
             {

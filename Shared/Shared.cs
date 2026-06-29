@@ -777,7 +777,7 @@ namespace FezSharedTools
             if (reader.ReadBoolean())
             {
                 ActiveLevelState levelState = reader.ReadActiveLevelState();
-                ProcessActiveLevelState(levelState);
+                ProcessActiveLevelState(levelState, playerUuid);
             }
             if (reader.ReadBoolean())
             {
@@ -890,7 +890,7 @@ namespace FezSharedTools
             int activeLevelStateListLength = reader.ReadInt32();
             for (int i = 0; i < activeLevelStateListLength; ++i)
             {
-                ProcessActiveLevelState(reader.ReadActiveLevelState());
+                ProcessActiveLevelState(reader.ReadActiveLevelState(), Guid.Empty);
             }
             int disconnectedPlayersListLength = reader.ReadInt32();
             for (int i = 0; i < disconnectedPlayersListLength; ++i)
@@ -1008,7 +1008,7 @@ namespace FezSharedTools
             _ = PlayerAppearances.AddOrUpdate(puid, (u) => newAp, (u, a) => newAp);
         }
         protected abstract void ProcessDisconnect(Guid puid);
-        protected abstract void ProcessActiveLevelState(ActiveLevelState activeLevelState);
+        protected abstract void ProcessActiveLevelState(ActiveLevelState activeLevelState, Guid source);
 #if FEZCLIENT
         protected abstract void ProcessNewClientGuid(Guid puid);
         protected abstract void SetTimeOfDay(long newTimeOfDayTicks);
