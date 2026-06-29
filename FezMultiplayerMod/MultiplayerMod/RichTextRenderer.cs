@@ -95,21 +95,6 @@ namespace FezGame.MultiplayerMod
         {
             return escapeCodeRegex.Replace(str, "");
         }
-        public static int LengthWithoutAnsiEscapeSequences(this string str)
-        {
-            return str.StripAnsiEscapeSequences().Length;
-        }
-        /// <summary>
-        /// Pad right, accounting for Ansi Escape Sequences
-        /// </summary>
-        /// <param name="str"></param>
-        /// <param name="totalWidth">total width ignoring escape sequences</param>
-        /// <returns></returns>
-        public static string PadRightAnsi(this string str, int totalWidth)
-        {
-            int dif = str.Length - str.LengthWithoutAnsiEscapeSequences();
-            return str.PadRight(totalWidth + dif);
-        }
     }
     /// <summary>
     /// Uses format codes to stylize, format, and display text.

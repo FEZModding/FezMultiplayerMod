@@ -10,7 +10,6 @@ namespace FezGame.MultiplayerMod
     {
         public static int TextboxPadRight = 30;
         private string value = "";
-        private string ValueNoAnsi = "";
         private bool showCaret = false;
         private const string caret = "|";
         private int caretPosition = 0;
@@ -22,7 +21,6 @@ namespace FezGame.MultiplayerMod
             set
             {
                 this.value = value;
-                ValueNoAnsi = Value.StripAnsiEscapeSequences();
                 _ = ConstrainCaretPosition();
                 OnUpdate(false);
             }
