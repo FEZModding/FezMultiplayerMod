@@ -51,6 +51,17 @@ Before you begin setting up the server, consider these network changes that may 
 - To find your external IP, a simple website can display your public IP address without any unnecessary details, such as [whatsmyip.com](https://whatsmyip.com/) or [ipify](https://api.ipify.org/?format=raw) (has a lot more features at [ipify.org/](https://www.ipify.org/)).
 - You will have to port forward (port 7777 by default, note that this is the same port as Terraria, Ark: Survival Evolved, Mordhau, Just Cause 2: Multiplayer mod, SCP: Secret Laboratory, and San Andreas Multiplayer) for FezMultiplayerMod. [(port forward guide)](https://www.pcworld.com/article/478406/how-to-forward-ports-on-your-router.html).
 
+### System Requirements
+* **Required Runtime**: .NET Framework **4.8** or **4.8.1**
+
+> [!NOTE]
+> The server executable currently requires .NET Framework 4.8 or .NET Framework 4.8.1 to execute properly. It is **not** compatible with older versions (such as .NET 4.7.2 or below), nor is it compatible with modern cross-platform runtimes like .NET 6, 7, or 8.
+> 
+> Most modern Windows installations include .NET Framework 4.8 or .NET Framework 4.8.1 by default. If the application fails to launch or prompts you for an installation, you can download the installer at https://dotnet.microsoft.com/download/dotnet-framework/net481
+> 
+> On Linux I recommend running the server with `mono-complete` (you could use WINE instead, but mono is simpler)
+
+### Starting the server
 To start a server, download `FezMultiplayerServer.zip` from https://github.com/FEZModding/FezMultiplayerMod/releases/latest and run the contained `FezMultiplayerServer.exe`
 After running FezMultiplayerServer.exe, a `FezMultiplayerServer.ini` configuration file will appear.
 In the generated `FezMultiplayerServer.ini` configuration file, you will find options to change how the multiplayer server works.
