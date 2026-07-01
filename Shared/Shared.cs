@@ -19,6 +19,7 @@ using Vector3 = Microsoft.Xna.Framework.Vector3;
 using SaveData = FezGame.Structure.SaveData;
 using LevelSaveData = FezGame.Structure.LevelSaveData;
 using WinConditions = FezEngine.Structure.WinConditions;
+using NpcAction = FezEngine.Structure.NpcAction;
 #else
 using ActionType = FezMultiplayerDedicatedServer.ActionType;
 using ActorType = FezMultiplayerDedicatedServer.ActorType;
@@ -29,6 +30,7 @@ using TrileEmplacement = FezMultiplayerDedicatedServer.TrileEmplacement;
 using SaveData = FezMultiplayerDedicatedServer.SaveData;
 using LevelSaveData = FezMultiplayerDedicatedServer.LevelSaveData;
 using WinConditions = FezMultiplayerDedicatedServer.WinConditions;
+using NpcAction = FezMultiplayerDedicatedServer.NpcAction;
 #endif
 namespace FezSharedTools
 {
@@ -206,10 +208,40 @@ namespace FezSharedTools
         }
     }
     [Serializable]
+    public class NpcInstanceInfo
+    {
+        public int Id;
+        public NpcAction CurrentAction;
+        public int AnimationFrame;
+        public Vector3 Position;
+
+        public NpcInstanceInfo()
+        {
+        }
+    }
+    [Serializable]
+    public class TrileInfo
+    {
+        public TrileEmplacement Emplacement;
+        public Vector3 Position;
+    }
+    [Serializable]
+    public class TrileGroupInfo
+    {
+        public int Id;
+        public List<TrileInfo> Triles { get; set; }
+
+        public TrileGroupInfo()
+        {
+        }
+    }
+    [Serializable]
     public class ActiveLevelState
     {
         public string LevelName = "";
-        public ConcurrentDictionary<Guid, TrileEmplacement> carriedTriles;
+        public IDictionary<Guid, TrileEmplacement> carriedTriles;
+        public IDictionary<int, NpcInstanceInfo> NonPlayerCharacters;
+        public IDictionary<int, TrileGroupInfo> TrileGroups;
         //TODO not yet implemented
 
         public ActiveLevelState()

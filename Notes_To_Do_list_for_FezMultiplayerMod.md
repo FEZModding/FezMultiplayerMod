@@ -24,3 +24,14 @@
 - [ ] Theoretically the standalone FEZ multiplayer mod should also work on macOS and Linux. If it doesn't, it might be possible to rig the mod so instead of running the multiplayer client netcode directly within the FEZ game itself, it runs in a separate standalone executable, but then we'd have to figure out a way to get two applications potentially running different runtimes to communicate with each other in a way that does not impede the performance of either application.
 
 - [ ] Do all the `//TODO` comments that are in the code (continuous task)
+
+
+
+
+# ActiveLevelState data to sync:
+
+- [ ] carried triles
+
+- [ ] npc locations and actions; `LevelManager.NonPlayerCharacters`
+
+- [ ] TrileGroup locations; `LevelManager.Groups`

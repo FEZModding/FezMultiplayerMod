@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace FezMultiplayerDedicatedServer
 {
@@ -52,6 +52,22 @@ namespace FezMultiplayerDedicatedServer
     public enum ActorType
     {
         //TODO? only used for treasure actor type
+    }
+    public enum NpcAction
+    {
+        None,
+        Idle,
+        Idle2,
+        Idle3,
+        Walk,
+        Turn,
+        Talk,
+        Burrow,
+        Hide,
+        ComeOut,
+        TakeOff,
+        Fly,
+        Land
     }
     public enum ActionType
     {
