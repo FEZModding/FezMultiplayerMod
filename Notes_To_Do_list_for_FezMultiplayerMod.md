@@ -30,7 +30,11 @@
 
 # ActiveLevelState data to sync:
 
-- [ ] carried triles
+Note: carried triles, throwable triles (crate/vase), and watchers (aka crushers) all have a non-null TrileInstance.PhysicsState
+
+Note 2: some TrileGroups use TrileInstance.PhysicsState and some don't?
+
+- [ ] physics triles
 
 - [ ] npc locations and actions; `LevelManager.NonPlayerCharacters`
 

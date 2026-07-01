@@ -20,6 +20,7 @@ using SaveData = FezGame.Structure.SaveData;
 using LevelSaveData = FezGame.Structure.LevelSaveData;
 using WinConditions = FezEngine.Structure.WinConditions;
 using NpcAction = FezEngine.Structure.NpcAction;
+using InstancePhysicsState = FezEngine.Structure.InstancePhysicsState;
 #else
 using ActionType = FezMultiplayerDedicatedServer.ActionType;
 using ActorType = FezMultiplayerDedicatedServer.ActorType;
@@ -207,6 +208,7 @@ namespace FezSharedTools
                             + $"TrileIsForeign: {TrileIsForeign}\n";
         }
     }
+
     [Serializable]
     public class NpcInstanceInfo
     {
@@ -236,12 +238,23 @@ namespace FezSharedTools
         }
     }
     [Serializable]
+    public class PhysicsTrileInfo
+    {
+        public int Id;
+        public Vector3 Position;
+
+        public PhysicsTrileInfo()
+        {
+        }
+    }
+    [Serializable]
     public class ActiveLevelState
     {
         public string LevelName = "";
-        public IDictionary<Guid, TrileEmplacement> carriedTriles;
-        public IDictionary<int, NpcInstanceInfo> NonPlayerCharacters;
-        public IDictionary<int, TrileGroupInfo> TrileGroups;
+        //Note: carried triles, throwable triles (crate/vase), and watchers (aka crushers) all have a non-null TrileInstance.PhysicsState
+        public IDictionary<int, PhysicsTrileInfo> PhysicsTriles;
+        public IDictionary<int, NpcInstanceInfo> NonPlayerCharacters; //LevelManager.NonPlayerCharacters
+        public IDictionary<int, TrileGroupInfo> TrileGroups; //LevelManager.Groups
         //TODO not yet implemented
 
         public ActiveLevelState()
