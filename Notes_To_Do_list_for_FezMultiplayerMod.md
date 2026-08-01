@@ -21,6 +21,8 @@
 
 - [ ] add option to sync world save data & level states. this would also sync inventory 
 
+- [ ] add a lock for processing/updating the active level state so we dont have to use a bunch of concurrent collections
+
 - [ ] Theoretically the standalone FEZ multiplayer mod should also work on macOS and Linux. If it doesn't, it might be possible to rig the mod so instead of running the multiplayer client netcode directly within the FEZ game itself, it runs in a separate standalone executable, but then we'd have to figure out a way to get two applications potentially running different runtimes to communicate with each other in a way that does not impede the performance of either application.
 
 - [ ] Do all the `//TODO` comments that are in the code (continuous task)
