@@ -489,6 +489,7 @@ namespace FezGame.MultiplayerMod
                 FontsNeedLoading = false;
                 new List<Tuple<string, float>>{
                     //Don't use small fonts because they don't look that great
+                    // Note: these float values come from the "BigFactor" hardcoded values in FezEngine.Components.FontManager.ReloadFont()
                     new Tuple<string, float>("Chinese Big", 0.34125f ),
                     new Tuple<string, float>("Japanese Big", 0.34125f ),
                     new Tuple<string, float>("Korean Big", 0.34125f ),
