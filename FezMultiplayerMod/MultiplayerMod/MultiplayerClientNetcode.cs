@@ -131,6 +131,7 @@ namespace FezGame.MultiplayerMod
 
         }
 
+        private static const long MIN_MESSAGE_INTERVAL_MILLISECONDS = 16;
         public void ConnectToServerAsync(IPEndPoint endpoint, bool? syncTime = null, bool? syncWorld = null)
         {
             if (disposed)
@@ -198,6 +199,12 @@ namespace FezGame.MultiplayerMod
                         {
                             stopwatch.Restart();
                             ReadServerGameTickPacket(reader, ref retransmitAppearanceRequested);
+                            stopwatch.Stop();
+                            while (stopwatch.ElapsedMilliseconds < MIN_MESSAGE_INTERVAL_MILLISECONDS && !HasUpdate && !disconnectRequested)
+                            {
+                                Thread.Sleep(0);
+                            }
+                            stopwatch.Start();
                             if (!disconnectRequested)
                             {
                                 ActiveLevelState activeLevelState = null;
@@ -237,8 +244,8 @@ namespace FezGame.MultiplayerMod
                                 WriteClientGameTickPacket(writer, MyPlayerMetadata, null, null, null, new List<Guid>(0), true, false);
                                 break;
                             }
+                            ConnectionSuccessful = true;
                         }
-                        ConnectionSuccessful = true;
                         reader.Close();
                         writer.Close();
                         tcpStream.Close();
@@ -360,8 +367,10 @@ namespace FezGame.MultiplayerMod
             Dispose(false);
         }
 
+        private volatile bool HasUpdate = false;
         public void Update()
         {
+            HasUpdate = true;
             if (!listening)
             {
                 return;
