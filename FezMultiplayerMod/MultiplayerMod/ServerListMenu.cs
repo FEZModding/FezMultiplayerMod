@@ -86,16 +86,6 @@ namespace FezGame.MultiplayerMod
             }
             bool? SyncTime = null;
             bool? SyncWorld = null;
-            bool? ParseNullableBool(string value)
-            {
-                if (Boolean.TryParse(value, out bool result))
-                {
-                    return result;
-                }
-                // Handle cases where the string is null, empty, or not a valid boolean representation
-                // Boolean.TryParse returns false if the value is null, empty, or invalid
-                return null;
-            }
             if (parts.Length > 2)
             {
                 string SyncTimeString = parts[2];

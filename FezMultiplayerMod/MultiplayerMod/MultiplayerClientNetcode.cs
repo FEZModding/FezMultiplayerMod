@@ -132,7 +132,7 @@ namespace FezGame.MultiplayerMod
 
         }
 
-        private static const long MIN_MESSAGE_INTERVAL_MILLISECONDS = 16;
+        private const long MIN_MESSAGE_INTERVAL_MILLISECONDS = 16;
         public void ConnectToServerAsync(IPEndPoint endpoint, bool? syncTime = null, bool? syncWorld = null)
         {
             if (disposed)
