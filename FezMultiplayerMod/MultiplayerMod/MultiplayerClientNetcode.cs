@@ -94,6 +94,7 @@ namespace FezGame.MultiplayerMod
         private static readonly long reconnectTimeout = TimeSpan.FromSeconds(10).Ticks;
 
         public event Action OnUpdate = () => { };
+        public event Action OnBeforeSendData = () => { };
         public event Action OnDispose = () => { };
         public event Action OnConnect = () => { };
         public event Action OnDisconnect = () => { };
@@ -214,6 +215,7 @@ namespace FezGame.MultiplayerMod
                                 }
 
                                 SaveDataChanges saveDataUpdate = null;
+                                SaveDataObserver.Update();
                                 lock (SaveDataObserver.saveDataLock)
                                 {
                                     if (SyncWorldState && SaveDataObserver.newChanges.HasChanges)

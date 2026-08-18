@@ -477,8 +477,6 @@ namespace FezMultiplayerDedicatedServer
 
             GetLocalIPAddresses();
 
-            SaveDataObserver saveDataObserver = new SaveDataObserver();
-
             if (settings.SyncWorldState)
             {
                 Console.WriteLine("Save data will be saved to " + Path.GetFullPath(settings.SaveFileFullPath));

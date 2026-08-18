@@ -110,8 +110,6 @@ namespace FezGame.MultiplayerMod
             Instance = this;
             ServiceHelper.AddComponent(statusTextDrawer = new OverlaidTextDrawer(game, Instance), false);
 
-            ServiceHelper.AddComponent(new SaveDataObserver(game));
-
             OpenTreasureListener openTreasureListener = new OpenTreasureListener(game);
             ServiceHelper.AddComponent(openTreasureListener);
             openTreasureListener.OnTreasureCollected += (data) =>

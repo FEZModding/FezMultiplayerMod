@@ -194,7 +194,7 @@ namespace FezSharedTools
             }
             lock (SaveDataObserver.saveDataLock)
             {
-                SaveData saveData = SaveDataObserver.Instance.CurrentSaveData;
+                SaveData saveData = SaveDataObserver.CurrentSaveData;
                 var entries = SharedConstants.UTF8.GetString(bytes).Split(SAVE_DATA_ENTRY_SEPARATOR);
 
                 List<string> ChangeLog = new List<string>();
@@ -565,31 +565,25 @@ namespace FezSharedTools
         }
     }
     internal sealed class SaveDataObserver
-#if FEZCLIENT
-: GameComponent
-#endif
     {
         internal static readonly object saveDataLock = new object();
         public const string SAVE_DATA_IDENTIFIER_SEPARATOR = "\x1F";
 
 #if FEZCLIENT
-        private IGameStateManager GameState { get; set; }
-        private IPlayerManager PM { get; set; }
+        private static IGameStateManager GameState;
+        private static IPlayerManager PM;
 #endif
-        internal SaveData CurrentSaveData =>
+        internal static SaveData CurrentSaveData =>
 #if FEZCLIENT
         GameState?.SaveData;
 #else
         FezDedicatedServer.server.sharedSaveData;
 #endif
-
-        public static SaveDataObserver Instance;
-
+        private SaveDataObserver() { }
 #if FEZCLIENT
-        private readonly SaveData OldSaveData = new SaveData();
-        public SaveDataObserver(Game game) : base(game)
+        private static readonly SaveData OldSaveData = new SaveData();
+        static SaveDataObserver()
         {
-            Instance = this;
             _ = Waiters.Wait(() =>
             {
                 return ServiceHelper.FirstLoadDone;
@@ -600,21 +594,16 @@ namespace FezSharedTools
                 PM = ServiceHelper.Get<IPlayerManager>();
             });
         }
-#else
-        public SaveDataObserver()
-        {
-            Instance = this;
-        }
 #endif
         internal static readonly SaveDataChanges newChanges = new SaveDataChanges();
         private static int lastSaveSlot = -1;
-        private int CurrentSaveSlot =>
+        private static int CurrentSaveSlot =>
 #if FEZCLIENT
         GameState?.SaveSlot ?? -1;
 #else
         23;
 #endif
-        internal bool SaveSlotChanged
+        internal static bool SaveSlotChanged
         {
             get
             {
@@ -627,7 +616,7 @@ namespace FezSharedTools
 #if FEZCLIENT
         public static event Action OnSaveSlotChanged = () => { };
         private static bool WasSaveSlotChanged = false;
-        public override void Update(GameTime gameTime)
+        public static void Update()
         {
             lock (saveDataLock)
             {
