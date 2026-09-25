@@ -133,6 +133,7 @@ namespace FezGame.MultiplayerMod
         }
 
         private const long MIN_MESSAGE_INTERVAL_MILLISECONDS = 16;
+        private const int ReadWriteTimeout_Millis = 5000;
         public void ConnectToServerAsync(IPEndPoint endpoint, bool? syncTime = null, bool? syncWorld = null)
         {
             if (disposed)
@@ -182,6 +183,8 @@ namespace FezGame.MultiplayerMod
                     using (BinaryNetworkReader reader = new BinaryNetworkReader(tcpStream))
                     using (BinaryNetworkWriter writer = new BinaryNetworkWriter(tcpStream))
                     {
+                        tcpStream.ReadTimeout = ReadWriteTimeout_Millis;
+                        tcpStream.WriteTimeout = ReadWriteTimeout_Millis;
                         bool retransmitAppearanceRequested = false;
                         bool requestSavaData = false;
                         Stopwatch stopwatch = Stopwatch.StartNew();
@@ -320,15 +323,12 @@ namespace FezGame.MultiplayerMod
             this.disconnectRequested = true;//let listener thread know it should disconnect
             if (listenerThread != null && listenerThread.IsAlive)
             {
-                for (int i = 0; listenerThread != null && listenerThread.IsAlive && i < 100; ++i)
-                {
-                    Thread.Sleep(10);//try to wait for child threads to stop on their own
-                }
+                //try to wait for child threads to stop on their own
+                bool cleanExit = listenerThread.Join(ReadWriteTimeout_Millis + 1000);
 
-                if (listenerThread != null && listenerThread.IsAlive)
+                if (!cleanExit)
                 {
-                    LogStatus(LogSeverity.Warning, "Forcibly terminated listening thread");
-                    listenerThread.Abort();//assume the thread is stuck and forcibly terminate it
+                    LogStatus(LogSeverity.Error, "Failed to close listening thread");
                 }
             }
             //ensure RemoteEndpoint is reset
