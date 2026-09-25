@@ -1,0 +1,51 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Library</OutputType>
+    <RootNamespace>FezGame.MultiplayerMod</RootNamespace>
+    <AssemblyName>FezMultiplayerMod</AssemblyName>
+    
+    <!-- Retaining original FEZ constant and common settings -->
+    <DefineConstants>FEZCLIENT</DefineConstants>
+    <Platforms>x86</Platforms>
+    
+    <!-- Your Assembly Information -->
+    <Product>FezMultiplayerMod</Product>
+    <Description>A multiplayer mod for FEZ.</Description>
+    <Copyright>Copyright © Jenna Sloan</Copyright>
+    <Company>FEZ Modding</Company>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="AssemblyInfo.cs" />
+  </ItemGroup>
+
+  <!-- Local DLL and Executable References -->
+  <ItemGroup>
+    <Reference Include="MonoMod.RuntimeDetour" HintPath="..\libs\MonoMod.RuntimeDetour.dll" />
+    <Reference Include="FNA" HintPath="..\libs\FNA.dll" Private="False" />
+    <Reference Include="ContentSerialization" HintPath="..\libs\ContentSerialization.dll" Private="False" />
+    <Reference Include="XnaWordWrapCore" HintPath="..\libs\XnaWordWrapCore.dll" Private="False" />
+    <Reference Include="FEZ" HintPath="..\libs\FEZ.exe" Private="False" />
+    <Reference Include="FezEngine" HintPath="..\libs\FezEngine.dll" Private="False" />
+    <Reference Include="EasyStorage" HintPath="..\libs\EasyStorage.dll" Private="False" />
+    <Reference Include="Common" HintPath="..\libs\Common.dll" Private="False" />
+    <Reference Include="MonoMod" HintPath="..\libs\MonoMod.exe" Private="False" />
+  </ItemGroup>
+
+  <!-- Linked files outside of this project folder -->
+  <ItemGroup>
+    <Compile Include="..\Shared\IniTools.cs" Link="Shared\IniTools.cs" />
+    <Compile Include="..\Shared\SaveDataObserver.cs" Link="Shared\SaveDataObserver.cs" />
+    <Compile Include="..\Shared\Shared.cs" Link="Shared\Shared.cs" />
+  </ItemGroup>
+
+  <!-- Solution-wide / External Items -->
+  <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+  </ItemGroup>
+
+</Project>

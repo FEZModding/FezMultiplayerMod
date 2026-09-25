@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>FezMultiplayerDedicatedServer</AssemblyName>
+    <RootNamespace>FezMultiplayerDedicatedServer</RootNamespace>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    
+    <!-- Your Assembly Information -->
+    <Product>FezMultiplayerDedicatedServer</Product>
+    <Description>A multiplayer mod for FEZ.</Description>
+    <Copyright>Copyright © Jenna Sloan</Copyright>
+    <Company>FEZ Modding</Company>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="AssemblyInfo.cs" />
+  </ItemGroup>
+
+
+  <!-- Explicitly including your linked shared files outside the folder -->
+  <ItemGroup>
+    <Compile Include="..\Shared\IniTools.cs" Link="Shared\IniTools.cs" />
+    <Compile Include="..\Shared\SaveDataObserver.cs" Link="Shared\SaveDataObserver.cs" />
+    <Compile Include="..\Shared\Shared.cs" Link="Shared\Shared.cs" />
+  </ItemGroup>
+
+</Project>
