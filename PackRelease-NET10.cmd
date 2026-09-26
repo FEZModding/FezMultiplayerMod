@@ -5,6 +5,8 @@
 
 @set projectpath=%cd%
 @set packedpath=PackedRelease
+@set releasebinpathserve=Release\net10.0
+@set releasebinpathclient=x86\Release\net10.0
 
 @IF [%1]==[/nobuild] GOTO AFTERBUILD
 @IF [%1]==[/timeonly] GOTO PRINTBUILDTIME
@@ -26,19 +28,20 @@ cd /d %projectpath%
 @echo Packing projects...
 
 @echo Copying Metadata.xml ...
-@copy Metadata.xml FezMultiplayerMod\bin\Release\Metadata.xml
+@copy Metadata.xml FezMultiplayerMod\bin\%releasebinpathclient%\Metadata.xml
 @IF NOT EXIST %packedpath% @mkdir %packedpath%
 
-@echo Packing the files that are in FezMultiplayerDedicatedServer\bin\Release into %packedpath%\FezMultiplayerDedicatedServer.zip ...
-@powershell -command "Compress-Archive -Path 'FezMultiplayerDedicatedServer\bin\Release\*' -DestinationPath '%packedpath%\FezMultiplayerDedicatedServer.zip' -Force"
-@echo Packing the files that are in FezMultiplayerMod\bin\Release into %packedpath%\FezMultiplayerMod.zip ...
-@powershell -command "Compress-Archive -Path 'FezMultiplayerMod\bin\Release\*' -DestinationPath '%packedpath%\FezMultiplayerMod.zip' -Force"
+@rem bin\x86\Debug\net10.0
+@echo Packing the files that are in FezMultiplayerDedicatedServer\bin\%releasebinpathserve% into %packedpath%\FezMultiplayerDedicatedServer.zip ...
+@powershell -command "Compress-Archive -Path 'FezMultiplayerDedicatedServer\bin\%releasebinpathserve%\*' -DestinationPath '%packedpath%\FezMultiplayerDedicatedServer.zip' -Force"
+@echo Packing the files that are in FezMultiplayerMod\bin\%releasebinpathserve% into %packedpath%\FezMultiplayerMod.zip ...
+@powershell -command "Compress-Archive -Path 'FezMultiplayerMod\bin\%releasebinpathclient%\*' -DestinationPath '%packedpath%\FezMultiplayerMod.zip' -Force"
 
 @echo Finished packing projects. zip files are in %cd%\%packedpath%
 
 :PRINTBUILDTIME
 @rem Get the filemtime
-@set filePath=FezMultiplayerMod\bin\Release\FezMultiplayerMod.dll
+@set filePath=FezMultiplayerMod\bin\%releasebinpathclient%\FezMultiplayerMod.dll
 @for /f "delims=" %%G in ('powershell -command "(Get-Item '%projectpath%\%filePath%').LastWriteTimeUtc.ToString('yyyy-MM-ddTHH:mm:ssZ')"') do @set "utcTime=%%G"
 
 @REM this timestamp is what goes in changelog.txt
