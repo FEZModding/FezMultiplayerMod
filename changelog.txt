@@ -104,7 +104,8 @@ added server Uptime command
 fixed potential crash in GuiPlayerList
 improved error handling 
 
-0.7.3
+0.8.0
+Port to .NET 10
 misc bug fixes and improvements
 Added safety throttle to client-side TCP sending loop
-tbd
+
