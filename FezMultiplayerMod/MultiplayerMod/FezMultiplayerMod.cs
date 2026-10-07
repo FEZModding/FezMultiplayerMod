@@ -464,6 +464,11 @@ namespace FezGame.MultiplayerMod
                         + $"{p.Position.Round(3)}, "
                         + $"ping: {(mp.ConnectionLatencyUpDown) / TimeSpan.TicksPerMillisecond}ms\n";
                 }
+                //var groups = LevelManager.Groups;
+                //var physicsTriles = LevelManager.Triles.Values.Where(kv => kv.PhysicsState != null);// && !groups.Any(g => g.Value.Triles.Contains(kv.Value)));
+                //physicsTriles = physicsTriles.Concat(groups.Values.SelectMany(g => g.Triles));
+                //s += String.Join("\n", physicsTriles.Select(t => $"OriginalEmplacement:{t.OriginalEmplacement}, PositionPhi: {t.Data.PositionPhi}"));
+                //s += "\n";
             }
             string connectionStatusText = "";
             if (mp.ExtraMessage != null)

@@ -5,3 +5,4 @@ libs/*.dll
 .vs/*
 *.bkp
 /PackedRelease
+*/publish/*

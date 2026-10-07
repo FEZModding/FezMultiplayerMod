@@ -15,6 +15,13 @@
     <Copyright>Copyright © Jenna Sloan</Copyright>
     <Company>FEZ Modding</Company>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    
+    <!-- Pack everrything into one nice file -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <!-- Trim unused code -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <!-- Bundle the .NET runtime so the user doesn't need to install .NET -->
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>

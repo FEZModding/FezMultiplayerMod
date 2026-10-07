@@ -17,6 +17,12 @@
     <Copyright>Copyright © Jenna Sloan</Copyright>
     <Company>FEZ Modding</Company>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    
+    <!-- Don't include dependencies -->
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    
+    <!-- Disables the generation of the .deps.json file completely -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,7 +31,7 @@
 
   <!-- Local DLL and Executable References -->
   <ItemGroup>
-    <Reference Include="MonoMod.RuntimeDetour" HintPath="..\libs\MonoMod.RuntimeDetour.dll" />
+    <Reference Include="MonoMod.RuntimeDetour" HintPath="..\libs\MonoMod.RuntimeDetour.dll" Private="False" />
     <Reference Include="FNA" HintPath="..\libs\FNA.dll" Private="False" />
     <Reference Include="ContentSerialization" HintPath="..\libs\ContentSerialization.dll" Private="False" />
     <Reference Include="XnaWordWrapCore" HintPath="..\libs\XnaWordWrapCore.dll" Private="False" />

@@ -7,6 +7,7 @@ using FezGame.Structure;
 using FezSharedTools;
 using Microsoft.Xna.Framework;
 using System;
+using System.Linq;
 
 namespace FezGame.MultiplayerMod
 {
@@ -68,6 +69,7 @@ namespace FezGame.MultiplayerMod
 
         protected override ActiveLevelState GetCurrentLevelState()
         {
+            var physicsTriles = LevelManager.Triles.Where(kv => kv.Value.PhysicsState != null);
             //TODO not yet implemented
             if (SharedConstants.TODO_Debug_EnableLevelStateSync)
             {
