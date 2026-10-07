@@ -18,8 +18,6 @@
     
     <!-- Pack everrything into one nice file -->
     <PublishSingleFile>true</PublishSingleFile>
-    <!-- Trim unused code -->
-    <PublishTrimmed>true</PublishTrimmed>
     <!-- Bundle the .NET runtime so the user doesn't need to install .NET -->
     <SelfContained>true</SelfContained>
   </PropertyGroup>
