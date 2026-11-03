@@ -7,9 +7,11 @@
 @set packedpath=PackedRelease
 @set dirserve=%projectpath%\FezMultiplayerDedicatedServer
 @set dirclient=%projectpath%\FezMultiplayerMod
+@set "AUTO_YES=false"
 
 @IF [%1]==[/nobuild] GOTO AFTERBUILD
 @IF [%1]==[/timeonly] GOTO PRINTBUILDTIME
+@IF [%1]==[-y] set "AUTO_YES=true"
 
 @echo Publishing project...
 
@@ -48,4 +50,7 @@ cd /d %projectpath%
 @echo Build time: %utcTime%
 @echo Build time: %utcTime%>%packedpath%\buildtime.txt
 @echo Done.
+@if "%AUTO_YES%"=="true" goto :eof
+@if %errorlevel%==0 goto :eof
 @pause
+

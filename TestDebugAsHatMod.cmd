@@ -23,8 +23,11 @@
 @REM End of custom subroutines block
 
 :main
+
+call PackRelease-NET10.cmd -y
+
 @set projectpath=%cd%
-@set projectpathbin=%cd%\FezMultiplayerMod\bin\Debug
+@set projectpathbin=%cd%\PackedRelease\FezMultiplayerMod.zip
 
 @set fezpath=
 @REM Find the location of the FEZ game folder
@@ -62,10 +65,9 @@
 )
 
 @REM these set statements don't work in IF blocks
-@set "modpath=%fezpath%\Mods\FezMultiplayerMod"
+@set "modpath=%fezpath%\Mods\"
 @REM find MONOMODDED_FEZ
-@set mmfez=MONOMODDED_FEZ.exe
-@FOR /F %%a in ('dir "%fezpath%\MONOMODDED_FEZ*.exe" /B') do @set "mmfez=%%a"
+@set mmfez=FEZ.exe
 
 echo FEZ path: "%fezpath%"
 echo Mod path: "%modpath%"
@@ -83,16 +85,12 @@ echo Mod path: "%modpath%"
 	@if ERRORLEVEL 0 (
 		@REM 
 		@echo Copying files...
-		copy "%projectpathbin%\*"
-		@echo Copying Metadata.xml ...
-		copy "%projectpath%\Metadata.xml"
+		copy "%projectpathbin%"
 		
 		cd "%fezpath%"
 		
 		@if NOT EXIST "%mmfez%" @(
-			@echo Failed to find MONOMODDED_FEZ.exe
-			@REM TODO should we run monomod?
-			@REM MonoMod.exe FEZ.exe
+			@echo Failed to find FEZ.exe
 			@REM echo Exit Code is %errorlevel%
 		)
 		@if ERRORLEVEL 0 (
