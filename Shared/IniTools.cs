@@ -277,9 +277,9 @@ namespace FezSharedTools
                 }
 #endif
             }
-            catch (Exception e)
+            catch (Exception)
             {
-                throw e;//TODO?
+                throw;//TODO?
             }
 
             throw new ArgumentException($"Type \"{t.FullName}\" is not supported.", "t");

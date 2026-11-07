@@ -372,35 +372,35 @@ namespace FezGame.MultiplayerMod
             {
                 mp.Update();
             }
-            catch (VersionMismatchException e)
+            catch (VersionMismatchException)
             {
                 //Server replied with data that is for a different network version of FezMultiplayerMod
                 //TODO tell the user the desired FezMultiplayerServer is using a network protocol that is incompatible with their version.
-                throw e;
+                throw;
             }
-            catch (System.IO.InvalidDataException e)
+            catch (System.IO.InvalidDataException)
             {
                 //Server replied with data that is not related to FezMultiplayerMod or data is malformed
                 //TODO tell the user the IP endpoint provided is not a FezMultiplayerServer.
-                throw e;
+                throw;
             }
-            catch (System.IO.IOException e)
+            catch (System.IO.IOException)
             {
                 //Connection failed, data read error, connection timeout, connection terminated by server, etc.
                 //TODO
-                throw e;
+                throw;
             }
             catch (System.Net.Sockets.SocketException e)
             {
                 //Connection refused
                 //TODO
                 SharedTools.HandleUnexpectedException(e);
-                throw e;
+                throw;
             }
             catch (Exception e)
             {
                 SharedTools.HandleUnexpectedException(e);
-                throw e;//This should never happen
+                throw;//This should never happen
             }
         }
 

@@ -86,7 +86,7 @@ namespace FezGame.MultiplayerMod
                 catch (Exception e)
                 {
                     SharedTools.HandleUnexpectedException(e);
-                    throw e;
+                    throw;
                 }
             })
             {

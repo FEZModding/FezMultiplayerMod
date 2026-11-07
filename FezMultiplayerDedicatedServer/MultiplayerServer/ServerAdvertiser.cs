@@ -1,4 +1,4 @@
-﻿using FezSharedTools;
+using FezSharedTools;
 using System;
 using System.Net;
 using System.Net.Sockets;
@@ -55,10 +55,10 @@ namespace FezMultiplayerDedicatedServer
             {
                 client.Send(dataToSend, dataToSend.Length, MulticastEndpoint);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 //TODO
-                throw e;
+                throw;
             }
         }
 
