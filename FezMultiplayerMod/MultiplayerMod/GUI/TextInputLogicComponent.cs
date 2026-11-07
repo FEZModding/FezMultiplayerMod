@@ -99,6 +99,7 @@ namespace FezGame.MultiplayerMod
             caretPosition += text.Length;
         }
 
+        public const char CLEAR_CHAR = '\x18';//Cancel
         private void TextInputEXT_TextInput(char ch)
         {
             if (!HasFocus)
@@ -150,7 +151,10 @@ namespace FezGame.MultiplayerMod
                 InsertIntoValueAtCaret(paste);
                 break;
             case '\x17'://End of Transmission Block
-            case '\x18'://Cancel
+                break;
+            case CLEAR_CHAR://Cancel
+                Value = "";
+                break;
             case '\x19'://End of medium
             case '\x1A'://Substitute
             case '\x1B'://Escape
