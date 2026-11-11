@@ -203,6 +203,8 @@ namespace FezGame.MultiplayerMod
             if (InputManager.Jump == FezButtonState.Pressed || InputManager.Start == FezButtonState.Pressed)
             {
                 char selection = GetChar(position);
+                string selection_str = GetString(selection);
+                Common.Logger.Log(nameof(VirtualKeyboard), selection_str);
                 if (selection != '\0')
                 {
                     //TODO make this call TextInputEXT_TextInput on the relevant TextInputLogicComponent
@@ -229,6 +231,7 @@ namespace FezGame.MultiplayerMod
             {
                 position.Col += 1;
             }
+            ConstrainPosition();
         }
         private static readonly Dictionary<char, string> CharToStringCache = new()
         {
@@ -274,15 +277,28 @@ namespace FezGame.MultiplayerMod
                 bool currentSelection = position == boxMeta.Pos;
                 boxMeta.Draw(gameTime, batch, currentSelection, isDown, offset);
             }
-            Vector2 debugTextPos = new(50, 50);
+
+            Vector2 debugTextPos = new(GraphicsDevice.Viewport.Width / 4f * 3f, GraphicsDevice.Viewport.Height / 2f);
             batch.DrawString(FontManager.Big, position.ToString(), debugTextPos, Color.White);
             batch.End();
         }
 
         private void ConstrainPosition()
         {
-            position.Row = Math.Clamp(position.Row, 0, CharGrid.Length - 1);
-            position.Col = Math.Clamp(position.Col, 0, CharGrid[position.Row].Length - 1);
+            if (CharGrid.Length == 0)
+            {
+                position.Row = 0;
+                position.Col = 0;
+                return;
+            }
+            int maxRow = Math.Max(0, CharGrid.Length - 1);
+            position.Row = Math.Clamp(position.Row, 0, maxRow);
+            if (CharGrid[position.Row].Length == 0)
+            {
+                return;
+            }
+            int maxCol = Math.Max(0, CharGrid[position.Row].Length - 1);
+            position.Col = Math.Clamp(position.Col, 0, maxCol);
         }
         private char GetChar(Position position)
         {

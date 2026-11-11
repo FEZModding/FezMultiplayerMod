@@ -78,7 +78,7 @@ namespace FezGame.MultiplayerMod
                     virtualKeyboard.SetCharGrid(VirtualKeyboard.VKLayout.Alphanumeric);
                 });
             }
-
+            virtualKeyboard.OnInput += VirtualKeyboard_OnInput;
             left = new KeyRepeatState(Keys.Left, (totalSeconds) =>
             {
                 caretPosition -= 1;
@@ -93,6 +93,14 @@ namespace FezGame.MultiplayerMod
                 blinkStartTime = totalSeconds;
                 OnUpdate(false);
             });
+        }
+
+        private void VirtualKeyboard_OnInput(char ch)
+        {
+            if (this.HasFocus)
+            {
+                TextInputEXT_TextInput(ch);
+            }
         }
 
         private void RemoveFromValue(int startIndex, int count)
@@ -148,6 +156,7 @@ namespace FezGame.MultiplayerMod
             case '\v'://Vertical Tabulation (\x0B)
             case '\f'://Form Feed (\x0C)
             case '\r'://Carriage Return (\x0D)
+                this.HasFocus = false;
                 break;
             case '\x0E'://Shift Out
             case '\x0F'://Shift In
@@ -169,7 +178,10 @@ namespace FezGame.MultiplayerMod
                 break;
             case '\x19'://End of medium
             case '\x1A'://Substitute
+                break;
             case '\x1B'://Escape
+                this.HasFocus = false;
+                break;
             case '\x1C'://File Separator
             case '\x1D'://Group Separator
             case '\x1E'://Record Separator
