@@ -20,7 +20,7 @@ namespace FezGame.MultiplayerMod
         private char[][] CharGrid = [];
         private static readonly Color BackColor = Color.Gray;
         private static readonly Color TextColor = Color.White;
-        private record class KeyDrawingMetadata
+        private class KeyDrawingMetadata
         {
             private string Str { get; init; }
             private Vector2 TextOrigin { get; init; }
@@ -30,6 +30,9 @@ namespace FezGame.MultiplayerMod
             internal Position Pos { get; init; }
             public KeyDrawingMetadata(char keyChar, Rectangle rect, Position pos)
             {
+                KeyChar = keyChar;
+                Rect = rect;
+                Pos = pos;
                 Str = GetString(KeyChar);
                 var txtSize = RichTextRenderer.MeasureString(FontManager, Str);
                 var rectCenterP = rect.Center;
@@ -46,6 +49,7 @@ namespace FezGame.MultiplayerMod
 
                 //TODO draw the buttons and stuff
                 batch.DrawRect(Rect.OffsetOrigin((int)offset.X, (int)offset.Y), BackColor);
+
                 if (selected)
                 {
                     //TODO draw current selection box
@@ -59,7 +63,7 @@ namespace FezGame.MultiplayerMod
             }
         }
         public Rectangle BoardRect { get; private set; } = Rectangle.Empty;
-        private List<KeyDrawingMetadata> KeyBoxes;
+        private readonly List<KeyDrawingMetadata> KeyBoxes = [];
         private Rectangle CalculateBoardPosition(int rows, int cols)
         {
             if (rows == 0 || cols == 0) return Rectangle.Empty;
@@ -93,7 +97,6 @@ namespace FezGame.MultiplayerMod
                 return;
             }
 
-
             const int gap = 2;
 
             int cols = CharGrid.Max(c => c?.Length ?? 0);
@@ -121,16 +124,18 @@ namespace FezGame.MultiplayerMod
                 for (int c = 0; c < Row.Length; c++)
                 {
                     char ch = Row[c];
-                    var keyPos = new Position(
-                        boardRect.X + c * (cellWidth + gap),
-                        boardRect.Y + r * (cellHeight + gap)
-                    );
+
+                    int pixelX = boardRect.X + c * (cellWidth + gap);
+                    int pixelY = boardRect.Y + r * (cellHeight + gap);
+
+                    var keyPos = new Position(pixelX, pixelY);
                     var keyRect = new Rectangle(
-                        keyPos.Col,
-                        keyPos.Row,
+                        pixelX,
+                        pixelY,
                         cellWidth,
                         cellHeight
                     );
+
                     KeyBoxes.Add(new KeyDrawingMetadata(ch, keyRect, keyPos));
                 }
             }
@@ -185,7 +190,7 @@ namespace FezGame.MultiplayerMod
         private GamepadState gamepad = null;
         public override void Update(GameTime gameTime)
         {
-            if (!Visible)
+            if (this.disposing || !Visible || !ServiceHelper.FirstLoadDone || FontManager == null)
             {
                 return;
             }
@@ -269,6 +274,8 @@ namespace FezGame.MultiplayerMod
                 bool currentSelection = position == boxMeta.Pos;
                 boxMeta.Draw(gameTime, batch, currentSelection, isDown, offset);
             }
+            Vector2 debugTextPos = new(50, 50);
+            batch.DrawString(FontManager.Big, position.ToString(), debugTextPos, Color.White);
             batch.End();
         }
 
@@ -298,7 +305,7 @@ namespace FezGame.MultiplayerMod
             private const char BCK = '\x08';
             private const char ENTR = '\n';
             private const char CLR = TextInputLogicComponent.CLEAR_CHAR;
-            public static readonly VKLayout Alphanumeric = Alphanumeric_upper;
+            public static VKLayout Alphanumeric => Alphanumeric_upper;
             public static readonly VKLayout Alphanumeric_upper = new([
                 ['0','1','2','3','4','5','6','7','8','9'],
                 ['A','B','C','D','E','F','G','H','I','J'],
@@ -315,7 +322,7 @@ namespace FezGame.MultiplayerMod
                 ['<','>','{','}','(',')','|','/','\"','\'',],
                 ['~','@','#','$','%','^','&','*',' ',ENTR],
             ]);
-            public static readonly VKLayout IPv4 = IPv4_alt1;
+            public static VKLayout IPv4 => IPv4_alt1;
             public static readonly VKLayout IPv4_alt1 = new([
                 ['1','2','3'],
                 ['4','5','6'],
@@ -330,7 +337,7 @@ namespace FezGame.MultiplayerMod
                 ['0','.',BCK],
                 [CLR,ENTR,ENTR],
             ]);
-            public static readonly VKLayout IPv6 = IPv6_alt1;
+            public static VKLayout IPv6 => IPv6_alt1;
             public static readonly VKLayout IPv6_alt1 = new([
                 ['A','B','C'],
                 ['D','E','F'],

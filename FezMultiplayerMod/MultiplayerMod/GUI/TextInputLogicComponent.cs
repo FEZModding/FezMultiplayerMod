@@ -1,4 +1,5 @@
 using FezEngine.Components;
+using FezEngine.Tools;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;//Note: TextInputEXT is only in FNA
@@ -63,9 +64,20 @@ namespace FezGame.MultiplayerMod
         public static double keyRepeatDelay = 0.3d;
         public static double keyRepeatInterval = 0.03d;
         private readonly KeyRepeatState left, right;
+        private static VirtualKeyboard virtualKeyboard;
         public TextInputLogicComponent(Game game) : base(game)
         {
             TextInputEXT.TextInput += TextInputEXT_TextInput;
+
+            if (virtualKeyboard == null)
+            {
+                virtualKeyboard = new VirtualKeyboard(game);
+                ServiceHelper.AddComponent(virtualKeyboard);
+                Waiters.Wait(() => ServiceHelper.FirstLoadDone, () =>
+                {
+                    virtualKeyboard.SetCharGrid(VirtualKeyboard.VKLayout.Alphanumeric);
+                });
+            }
 
             left = new KeyRepeatState(Keys.Left, (totalSeconds) =>
             {
