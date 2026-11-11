@@ -58,7 +58,7 @@ namespace FezGame.MultiplayerMod
                 batch.DrawTextRichShadow(FontManager, Str, TextOrigin + offset, TextScale, TextColor);
             }
         }
-        public Rectangle BoardRect { get; private set; } = new Rectangle();
+        public Rectangle BoardRect { get; private set; } = Rectangle.Empty;
         private List<KeyDrawingMetadata> KeyBoxes;
         private Rectangle CalculateBoardPosition(int rows, int cols)
         {
