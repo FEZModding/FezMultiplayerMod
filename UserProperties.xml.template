@@ -7,6 +7,6 @@
     <!-- Path to the installed IMGUI mod for the HAT 3 -->
     <ImGuiDir>$(FezDir)/Mods/IMGUI</ImGuiDir>
     <!-- If needed, change path to where your mod should build to here -->
-    <ModOutputDir>$(FezDir)/Mods/FezChaosMod</ModOutputDir>
+    <ModOutputDir>$(FezDir)/Mods/FezMultiplayerMod</ModOutputDir>
   </PropertyGroup>
 </Project>

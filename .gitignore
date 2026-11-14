@@ -6,3 +6,4 @@ libs/*.dll
 *.bkp
 /PackedRelease
 */publish/*
+UserProperties.xml
