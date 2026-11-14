@@ -7,7 +7,8 @@
     <RootNamespace>FezGame.MultiplayerMod</RootNamespace>
     <AssemblyName>FezMultiplayerMod</AssemblyName>
     
-    <!-- Retaining original FEZ constant and common settings -->
+    <DebugType>embedded</DebugType>
+    
     <DefineConstants>FEZCLIENT</DefineConstants>
     <Platforms>AnyCPU</Platforms>
     
@@ -43,8 +44,8 @@
       <ModCompileOutputDir Condition="'$(ModOutputDir)' == ''">$(ProjectDir)out</ModCompileOutputDir>
     </PropertyGroup>
     <ItemGroup>
-      <ModFiles
-        Include="$(TargetDir)$(TargetName).dll;$(TargetDir)$(TargetName).pdb;$(ProjectDir)..\Metadata.xml" />
+      <ModFiles Include="$(TargetDir)$(TargetName).dll;$(ProjectDir)..\Metadata.xml" />
+      <ModFiles Include="$(TargetDir)$(TargetName).pdb" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
     </ItemGroup>
     <MakeDir Directories="$(ModCompileOutputDir)" />
     <Copy SourceFiles="@(ModFiles)" DestinationFolder="$(ModCompileOutputDir)" />
