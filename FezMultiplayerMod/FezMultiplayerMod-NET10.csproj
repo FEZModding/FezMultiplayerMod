@@ -28,19 +28,76 @@
   <ItemGroup>
     <Compile Remove="AssemblyInfo.cs" />
   </ItemGroup>
+  
+  <Import Project="$(MSBuildThisFileDirectory)../UserProperties.xml"
+    Condition="Exists('$(MSBuildThisFileDirectory)../UserProperties.xml')" />
 
-  <!-- Local DLL and Executable References -->
+  <Target Name="VerifyModReferences" BeforeTargets="Build">
+    <Error Text="You forgot to configure UserProperties.xml"
+      Condition="!Exists('$(MSBuildThisFileDirectory)../UserProperties.xml')" />
+  </Target>
+
+  <Target Name="PrepareMod" AfterTargets="Build">
+    <PropertyGroup>
+      <ModCompileOutputDir Condition="'$(ModOutputDir)' != ''">$(ModOutputDir)</ModCompileOutputDir>
+      <ModCompileOutputDir Condition="'$(ModOutputDir)' == ''">$(ProjectDir)out</ModCompileOutputDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <ModFiles
+        Include="$(TargetDir)$(TargetName).dll;$(TargetDir)$(TargetName).pdb;$(ProjectDir)..\Metadata.xml" />
+    </ItemGroup>
+    <MakeDir Directories="$(ModCompileOutputDir)" />
+    <Copy SourceFiles="@(ModFiles)" DestinationFolder="$(ModCompileOutputDir)" />
+    <Copy SourceFiles="@(NativeAssets)"
+      DestinationFolder="$(ModCompileOutputDir)\runtimes\%(RecursiveDir)" />
+  </Target>
+
+
+  <!-- External Assembly References from your libs folder -->
   <ItemGroup>
-    <Reference Include="MonoMod.RuntimeDetour" HintPath="..\libs\MonoMod.RuntimeDetour.dll" Private="False" />
-    <Reference Include="FNA" HintPath="..\libs\FNA.dll" Private="False" />
-    <Reference Include="ContentSerialization" HintPath="..\libs\ContentSerialization.dll" Private="False" />
-    <Reference Include="XnaWordWrapCore" HintPath="..\libs\XnaWordWrapCore.dll" Private="False" />
-    <Reference Include="FEZ" HintPath="..\libs\FEZ.exe" Private="False" />
-    <Reference Include="FezEngine" HintPath="..\libs\FezEngine.dll" Private="False" />
-    <Reference Include="EasyStorage" HintPath="..\libs\EasyStorage.dll" Private="False" />
-    <Reference Include="Common" HintPath="..\libs\Common.dll" Private="False" />
-    <Reference Include="MonoMod" HintPath="..\libs\MonoMod.exe" Private="False" />
+    <Reference Include="Common">
+      <HintPath>$(FezDir)\Common.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="ContentSerialization">
+      <HintPath>$(FezDir)\ContentSerialization.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="EasyStorage">
+      <HintPath>$(FezDir)\EasyStorage.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FEZ">
+      <HintPath>$(FezDir)\HAT.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FezEngine">
+      <HintPath>$(FezDir)\FezEngine.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="FNA">
+      <HintPath>$(FezDir)\FNA.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="XnaWordWrapCore">
+      <HintPath>$(FezDir)\XnaWordWrapCore.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MonoMod.RuntimeDetour">
+      <HintPath>$(MonoModDir)\MonoMod.RuntimeDetour.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="MonoMod.Utils">
+      <HintPath>$(MonoModDir)\MonoMod.Utils.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Mono.Cecil">
+      <HintPath>$(MonoModDir)\Mono.Cecil.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
   </ItemGroup>
+
+
 
   <!-- Linked files outside of this project folder -->
   <ItemGroup>
