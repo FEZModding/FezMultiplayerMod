@@ -9,6 +9,7 @@ using FezGame.MultiplayerMod;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -84,7 +85,7 @@ namespace FezSharedTools
         /// <remarks>
         /// See also <seealso cref="IniTools.WriteSettingsFile{T}(string, T)"/>
         /// </remarks>
-        public static T ReadSettingsFile<T>(string filepath, T settings)
+        public static T ReadSettingsFile<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>(string filepath, T settings)
         {
             if (!File.Exists(filepath))
             {
@@ -128,7 +129,7 @@ namespace FezSharedTools
         /// <remarks>
         /// See also <seealso cref="IniTools.ReadSettingsFile{T}(string, T)"/>
         /// </remarks>
-        public static List<string> GenerateIni<T>(T settings, bool includeHeaders = true, bool verbose = true)
+        public static List<string> GenerateIni<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>(T settings, bool includeHeaders = true, bool verbose = true)
         {
             Type TClass = typeof(T);
             List<string> lines = new List<string>()
@@ -172,7 +173,7 @@ namespace FezSharedTools
         /// <remarks>
         /// See also <seealso cref="IniTools.ReadSettingsFile{T}(string, T)"/>
         /// </remarks>
-        public static void WriteSettingsFile<T>(string filepath, T settings)
+        public static void WriteSettingsFile<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] T>(string filepath, T settings)
         {
             File.WriteAllLines(filepath, GenerateIni(settings), SharedConstants.UTF8);
         }

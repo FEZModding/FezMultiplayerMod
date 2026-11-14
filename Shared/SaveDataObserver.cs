@@ -13,6 +13,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
@@ -113,8 +114,7 @@ namespace FezSharedTools
             {
                 return (string)obj;
             }
-            var m = t.GetMethod("Parse", new Type[] { typeof(string) });
-            if (m != null)
+            if (t.IsPrimitive)
             {
                 return "" + obj;
             }
@@ -158,11 +158,23 @@ namespace FezSharedTools
             {
                 return val;
             }
-            var m = t.GetMethod("Parse", new Type[] { typeof(string) });
-            if (m != null)
-            {
-                return m.Invoke(null, new object[] { val });
-            }
+
+            if (t == typeof(string)) return val;
+            if (t == typeof(int)) return int.Parse(val);
+            if (t == typeof(float)) return float.Parse(val);
+            if (t == typeof(bool)) return bool.Parse(val);
+            if (t == typeof(double)) return double.Parse(val);
+            if (t == typeof(long)) return long.Parse(val);
+            if (t == typeof(byte)) return byte.Parse(val);
+            if (t == typeof(short)) return short.Parse(val);
+            if (t == typeof(uint)) return uint.Parse(val);
+            if (t == typeof(ulong)) return ulong.Parse(val);
+            if (t == typeof(ushort)) return ushort.Parse(val);
+            if (t == typeof(sbyte)) return sbyte.Parse(val);
+            if (t == typeof(decimal)) return decimal.Parse(val);
+            if (t == typeof(char)) return char.Parse(val);
+            if (t == typeof(Guid)) return Guid.Parse(val);
+
             if (t.Equals(typeof(TrileEmplacement)))
             {
                 int[] xyz = val.Split(';').Select(int.Parse).ToArray();
@@ -186,6 +198,9 @@ namespace FezSharedTools
         }
         private static readonly Type dictType = typeof(IDictionary);
         private static readonly Type listType = typeof(IList);
+        [UnconditionalSuppressMessage("Trimming", "IL2062", Justification = "SaveData types and fields are in a place where they shouldn't be trimmed.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2065", Justification = "SaveData types and fields are in a place where they shouldn't be trimmed.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "SaveData types and fields are in a place where they shouldn't be trimmed.")]
         public static void DeserializeAndProcess(byte[] bytes, Guid source)
         {
             if (bytes.Length <= 0)
@@ -669,6 +684,8 @@ namespace FezSharedTools
         /// <param name="field">The field to compare</param>
         /// <param name="currentObject">The current object to find changes</param>
         /// <param name="oldObject">The old object to find changes</param>
+        [UnconditionalSuppressMessage("Trimming", "IL2062", Justification = "SaveData types and fields are in a place where they shouldn't be trimmed.")]
+        [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = "SaveData types and fields are in a place where they shouldn't be trimmed.")]
         private static void CheckField(SaveDataChanges changes, string containerIdentifier, FieldInfo field, object currentObject, object oldObject)
         {
             if (containerIdentifier is null)
@@ -823,7 +840,8 @@ namespace FezSharedTools
         /// <param name="containerIdentifier">The string used to denote the object path of the changes</param>
         /// <param name="currentObject">The current object to find changes</param>
         /// <param name="oldObject">The old object to find changes</param>
-        private static void CheckType(SaveDataChanges changes, Type containingType, string containerIdentifier, object currentObject, object oldObject)
+
+        private static void CheckType(SaveDataChanges changes, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] Type containingType, string containerIdentifier, object currentObject, object oldObject)
         {
 #pragma warning disable IDE0018 // Inline variable declaration
             FieldInfo[] fields;

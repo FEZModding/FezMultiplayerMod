@@ -8,6 +8,8 @@ using System.Net;
 using System.Text;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
+
 
 #if FEZCLIENT
 using ActionType = FezGame.Structure.ActionType;
@@ -75,11 +77,11 @@ namespace FezSharedTools
             socket.Shutdown(System.Net.Sockets.SocketShutdown.Both);
             socket.Close();
         }
-        public static void HandleUnexpectedException(Exception e, LogSeverity? severity = null, string ComponentName = null)
+        public static void HandleUnexpectedException(Exception e, LogSeverity? severity = null, [CallerFilePath] string callerFilePath = "")
         {
             if (severity.HasValue)
             {
-                string callingClassName = ComponentName ?? new StackTrace().GetFrame(1).GetMethod().DeclaringType.Name;
+                string callingClassName = Path.GetFileNameWithoutExtension(callerFilePath);
                 LogWarning(callingClassName, e.Message, severity.Value);
             }
 #if DEBUG

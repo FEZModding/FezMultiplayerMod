@@ -23,11 +23,17 @@
     <PublishSingleFile>true</PublishSingleFile>
     <!-- Bundle the .NET runtime so the user doesn't need to install .NET -->
     <SelfContained>true</SelfContained>
+
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>
     <Compile Remove="AssemblyInfo.cs" />
     <None Remove="App.config" />
+    <TrimmerRootAssembly Include="$(AssemblyName)" />
   </ItemGroup>
 
 
