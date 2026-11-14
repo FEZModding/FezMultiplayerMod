@@ -1,7 +1,0 @@
-<Solution>
-  <Configurations>
-    <Platform Name="Any CPU" />
-  </Configurations>
-  <Project Path="FezMultiplayerDedicatedServer/FezMultiplayerDedicatedServer-NET10.csproj" />
-  <Project Path="FezMultiplayerMod/FezMultiplayerMod-NET10.csproj" />
-</Solution>
