@@ -26,10 +26,6 @@
     <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="AssemblyInfo.cs" />
-  </ItemGroup>
-  
   <Import Project="$(MSBuildThisFileDirectory)../UserProperties.xml"
     Condition="Exists('$(MSBuildThisFileDirectory)../UserProperties.xml')" />
 

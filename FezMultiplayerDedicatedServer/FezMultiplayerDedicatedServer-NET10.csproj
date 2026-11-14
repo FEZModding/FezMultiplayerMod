@@ -31,11 +31,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="AssemblyInfo.cs" />
-    <None Remove="App.config" />
     <TrimmerRootAssembly Include="$(AssemblyName)" />
   </ItemGroup>
-
 
   <!-- Explicitly including your linked shared files outside the folder -->
   <ItemGroup>
