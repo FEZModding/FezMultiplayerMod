@@ -3,28 +3,23 @@
 @REM that are ready to be uploaded to GitHub releases.
 @REM It also spits out the ISO 8601 timestamp that gets put in changelog.txt
 
-@set projectpath=%cd%
-@set packedpath=PackedRelease
-@set dirserve=%projectpath%\FezMultiplayerDedicatedServer
-@set dirclient=%projectpath%\FezMultiplayerMod
-@set "AUTO_YES=false"
+@REM shared vars with BuildReleases
+@set "projectpath=%~dp0"
+@set "dirserve=%projectpath%FezMultiplayerDedicatedServer\"
+@set "dirclient=%projectpath%FezMultiplayerMod\"
+@set "pubserve=%dirserve%publish"
+@set "pubclient=%dirclient%publish"
+
+@set "packedpath=PackedRelease"
 
 @IF [%1]==[/nobuild] GOTO AFTERBUILD
 @IF [%1]==[/timeonly] GOTO PRINTBUILDTIME
-@IF [%1]==[-y] set "AUTO_YES=true"
 
 @echo Publishing project...
 
-@REM this should be where dotnet.exe is located
-@REM cd /d "C:\Program Files\dotnet"
+@call BuildReleases.cmd
 
-@REM the following line should build all the projects in the solution
-@REM dotnet publish "%dirserve%\FezMultiplayerDedicatedServer-NET10.csproj" -c Release -f net10.0
-@REM dotnet publish "%dirclient%\FezMultiplayerMod-NET10.csproj" -c Release -f net10.0
-dotnet publish "%projectpath%\FezMultiplayerMod-NET10.slnx" -c Release -f net10.0 -p:ArtifactsPath="." -p:ArtifactsPivots="" -p:ArtifactsProjectName=""
-@echo Builds completed.
-
-cd /d %projectpath%
+@cd /d %projectpath%
 
 :AFTERBUILD
 @echo Packing projects...
@@ -33,11 +28,10 @@ cd /d %projectpath%
 @copy Metadata.xml FezMultiplayerMod\publish\Metadata.xml
 @IF NOT EXIST %packedpath% @mkdir %packedpath%
 
-@rem bin\x86\Debug\net10.0
-@echo Packing the files that are in FezMultiplayerDedicatedServer\publish into %packedpath%\FezMultiplayerDedicatedServer.zip ...
-@powershell -command "Compress-Archive -Path 'FezMultiplayerDedicatedServer\publish\*' -DestinationPath '%packedpath%\FezMultiplayerDedicatedServer.zip' -Force"
-@echo Packing the files that are in FezMultiplayerMod\publish into %packedpath%\FezMultiplayerMod.zip ...
-@powershell -command "Compress-Archive -Path 'FezMultiplayerMod\publish\*' -DestinationPath '%packedpath%\FezMultiplayerMod.zip' -Force"
+@echo Packing the files that are in %pubserve% into %packedpath%\FezMultiplayerDedicatedServer.zip ...
+@powershell -command "Compress-Archive -Path '%pubserve%\*' -DestinationPath '%packedpath%\FezMultiplayerDedicatedServer.zip' -Force"
+@echo Packing the files that are in %pubclient% into %packedpath%\FezMultiplayerMod.zip ...
+@powershell -command "Compress-Archive -Path '%pubclient%\*' -DestinationPath '%packedpath%\FezMultiplayerMod.zip' -Force"
 
 @echo Finished packing projects. zip files are in %cd%\%packedpath%
 
@@ -50,7 +44,5 @@ cd /d %projectpath%
 @echo Build time: %utcTime%
 @echo Build time: %utcTime%>%packedpath%\buildtime.txt
 @echo Done.
-@if "%AUTO_YES%"=="true" goto :eof
-@if %errorlevel%==0 goto :eof
 @pause
 

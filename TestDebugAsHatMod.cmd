@@ -24,10 +24,7 @@
 
 :main
 
-call PackRelease-NET10.cmd -y
-
 @set projectpath=%cd%
-@set projectpathbin=%cd%\PackedRelease\FezMultiplayerMod.zip
 
 @set fezpath=
 @REM Find the location of the FEZ game folder
@@ -64,45 +61,21 @@ call PackRelease-NET10.cmd -y
 	@set "fezpath=%ProgramFiles(x86)%\Steam\steamapps\common\FEZ"
 )
 
-@REM these set statements don't work in IF blocks
-@set "modpath=%fezpath%\Mods\"
-@REM find MONOMODDED_FEZ
 @set mmfez=FEZ.exe
 
 echo FEZ path: "%fezpath%"
-echo Mod path: "%modpath%"
 
 @if EXIST "%fezpath%\" (
-	@if EXIST "%modpath%" (
-		@REM echo Mod directory already exists
-		@REM TODO?
-	) ELSE (
-		@mkdir "%modpath%"
-		echo Created mod directory
-	)
-	@cd /d "%modpath%"
+	cd /D "%fezpath%"
 	
+	@if NOT EXIST "%mmfez%" @(
+		@echo Failed to find FEZ.exe
+		@REM echo Exit Code is %errorlevel%
+	)
 	@if ERRORLEVEL 0 (
-		@REM 
-		@echo Copying files...
-		copy "%projectpathbin%"
-		
-		cd "%fezpath%"
-		
-		@if NOT EXIST "%mmfez%" @(
-			@echo Failed to find FEZ.exe
-			@REM echo Exit Code is %errorlevel%
-		)
-		@if ERRORLEVEL 0 (
-			@REM launch MONOMODDED_FEZ
-			@REM Note: MONOMODDED_FEZ must be launched from the FEZ game path, as FEZ uses the current working directory to locate game resources
-			start %mmfez%
-		) ELSE (
-			@echo Did you leave FEZ open?
-			@pause
-		)
-	) ELSE (
-		@echo Error: Could not locate FEZ game folder.
+		@REM launch MONOMODDED_FEZ
+		@REM Note: MONOMODDED_FEZ must be launched from the FEZ game path, as FEZ uses the current working directory to locate game resources
+		start %mmfez%
 	)
 ) ELSE (
 	@echo Failed to locate FEZ game directory.

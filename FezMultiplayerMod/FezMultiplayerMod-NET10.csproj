@@ -9,7 +9,7 @@
     
     <!-- Retaining original FEZ constant and common settings -->
     <DefineConstants>FEZCLIENT</DefineConstants>
-    <Platforms>x86</Platforms>
+    <Platforms>AnyCPU</Platforms>
     
     <!-- Your Assembly Information -->
     <Product>FezMultiplayerMod</Product>

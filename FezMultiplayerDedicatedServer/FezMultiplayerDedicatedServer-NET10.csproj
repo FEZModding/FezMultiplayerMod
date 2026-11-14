@@ -8,6 +8,9 @@
     <RootNamespace>FezMultiplayerDedicatedServer</RootNamespace>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    
+    <DebugType>embedded</DebugType>
     
     <!-- Your Assembly Information -->
     <Product>FezMultiplayerDedicatedServer</Product>
@@ -24,6 +27,7 @@
 
   <ItemGroup>
     <Compile Remove="AssemblyInfo.cs" />
+    <None Remove="App.config" />
   </ItemGroup>
 
 
