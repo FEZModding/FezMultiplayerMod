@@ -27,8 +27,8 @@ namespace FezGame.MultiplayerMod
             private float TextScale { get; init; }
             private char KeyChar { get; init; }
             private Rectangle Rect { get; init; }
-            internal Position Pos { get; init; }
-            public KeyDrawingMetadata(char keyChar, Rectangle rect, Position pos)
+            internal GridIndex Pos { get; init; }
+            public KeyDrawingMetadata(char keyChar, Rectangle rect, GridIndex pos)
             {
                 KeyChar = keyChar;
                 Rect = rect;
@@ -46,16 +46,18 @@ namespace FezGame.MultiplayerMod
 
             public void Draw(GameTime gameTime, SpriteBatch batch, bool selected, bool isDown, Vector2 offset)
             {
-
+                var rect = Rect.OffsetOrigin((int)offset.X, (int)offset.Y);
                 //TODO draw the buttons and stuff
-                batch.DrawRect(Rect.OffsetOrigin((int)offset.X, (int)offset.Y), BackColor);
+                batch.DrawRect(rect, BackColor);
 
                 if (selected)
                 {
                     //TODO draw current selection box
+                    batch.DrawRectWireframe(rect, 2f, Color.White);
 
                     if (isDown)
                     {
+                        batch.DrawRectWireframe(rect, 5f, Color.Gold);
                         //TODO draw active selection box
                     }
                 }
@@ -81,8 +83,8 @@ namespace FezGame.MultiplayerMod
             int boardWidth = cellSize * cols;
             int boardHeight = cellSize * rows;
 
-            // Snap board to bottom right corner
-            int boardX = screenWidth - boardWidth;
+            // Snap board to bottom center
+            int boardX = screenWidth - boardWidth - boardWidth / 2;
             int boardY = screenHeight - boardHeight;
 
             Rectangle boardRect = new Rectangle(boardX, boardY, boardWidth, boardHeight);
@@ -128,7 +130,7 @@ namespace FezGame.MultiplayerMod
                     int pixelX = boardRect.X + c * (cellWidth + gap);
                     int pixelY = boardRect.Y + r * (cellHeight + gap);
 
-                    var keyPos = new Position(pixelX, pixelY);
+                    var keyPos = new GridIndex(r, c);
                     var keyRect = new Rectangle(
                         pixelX,
                         pixelY,
@@ -140,13 +142,13 @@ namespace FezGame.MultiplayerMod
                 }
             }
         }
-        private record class Position(int Row, int Col)
+        private record class GridIndex(int Row, int Col)
         {
             public int Row { get; set; } = Row;
             public int Col { get; set; } = Col;
         }
 
-        private readonly Position position = new(0, 0);
+        private readonly GridIndex position = new(0, 0);
 
         internal VirtualKeyboard(Game game) : base(game)
         {
@@ -266,8 +268,7 @@ namespace FezGame.MultiplayerMod
             double totalSeconds = gameTime.TotalGameTime.TotalSeconds;
             bool blinkActive = (((totalSeconds - blinkStartTime) * cursorBlinksPerSecond) % 1.0d) < 0.5d;
 
-            SpriteBatch batch = new SpriteBatch(Game.GraphicsDevice);
-            batch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
+            drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
 
             bool isDown = InputManager.Jump != FezButtonState.Up || InputManager.Start != FezButtonState.Up;
             //draw the CharGrid
@@ -275,12 +276,12 @@ namespace FezGame.MultiplayerMod
             foreach (var boxMeta in KeyBoxes)
             {
                 bool currentSelection = position == boxMeta.Pos;
-                boxMeta.Draw(gameTime, batch, currentSelection, isDown, offset);
+                boxMeta.Draw(gameTime, drawer, currentSelection, isDown, offset);
             }
 
             Vector2 debugTextPos = new(GraphicsDevice.Viewport.Width / 4f * 3f, GraphicsDevice.Viewport.Height / 2f);
-            batch.DrawString(FontManager.Big, position.ToString(), debugTextPos, Color.White);
-            batch.End();
+            drawer.DrawString(FontManager.Big, position.ToString(), debugTextPos, Color.White);
+            drawer.End();
         }
 
         private void ConstrainPosition()
@@ -300,7 +301,7 @@ namespace FezGame.MultiplayerMod
             int maxCol = Math.Max(0, CharGrid[position.Row].Length - 1);
             position.Col = Math.Clamp(position.Col, 0, maxCol);
         }
-        private char GetChar(Position position)
+        private char GetChar(GridIndex position)
         {
             ConstrainPosition();
             return CharGrid[position.Row][position.Col];
