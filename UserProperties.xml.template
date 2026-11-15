@@ -4,8 +4,6 @@
     <FezDir>C:\Program Files (x86)\Steam\steamapps\common\FEZ</FezDir>
     <!-- If needed, change path to where MonoMod is here -->
     <MonoModDir>$(FezDir)/HATDependencies/MonoMod</MonoModDir>
-    <!-- Path to the installed IMGUI mod for the HAT 3 -->
-    <ImGuiDir>$(FezDir)/Mods/IMGUI</ImGuiDir>
     <!-- If needed, change path to where your mod should build to here -->
     <ModOutputDir>$(FezDir)/Mods/FezMultiplayerMod</ModOutputDir>
   </PropertyGroup>

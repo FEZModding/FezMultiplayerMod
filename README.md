@@ -67,9 +67,12 @@ In the generated `FezMultiplayerServer.ini` configuration file, you will find op
 
 ## Building
 
-1. Clone repository.
-2. Copy all dependencies listed in `libs` directory and paste them into said directory.
-3. Build it. idk. it should work.
+### .NET 10 / HAT
+
+1. Install the .NET 10 SDK and a compatible FEZ installation with HAT and IMGUI.
+2. Copy `UserProperties.xml.template` to `UserProperties.xml` and configure `FezDir`, `MonoModDir`, and `ModOutputDir`.
+3. Run `BuildReleases.cmd` or otherwise build the project with `dotnet`. The build copies the mod DLL, symbols, and metadata to `ModOutputDir`.
+
 
 ## Contributing
 
