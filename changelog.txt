@@ -109,3 +109,8 @@ Port to .NET 10
 misc bug fixes and improvements
 Added safety throttle to client-side TCP sending loop
 
+0.8.1 - TBA
+cleaned up files
+various bug fixes and improvements
+added a virtual keyboard for controller text input
+
