@@ -868,7 +868,12 @@ namespace FezGame.MultiplayerMod
                     }
                 }
                 bool mouseMoved = MouseState.Movement != Point.Zero;
-                if (InputManager.Up == FezButtonState.Pressed)
+                bool MenuItemPeventsMove = false;
+                if (CurrentMenuItem?.TextInput != null)
+                {
+                    MenuItemPeventsMove = CurrentMenuItem.TextInput.HasFocus && TextInputLogicComponent.ShowingVirtualKeyboard;
+                }
+                if (InputManager.Up == FezButtonState.Pressed && !MenuItemPeventsMove)
                 {
                     if (currentIndex > 0)
                     {
@@ -879,7 +884,7 @@ namespace FezGame.MultiplayerMod
                     }
                 }
                 int maxIndex = cachedMenuListOptions.Count - 1;
-                if (InputManager.Down == FezButtonState.Pressed)
+                if (InputManager.Down == FezButtonState.Pressed && !MenuItemPeventsMove)
                 {
                     if (currentIndex < maxIndex)
                     {

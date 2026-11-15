@@ -85,7 +85,7 @@ namespace FezGame.MultiplayerMod
 
             // Snap board to bottom center
             int boardX = screenWidth - boardWidth - boardWidth / 2;
-            int boardY = screenHeight - boardHeight;
+            int boardY = screenHeight - boardHeight - cellSize / 2;
 
             Rectangle boardRect = new Rectangle(boardX, boardY, boardWidth, boardHeight);
             return boardRect;

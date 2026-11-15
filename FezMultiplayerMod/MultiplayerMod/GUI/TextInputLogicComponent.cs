@@ -33,6 +33,7 @@ namespace FezGame.MultiplayerMod
         /// If this textbox has focus
         /// </summary>
         private bool hasFocus = false;
+        private int frameSinceLastFocus = 0;
         /// <summary>
         /// If this textbox has focus
         /// </summary>
@@ -41,7 +42,13 @@ namespace FezGame.MultiplayerMod
             get => hasFocus;
             set
             {
+                if (frameSinceLastFocus < 5)
+                {
+                    return;
+                }
+                frameSinceLastFocus = 0;
                 hasFocus = value;
+                virtualKeyboard.Visible = value;
                 if (value)
                 {
                     //ensure text input is on
@@ -65,6 +72,7 @@ namespace FezGame.MultiplayerMod
         public static double keyRepeatInterval = 0.03d;
         private readonly KeyRepeatState left, right;
         private static VirtualKeyboard virtualKeyboard;
+        public static bool ShowingVirtualKeyboard => virtualKeyboard != null && virtualKeyboard.Visible;
         public TextInputLogicComponent(Game game) : base(game)
         {
             TextInputEXT.TextInput += TextInputEXT_TextInput;
@@ -77,6 +85,7 @@ namespace FezGame.MultiplayerMod
                 {
                     virtualKeyboard.SetCharGrid(VirtualKeyboard.VKLayout.Alphanumeric);
                 });
+                virtualKeyboard.Visible = false;
             }
             virtualKeyboard.OnInput += VirtualKeyboard_OnInput;
             left = new KeyRepeatState(Keys.Left, (totalSeconds) =>
@@ -206,6 +215,7 @@ namespace FezGame.MultiplayerMod
         private static double blinkStartTime = 0d;
         public override void Update(GameTime gameTime)
         {
+            frameSinceLastFocus++;
             if (!HasFocus)
             {
                 left.ClearKeyState();
