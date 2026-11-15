@@ -1351,7 +1351,7 @@ namespace FezGame.MultiplayerMod
                         LeftArrowButton.X += MenuFrameRect.X;
                         LeftArrowButton.Y += MenuFrameRect.Y;
                         target = target.Inset(arrowSizeScale * menuitem.BoundingClientRect.Height);
-                        drawer.Draw(arrowTexture2, target, null, Color.White, 0, Vector2.Zero, SpriteEffects.None, 0);
+                        drawer.Draw(arrowTexture, target, null, Color.White, 0, Vector2.Zero, SpriteEffects.None, 0);
                     }
                     if (menuitem.OnRightPressed != null)
                     {
@@ -1363,7 +1363,7 @@ namespace FezGame.MultiplayerMod
                         RightArrowButton.X += MenuFrameRect.X;
                         RightArrowButton.Y += MenuFrameRect.Y;
                         target = target.Inset(arrowSizeScale * menuitem.BoundingClientRect.Height);
-                        drawer.Draw(arrowTexture, target, null, Color.White, 0, Vector2.Zero, SpriteEffects.None, 0);
+                        drawer.Draw(arrowTexture2, target, null, Color.White, 0, Vector2.Zero, SpriteEffects.None, 0);
                     }
                 }
                 drawer.End();
