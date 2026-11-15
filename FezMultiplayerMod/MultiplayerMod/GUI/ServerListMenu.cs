@@ -164,10 +164,10 @@ namespace FezGame.MultiplayerMod
             public readonly MenuListOption MenuListOption;
             private readonly TextInputLogicComponent inputElement;
 
-            public MenuListTextInput(Game game, string label, Action<string> OnUpdate = null)
+            public MenuListTextInput(Game game, string label, VirtualKeyboard.VKLayout vklayout = null, Action<string> OnUpdate = null)
             {
                 string baseName = label;
-                inputElement = new TextInputLogicComponent(game);
+                inputElement = new TextInputLogicComponent(game, vklayout);
                 ServiceHelper.AddComponent(inputElement);
                 MenuListOption = new MenuListOption(label + TextboxInitialText, inputElement);
                 inputElement.OnUpdate += (onlyCaret) =>
@@ -465,7 +465,10 @@ namespace FezGame.MultiplayerMod
             const int textboxPadRight = 30;
             MenuListTextInput.TextboxPadRight = textboxPadRight;
             NameTextbox = new MenuListTextInput(game, "Name: ");
-            AddressTextbox = new MenuListTextInput(game, "Address: ", (value) =>
+
+            bool supportsIPv6 = System.Net.Sockets.Socket.OSSupportsIPv6;
+            VirtualKeyboard.VKLayout addressVKLayout = supportsIPv6 ? VirtualKeyboard.VKLayout.IPv6 : VirtualKeyboard.VKLayout.IPv4;
+            AddressTextbox = new MenuListTextInput(game, "Address: ", addressVKLayout, OnUpdate: (value) =>
             {
                 //Check the IPEndPoint is valid
                 OptionAddServer.Enabled = IniTools.TryParseIPEndPoint(value, out IPEndPoint _, true);
@@ -906,10 +909,18 @@ namespace FezGame.MultiplayerMod
                 {
                     CurrentMenuItem?.OnRightPressed?.Invoke();
                 }
-                if ((InputManager.CancelTalk == FezButtonState.Pressed) || InputManager.Back == FezButtonState.Pressed)
+                if (InputManager.CancelTalk == FezButtonState.Pressed || InputManager.Back == FezButtonState.Pressed)
                 {
-                    MenuBack();
+                    if (!MenuItemPeventsMove)
+                    {
+                        MenuBack();
+                    }
+                    else
+                    {
+                        CurrentMenuItem?.TextInput.HasFocus = false;
+                    }
                 }
+
                 Point positionPt = MouseState.PositionInViewport();
                 MenuListOption hoveredOption = cachedMenuListOptions.FirstOrDefault(option =>
                     option.BoundingClientRect.Contains(positionPt)

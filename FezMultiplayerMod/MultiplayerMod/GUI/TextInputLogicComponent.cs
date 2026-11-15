@@ -53,6 +53,7 @@ namespace FezGame.MultiplayerMod
                 {
                     //ensure text input is on
                     TextInputEXT.StartTextInput();
+                    virtualKeyboard.SetLayout(vklayout);
                 }
                 else
                 {
@@ -70,11 +71,20 @@ namespace FezGame.MultiplayerMod
 
         public static double keyRepeatDelay = 0.3d;
         public static double keyRepeatInterval = 0.03d;
-        private readonly KeyRepeatState left, right;
         private static VirtualKeyboard virtualKeyboard;
         public static bool ShowingVirtualKeyboard => virtualKeyboard != null && virtualKeyboard.Visible;
-        public TextInputLogicComponent(Game game) : base(game)
+
+
+        private readonly KeyRepeatState left, right;
+        private VirtualKeyboard.VKLayout vklayout;
+        public TextInputLogicComponent(Game game, VirtualKeyboard.VKLayout vklayout = null) : base(game)
         {
+            if (vklayout == null)
+            {
+                vklayout = VirtualKeyboard.VKLayout.Alphanumeric;
+            }
+            this.vklayout = vklayout;
+
             TextInputEXT.TextInput += TextInputEXT_TextInput;
 
             if (virtualKeyboard == null)
@@ -83,7 +93,7 @@ namespace FezGame.MultiplayerMod
                 ServiceHelper.AddComponent(virtualKeyboard);
                 Waiters.Wait(() => ServiceHelper.FirstLoadDone, () =>
                 {
-                    virtualKeyboard.SetCharGrid(VirtualKeyboard.VKLayout.Alphanumeric);
+                    virtualKeyboard.SetLayout(VirtualKeyboard.VKLayout.Alphanumeric);
                 });
                 virtualKeyboard.Visible = false;
             }
@@ -230,6 +240,7 @@ namespace FezGame.MultiplayerMod
         }
         private float scrollX = 0;
         private IFontManager fonts = null;
+
         public void Draw(SpriteBatch drawer, IFontManager fonts, GameTime gameTime, Rectangle drawRect, Color bgColor, Color textColor, out bool hasOverflowLeft, out bool hasOverflowRight)
         {
             this.fonts = fonts;

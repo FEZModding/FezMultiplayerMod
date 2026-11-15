@@ -18,7 +18,7 @@ namespace FezGame.MultiplayerMod
         private static IFontManager FontManager { get; set; }
 
         private char[][] CharGrid = [];
-        private static readonly Color BackColor = Color.Gray;
+        private static readonly Color BackColor = Color.Gray * 0.9f;
         private static readonly Color TextColor = Color.White;
         private class KeyDrawingMetadata
         {
@@ -75,8 +75,10 @@ namespace FezGame.MultiplayerMod
             int screenWidth = viewport.Width;
             int screenHeight = viewport.Height;
 
-            int maxWidth = screenWidth / 2;
-            int maxHeight = screenHeight / 2;
+            int maxWidth = (int)(screenWidth * 0.8f);
+            const float bottomPadPercent = 0.05f;
+            int bottomPad = (int)(screenHeight * bottomPadPercent);
+            int maxHeight = (int)(screenHeight * (0.45f - bottomPadPercent));
 
             int cellSize = Math.Min(maxWidth / cols, maxHeight / rows);
 
@@ -84,8 +86,8 @@ namespace FezGame.MultiplayerMod
             int boardHeight = cellSize * rows;
 
             // Snap board to bottom center
-            int boardX = screenWidth - boardWidth - boardWidth / 2;
-            int boardY = screenHeight - boardHeight - cellSize / 2;
+            int boardX = (screenWidth - boardWidth) / 2;
+            int boardY = screenHeight - boardHeight - bottomPad;
 
             Rectangle boardRect = new Rectangle(boardX, boardY, boardWidth, boardHeight);
             return boardRect;
@@ -279,8 +281,10 @@ namespace FezGame.MultiplayerMod
                 boxMeta.Draw(gameTime, drawer, currentSelection, isDown, offset);
             }
 
+#if DEBUG
             Vector2 debugTextPos = new(GraphicsDevice.Viewport.Width / 4f * 3f, GraphicsDevice.Viewport.Height / 2f);
             drawer.DrawString(FontManager.Big, position.ToString(), debugTextPos, Color.White);
+#endif
             drawer.End();
         }
 
@@ -307,7 +311,7 @@ namespace FezGame.MultiplayerMod
             return CharGrid[position.Row][position.Col];
         }
 
-        public void SetCharGrid(VKLayout layout)
+        public void SetLayout(VKLayout layout)
         {
             CharGrid = layout.LayoutData.CharGrid;
             RebuildKeyBoxes();
@@ -323,6 +327,7 @@ namespace FezGame.MultiplayerMod
             private const char ENTR = '\n';
             private const char CLR = TextInputLogicComponent.CLEAR_CHAR;
             public static VKLayout Alphanumeric => Alphanumeric_upper;
+            //TODO make an alphanumeric keyboard that has a shift button?
             public static readonly VKLayout Alphanumeric_upper = new([
                 ['0','1','2','3','4','5','6','7','8','9'],
                 ['A','B','C','D','E','F','G','H','I','J'],
@@ -354,7 +359,7 @@ namespace FezGame.MultiplayerMod
                 ['0','.',BCK],
                 [CLR,ENTR,ENTR],
             ]);
-            public static VKLayout IPv6 => IPv6_alt1;
+            public static VKLayout IPv6 => IPv6_alt2;
             public static readonly VKLayout IPv6_alt1 = new([
                 ['A','B','C'],
                 ['D','E','F'],
