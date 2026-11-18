@@ -97,7 +97,7 @@ namespace FezSharedTools
     {
         public static readonly Encoding UTF8 = Encoding.UTF8;
 
-        public static readonly int DefaultPort = 7777;
+        public static readonly ushort DefaultPort = 7777;
         /// <summary>
         /// The IP address on which local multiplayer servers broadcast their existence.
         /// TODO implement this as per <a href="https://github.com/FEZModding/FezMultiplayerMod/issues/5">#5</a>

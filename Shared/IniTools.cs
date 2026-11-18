@@ -45,7 +45,7 @@ namespace FezSharedTools
             var portMatch = Regex.Match(str, @":(\d+)$");
             bool hasPort = portMatch.Success;
             string addr;
-            int port;
+            ushort port;
             if (!hasPort)
             {
                 portsepindex = str.Length;
@@ -58,7 +58,7 @@ namespace FezSharedTools
             }
             else
             {
-                if (!int.TryParse(portMatch.Groups[1].Value, out port))
+                if (!ushort.TryParse(portMatch.Groups[1].Value, out port))
                 {
                     ipEndpoint = default;
                     return false;
