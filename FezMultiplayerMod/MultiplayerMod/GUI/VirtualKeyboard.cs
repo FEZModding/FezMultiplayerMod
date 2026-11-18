@@ -12,6 +12,9 @@ namespace FezGame.MultiplayerMod
     /// <summary>
     /// Virtual Keyboard so users can enter text using only a gamepad
     /// </summary>
+    /// <remarks>
+    /// Note: Intentially does not support mouse input. This is because most modern systems already have an On-Screen Keyboard that supports the mouse.
+    /// </remarks>
     internal class VirtualKeyboard : DrawableGameComponent
     {
         private IInputManager InputManager { get; set; }
@@ -20,6 +23,7 @@ namespace FezGame.MultiplayerMod
         private char[][] CharGrid = [];
         private static readonly Color BackColor = Color.Gray * 0.9f;
         private static readonly Color TextColor = Color.White;
+        private static readonly float KeyTextMinPaddingPercentage = 0.8f;
         private class KeyDrawingMetadata
         {
             private string Str { get; init; }
@@ -39,9 +43,9 @@ namespace FezGame.MultiplayerMod
                 var rectCenter = new Vector2(rectCenterP.X, rectCenterP.Y);
                 float scaleX = rect.Width / txtSize.X;
                 float scaleY = rect.Height / txtSize.Y;
-                TextScale = Math.Min(1.0f, Math.Min(scaleX, scaleY));
+                TextScale = Math.Min(1f, Math.Min(scaleX, scaleY) * KeyTextMinPaddingPercentage);
 
-                TextOrigin = rectCenter - txtSize * TextScale / 2;
+                TextOrigin = rectCenter - txtSize * TextScale / 2f;
             }
 
             public void Draw(GameTime gameTime, SpriteBatch batch, bool selected, bool isDown, Vector2 offset)
@@ -75,10 +79,12 @@ namespace FezGame.MultiplayerMod
             int screenWidth = viewport.Width;
             int screenHeight = viewport.Height;
 
-            int maxWidth = (int)(screenWidth * 0.8f);
+            const float MaxScreenWidthPercent = 0.8f;
+            int maxWidth = (int)(screenWidth * MaxScreenWidthPercent);
             const float bottomPadPercent = 0.05f;
+            const float MaxScreenHeightPercent = 0.45f;
             int bottomPad = (int)(screenHeight * bottomPadPercent);
-            int maxHeight = (int)(screenHeight * (0.45f - bottomPadPercent));
+            int maxHeight = (int)(screenHeight * (MaxScreenHeightPercent - bottomPadPercent));
 
             int cellSize = Math.Min(maxWidth / cols, maxHeight / rows);
 
@@ -180,7 +186,7 @@ namespace FezGame.MultiplayerMod
         private readonly SpriteBatch drawer;
         public override void Initialize()
         {
-            DrawOrder = ServerListMenu.Instance.DrawOrder + 1;//TODO?
+            DrawOrder = ServerListMenu.Instance.DrawOrder + 1;
             GraphicsDevice.DeviceReset += GraphicsDevice_DeviceReset;
         }
 
@@ -190,8 +196,8 @@ namespace FezGame.MultiplayerMod
         }
 
         public event Action<char> OnInput = (char ch) => { };
-        private static double blinkStartTime = 0d;
         private GamepadState gamepad = null;
+        public TextInputLogicComponent attachedTextInputComponent = null;
         public override void Update(GameTime gameTime)
         {
             if (this.disposing || !Visible || !ServiceHelper.FirstLoadDone || FontManager == null)
@@ -211,8 +217,35 @@ namespace FezGame.MultiplayerMod
                 Common.Logger.Log(nameof(VirtualKeyboard), selection_str);
                 if (selection != '\0')
                 {
-                    //TODO make this call TextInputEXT_TextInput on the relevant TextInputLogicComponent
-                    OnInput(selection);
+                    bool isPrivateUse = char.IsBetween(selection, '\uE000', '\uF8FF');
+                    if (isPrivateUse)
+                    {
+                        switch ((SpecialPrivateUseChars)selection)
+                        {
+                        case SpecialPrivateUseChars.ChangeVK_Alphanumeric_lower:
+                            this.SetLayout(VKLayout.Alphanumeric_lower);
+                            break;
+                        case SpecialPrivateUseChars.ChangeVK_Alphanumeric_upper:
+                            this.SetLayout(VKLayout.Alphanumeric_upper);
+                            break;
+                        case SpecialPrivateUseChars.ChangeVK_Symbols:
+                            this.SetLayout(VKLayout.Symbols);
+                            break;
+                        case SpecialPrivateUseChars.CaretMove_Left:
+                            attachedTextInputComponent?.MoveCaret(-1);
+                            break;
+                        case SpecialPrivateUseChars.CaretMove_Right:
+                            attachedTextInputComponent?.MoveCaret(1);
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        //this calls TextInputEXT_TextInput on the relevant TextInputLogicComponent
+                        OnInput(selection);
+                    }
                 }
             }
             bool AnyPressed(params TimedButtonState[] buttons)
@@ -237,12 +270,31 @@ namespace FezGame.MultiplayerMod
             }
             ConstrainPosition();
         }
+        /// <summary>
+        /// Special Private Use Characters used by this class for fuctionality purposes. 
+        /// </summary>
+        /// <remarks>
+        /// values must be between '\uE000' and '\uF8FF'
+        /// </remarks>
+        private enum SpecialPrivateUseChars
+        {
+            ChangeVK_Alphanumeric_upper = '\xE100',
+            ChangeVK_Alphanumeric_lower = '\xE101',
+            ChangeVK_Symbols = '\xE102',
+            CaretMove_Left = '\xE201',
+            CaretMove_Right = '\xE202',
+        }
         private static readonly Dictionary<char, string> CharToStringCache = new()
         {
             ['\0'] = "",
             ['\x7F'] = "DEL",
             ['\x08'] = "BACK",
             [TextInputLogicComponent.CLEAR_CHAR] = "CLEAR",
+            [(char)SpecialPrivateUseChars.ChangeVK_Alphanumeric_lower] = "LOWER",
+            [(char)SpecialPrivateUseChars.ChangeVK_Alphanumeric_upper] = "UPPER",
+            [(char)SpecialPrivateUseChars.ChangeVK_Symbols] = "SYMBOL",
+            [(char)SpecialPrivateUseChars.CaretMove_Left] = "LEFT",
+            [(char)SpecialPrivateUseChars.CaretMove_Right] = "RIGHT",
             ['\n'] = "ENTER",
         };
         private static string GetString(char ch)
@@ -255,7 +307,7 @@ namespace FezGame.MultiplayerMod
 
             return cachedString;
         }
-        private const double cursorBlinksPerSecond = 0.8d;
+        private Vector2 offset = Vector2.Zero;
         public override void Draw(GameTime gameTime)
         {
             if (this.disposing || !Visible || !ServiceHelper.FirstLoadDone || FontManager == null)
@@ -268,13 +320,11 @@ namespace FezGame.MultiplayerMod
             }
 
             double totalSeconds = gameTime.TotalGameTime.TotalSeconds;
-            bool blinkActive = (((totalSeconds - blinkStartTime) * cursorBlinksPerSecond) % 1.0d) < 0.5d;
 
             drawer.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.PointClamp, DepthStencilState.None, RasterizerState.CullNone);
 
             bool isDown = InputManager.Jump != FezButtonState.Up || InputManager.Start != FezButtonState.Up;
             //draw the CharGrid
-            Vector2 offset = Vector2.Zero;
             foreach (var boxMeta in KeyBoxes)
             {
                 bool currentSelection = position == boxMeta.Pos;
@@ -322,59 +372,67 @@ namespace FezGame.MultiplayerMod
         }
         public record VKLayout
         {
-            private const char DEL = '\x7F';
+            private const char DEL = '\x7f';
             private const char BCK = '\x08';
             private const char ENTR = '\n';
+            private const char NUL = '\0';
             private const char CLR = TextInputLogicComponent.CLEAR_CHAR;
+            private const char UPR = (char)SpecialPrivateUseChars.ChangeVK_Alphanumeric_upper;
+            private const char LWR = (char)SpecialPrivateUseChars.ChangeVK_Alphanumeric_lower;
+            private const char SYM = (char)SpecialPrivateUseChars.ChangeVK_Symbols;
+            private const char LFT = (char)SpecialPrivateUseChars.CaretMove_Left;
+            private const char RGT = (char)SpecialPrivateUseChars.CaretMove_Right;
             public static VKLayout Alphanumeric => Alphanumeric_upper;
             //TODO make an alphanumeric keyboard that has a shift button?
             public static readonly VKLayout Alphanumeric_upper = new([
-                ['0','1','2','3','4','5','6','7','8','9'],
-                ['A','B','C','D','E','F','G','H','I','J'],
-                ['K','L','M','N','O','P','Q','R','S','T'],
-                ['U','V','W','X','Y','Z','?','!',' ',ENTR],
+                ['0', '1', '2', '3', '4', '5', '6', '7','8', '9'],
+                ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H','I', 'J'],
+                ['K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R','S', 'T'],
+                ['U', 'V', 'W', 'X', 'Y', 'Z', ' ', LWR,BCK, ENTR],
             ]);
             public static readonly VKLayout Alphanumeric_lower = new([
-                ['a','b','c','d','e','f','g','h','i','j'],
-                ['k','l','m','n','o','p','q','r','s','t'],
-                ['u','v','w','x','y','z','?','!',' ',ENTR],
+                ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'],
+                ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'],
+                ['k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't'],
+                ['u', 'v', 'w', 'x', 'y', 'z', ' ', SYM, BCK, ENTR],
             ]);
             public static readonly VKLayout Symbols = new([
-                [',','.',':',';','!','?','_','-','+','='],
-                ['<','>','{','}','(',')','|','/','\"','\'',],
-                ['~','@','#','$','%','^','&','*',' ',ENTR],
+                [',', '.', ':', ';', '!', '?', '_', '-', '+', '='],
+                ['<', '>', '{', '}', '(', ')', '[', ']','\"','\''],
+                ['~', '@', '#', '$', '%', '^', '&', '*', NUL, NUL],
+                ['/','\\', '|', NUL, NUL, NUL, NUL, UPR, BCK, ENTR],
             ]);
             public static VKLayout IPv4 => IPv4_alt1;
             public static readonly VKLayout IPv4_alt1 = new([
-                ['1','2','3'],
-                ['4','5','6'],
-                ['7','8','9'],
-                ['0','.',ENTR],
-                [CLR,BCK,ENTR],
+                ['1', '2', '3'],
+                ['4', '5', '6'],
+                ['7', '8', '9'],
+                ['0', '.', ':'],
+                [CLR, BCK,ENTR],
             ]);
             public static readonly VKLayout IPv4_alt2 = new([
-                ['7','8','9'],
-                ['4','5','6'],
-                ['1','2','3'],
-                ['0','.',BCK],
-                [CLR,ENTR,ENTR],
+                ['7', '8', '9'],
+                ['4', '5', '6'],
+                ['1', '2', '3'],
+                ['0', '.', ':'],
+                [CLR, BCK,ENTR],
             ]);
             public static VKLayout IPv6 => IPv6_alt2;
             public static readonly VKLayout IPv6_alt1 = new([
-                ['A','B','C'],
-                ['D','E','F'],
-                ['1','2','3'],
-                ['4','5','6'],
-                ['7','8','9'],
-                ['0','.',':'],
-                [CLR,BCK,ENTR],
+                ['A', 'B', 'C'],
+                ['D', 'E', 'F'],
+                ['1', '2', '3'],
+                ['4', '5', '6'],
+                ['7', '8', '9'],
+                ['0', '.', ':'],
+                [CLR, BCK,ENTR],
             ]);
             public static readonly VKLayout IPv6_alt2 = new([
-                ['1','2','3','A','B'],
-                ['4','5','6','C','D'],
-                ['7','8','9','E','F'],
-                ['0','.',':','\0','\0'],
-                ['\0','\0',CLR,BCK,ENTR],
+                ['1', '2', '3', 'A', 'B'],
+                ['4', '5', '6', 'C', 'D'],
+                ['7', '8', '9', 'E', 'F'],
+                ['0', '.', ':', LFT, RGT],
+                [CLR, NUL, DEL, BCK, ENTR],
             ]);
 
             internal LayoutData LayoutData;

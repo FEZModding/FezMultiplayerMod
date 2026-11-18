@@ -47,19 +47,23 @@ namespace FezGame.MultiplayerMod
                     return;
                 }
                 frameSinceLastFocus = 0;
-                hasFocus = value;
                 virtualKeyboard.Visible = value;
                 if (value)
                 {
                     //ensure text input is on
                     TextInputEXT.StartTextInput();
-                    virtualKeyboard.SetLayout(vklayout);
+                    if (!hasFocus)
+                    {
+                        virtualKeyboard.SetLayout(vklayout);
+                    }
+                    virtualKeyboard.attachedTextInputComponent = this;
                 }
                 else
                 {
                     TextInputEXT.StopTextInput();
                 }
                 showCaret = true;
+                hasFocus = value;
                 OnUpdate(false);
             }
         }
@@ -112,6 +116,15 @@ namespace FezGame.MultiplayerMod
                 blinkStartTime = totalSeconds;
                 OnUpdate(false);
             });
+        }
+
+        public void MoveCaret(int distance, double? totalSeconds = null)
+        {
+            caretPosition += distance;
+            showCaret = true;
+            blinkStartTime = totalSeconds ?? _totalSeconds;
+            OnUpdate(false);
+            ConstrainCaretPosition();
         }
 
         private void VirtualKeyboard_OnInput(char ch)
@@ -223,6 +236,7 @@ namespace FezGame.MultiplayerMod
         }
 
         private static double blinkStartTime = 0d;
+        private static double _totalSeconds = 0d;
         public override void Update(GameTime gameTime)
         {
             frameSinceLastFocus++;
@@ -232,10 +246,10 @@ namespace FezGame.MultiplayerMod
                 right.ClearKeyState();
                 return;
             }
-            double totalSeconds = gameTime.TotalGameTime.TotalSeconds;
+            _totalSeconds = gameTime.TotalGameTime.TotalSeconds;
             KeyboardState keyboard = Keyboard.GetState();
-            left.UpdateKeyState(keyboard, totalSeconds);
-            right.UpdateKeyState(keyboard, totalSeconds);
+            left.UpdateKeyState(keyboard, _totalSeconds);
+            right.UpdateKeyState(keyboard, _totalSeconds);
             ConstrainCaretPosition();
         }
         private float scrollX = 0;
