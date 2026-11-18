@@ -23,6 +23,7 @@ namespace FezMultiplayerDedicatedServer
         }
 
         private readonly List<IPAddressRange> ranges = new List<IPAddressRange>();
+        private readonly List<string> unknownRanges = [];
 #if DEBUG
         private readonly List<Tuple<string, IPAddressRange?>> rangesDEBUG = new List<Tuple<string, IPAddressRange?>>();
 #endif
@@ -45,6 +46,7 @@ namespace FezMultiplayerDedicatedServer
 #if DEBUG
                     rangesDEBUG.Add(Tuple.Create<string, IPAddressRange?>(str, null));
 #endif
+                    unknownRanges.Add(str);
                     //TODO notify user?
                     continue;
                 }
