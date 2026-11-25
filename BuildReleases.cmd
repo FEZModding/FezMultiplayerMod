@@ -14,11 +14,11 @@
 @set "pubclient=%dirclient%publish"
 
 @echo Building %buildConfig% FezMultiplayerMod.dll for %targetframework%
-@dotnet publish "%dirclient%FezMultiplayerMod-NET10.csproj" -c %buildConfig% -f %targetframework% -o "%pubclient%"
+@dotnet publish "%dirclient%FezMultiplayerMod.csproj" -c %buildConfig% -f %targetframework% -o "%pubclient%"
 @echo.
 @for %%R in (win-x64 linux-x64 osx-x64) do @(
     @echo Building %buildConfig% %serverExeName% for %targetframework% on %%R
-    @dotnet publish "%dirserve%%serverExeName%-NET10.csproj" -c %buildConfig% -f %targetframework% -r %%R -p:AssemblyName=FezMultiplayerDedicatedServer-%%R -o "%pubserve%"
+    @dotnet publish "%dirserve%%serverExeName%.csproj" -c %buildConfig% -f %targetframework% -r %%R -p:AssemblyName=FezMultiplayerDedicatedServer-%%R -o "%pubserve%"
     @echo.
 )
 
