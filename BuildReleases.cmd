@@ -22,7 +22,7 @@
 
 @IF /I [%1]==[/zip] IF NOT EXIST "%packedpath%" @mkdir "%packedpath%"
 
-@for %%R in (win-x64 linux-x64 osx-x64) do @(
+@for %%R in (win-x64 linux-x64 linux-arm64 osx-x64) do @(
     @echo Building %buildConfig% %serverExeName% for %targetframework% on %%R
     @dotnet publish "%dirserve%%serverExeName%.csproj" -c %buildConfig% -f %targetframework% -r %%R -p:AssemblyName=FezMultiplayerDedicatedServer-%%R -o "%pubserve%\%%R"
     @IF /I [%1]==[/zip] @(
