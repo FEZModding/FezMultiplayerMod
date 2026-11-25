@@ -17,7 +17,7 @@
 
 @echo Publishing project...
 
-@call BuildReleases.cmd
+@call BuildReleases.cmd /zip "%packedpath%"
 
 @cd /d %projectpath%
 
@@ -28,8 +28,8 @@
 @copy Metadata.xml FezMultiplayerMod\publish\Metadata.xml
 @IF NOT EXIST %packedpath% @mkdir %packedpath%
 
-@echo Packing the files that are in %pubserve% into %packedpath%\FezMultiplayerDedicatedServer.zip ...
-@powershell -command "Compress-Archive -Path '%pubserve%\*' -DestinationPath '%packedpath%\FezMultiplayerDedicatedServer.zip' -Force"
+@REM echo Packing the files that are in %pubserve% into %packedpath%\FezMultiplayerDedicatedServer.zip ...
+@REM powershell -command "Compress-Archive -Path '%pubserve%\*' -DestinationPath '%packedpath%\FezMultiplayerDedicatedServer.zip' -Force"
 @echo Packing the files that are in %pubclient% into %packedpath%\FezMultiplayerMod.zip ...
 @powershell -command "Compress-Archive -Path '%pubclient%\*' -DestinationPath '%packedpath%\FezMultiplayerMod.zip' -Force"
 
