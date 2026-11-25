@@ -26,12 +26,10 @@
     <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
-  <Import Project="$(MSBuildThisFileDirectory)../UserProperties.xml"
-    Condition="Exists('$(MSBuildThisFileDirectory)../UserProperties.xml')" />
+  <Import Project="$(MSBuildThisFileDirectory)../UserProperties.xml" Condition="Exists('$(MSBuildThisFileDirectory)../UserProperties.xml')" />
 
   <Target Name="VerifyModReferences" BeforeTargets="Build">
-    <Error Text="You forgot to configure UserProperties.xml"
-      Condition="!Exists('$(MSBuildThisFileDirectory)../UserProperties.xml')" />
+    <Error Text="You forgot to configure UserProperties.xml" Condition="!Exists('$(MSBuildThisFileDirectory)../UserProperties.xml')" />
   </Target>
 
   <Target Name="PrepareMod" AfterTargets="Build">
@@ -45,9 +43,14 @@
     </ItemGroup>
     <MakeDir Directories="$(ModCompileOutputDir)" />
     <Copy SourceFiles="@(ModFiles)" DestinationFolder="$(ModCompileOutputDir)" />
-    <Copy SourceFiles="@(NativeAssets)"
-      DestinationFolder="$(ModCompileOutputDir)\runtimes\%(RecursiveDir)" />
+    <Copy SourceFiles="@(NativeAssets)" DestinationFolder="$(ModCompileOutputDir)\runtimes\%(RecursiveDir)" />
   </Target>
+
+  <ItemGroup>
+    <Compile Remove="publish\**" />
+    <EmbeddedResource Remove="publish\**" />
+    <None Remove="publish\**" />
+  </ItemGroup>
 
 
   <!-- External Assembly References from your libs folder -->
