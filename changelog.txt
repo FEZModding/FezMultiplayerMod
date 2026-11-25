@@ -113,4 +113,5 @@ Added safety throttle to client-side TCP sending loop
 cleaned up files
 various bug fixes and improvements
 added a virtual keyboard for controller text input
+changed `x86` dedicated server build to separate `win-x64`, `linux-x64`, and `osx-x64` releases.
 
